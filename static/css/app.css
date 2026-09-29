@@ -40,26 +40,26 @@
   --app-heading-font:    'Outfit', 'Inter', system-ui, sans-serif;
 
   /* Token riêng của app */
-  --app-surface:   rgba(255, 255, 255, 0.85);
-  --app-surface-2: rgba(241, 245, 249, 0.8);
-  --app-border:    rgba(226, 232, 240, 0.5);
-  --app-bg-overlay: rgba(248, 250, 252, 0.88);
+  --app-surface:   rgba(255, 255, 255, 0.15);
+  --app-surface-2: rgba(255, 255, 255, 0.08);
+  --app-border:    rgba(255, 255, 255, 0.3);
+  --app-bg-overlay: rgba(248, 250, 252, 0.75);
   
   /* Glassmorphism navbar */
-  --app-header-bg: rgba(15, 23, 42, 0.4);
+  --app-header-bg: rgba(255, 255, 255, 0.1);
   --app-header-blur: blur(16px);
 }
 
 [data-bs-theme="dark"] {
   --bs-body-bg:      #0f172a;
   --bs-body-color:   #f8fafc;
-  --bs-border-color: rgba(51, 65, 85, 0.5);
-  --app-surface:     rgba(30, 41, 59, 0.8);
-  --app-surface-2:   rgba(51, 65, 85, 0.75);
-  --app-border:      rgba(51, 65, 85, 0.5);
-  --app-bg-overlay:  rgba(15, 23, 42, 0.82);
+  --bs-border-color: rgba(255, 255, 255, 0.1);
+  --app-surface:     rgba(15, 23, 42, 0.25);
+  --app-surface-2:   rgba(15, 23, 42, 0.15);
+  --app-border:      rgba(255, 255, 255, 0.15);
+  --app-bg-overlay:  rgba(15, 23, 42, 0.2);
   
-  --app-header-bg:   rgba(15, 23, 42, 0.4);
+  --app-header-bg:   rgba(15, 23, 42, 0.1);
   
   --app-shadow-sm:   0 2px 5px rgba(0, 0, 0, 0.4);
   --app-shadow:      0 10px 15px -3px rgba(0, 0, 0, 0.5);
@@ -150,7 +150,7 @@ a { text-underline-offset: .15em; }
   --bs-card-border-radius: var(--bs-border-radius-lg);
   --bs-card-cap-bg: transparent;
   border-width: 1px;
-  box-shadow: var(--app-shadow-sm);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -250,7 +250,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--app-border);
-  box-shadow: var(--app-shadow-lg);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
 }
 .hero::before {
