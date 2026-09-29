@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Gợi ý công việc{% endblock %}
+
+{% block content %}
+<h4 class="mb-1">Gợi ý công việc</h4>
+<p class="text-muted small">
+  {{ event.name }}
+</p>
+
+<div class="alert alert-info small">
+  Tick chọn những việc bạn muốn thêm. Có thể sửa tên và số ngày trước khi lưu —
+  hệ thống chỉ gợi ý, quyết định vẫn là của bạn.
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="save">
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:40px">
+              <input type="checkbox" class="form-check-input" id="check-all" checked>
+            </th>
+            <th>Công việc</th>
+            <th style="width:120px">Trước (ngày)</th>
+            <th style="width:170px">Deadline</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+            <tr>
+              <td>
+                <input type="checkbox" name="chosen" value="{{ forloop.counter0 }}"
+                       class="form-check-input row-check" checked>
+              </td>
+              <td>
+                <input name="title" value="{{ task.title }}" class="form-control form-control-sm mb-1">
+                <input name="note" value="{{ task.note }}"
+                       class="form-control form-control-sm text-muted"
+                       placeholder="Ghi chú">
+              </td>
+              <td>
+                <input type="number" name="days_before" value="{{ task.days_before }}"
+                       min="0" class="form-control form-control-sm">
+              </td>
+              <td class="small text-muted">{{ task.deadline|date:"H:i d/m/Y" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-4">
+              Không có gợi ý nào.
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <button class="btn btn-primary">Lưu các việc đã chọn</button>
+    <a href="{% url 'organizing:board' event.pk %}" class="btn btn-link">Quay lại</a>
+  </div>
+</form>
+
+<script>
+  // Tick/bỏ tick tất cả
+  document.getElementById('check-all')?.addEventListener('change', function () {
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = this.checked);
+  });
+</script>
+{% endblock %}

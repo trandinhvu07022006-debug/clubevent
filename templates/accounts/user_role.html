@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Đổi vai trò{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Đổi vai trò</h5>
+        <p class="text-muted">
+          {{ target.full_name|default:target.username }} —
+          hiện tại: <strong>{{ target.get_role_display }}</strong>
+        </p>
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Vai trò mới</label>
+            {{ form.role }}
+          </div>
+          <button class="btn btn-primary">Lưu</button>
+          <a href="{% url 'accounts:user_list' %}" class="btn btn-link">Huỷ</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

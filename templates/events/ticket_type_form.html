@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Thêm loại vé{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Thêm loại vé</h5>
+        <p class="text-muted small">
+          {{ event.name }} — sức chứa {{ event.capacity }},
+          các loại vé hiện có đã chiếm {{ event.total_quota }}.
+        </p>
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+            <div class="mb-3">
+              <label class="form-label">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                <div class="text-danger small">{{ field.errors|first }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+          <div class="form-text mb-3">Để giá = 0 nếu là vé miễn phí.</div>
+          <button class="btn btn-primary">Thêm loại vé</button>
+          <a href="{% url 'events:detail' event.pk %}" class="btn btn-link">Quay lại</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

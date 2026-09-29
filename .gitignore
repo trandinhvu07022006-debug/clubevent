@@ -1,0 +1,27 @@
+# Bí mật — TUYỆT ĐỐI không commit
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+env/
+.venv/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+/media/
+/staticfiles/*
+!/staticfiles/.gitkeep
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Hệ điều hành
+.DS_Store
+Thumbs.db

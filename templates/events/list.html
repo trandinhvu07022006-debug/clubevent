@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static ui %}
+{% block title %}Sự kiện{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Sự kiện của CLB</h4>
+  {% if user.is_lead %}
+    <a href="{% url 'events:create' %}" class="btn btn-primary">+ Tạo sự kiện</a>
+  {% endif %}
+</div>
+
+<form class="row g-2 mb-4">
+  <div class="col-md-4">
+    <input name="q" value="{{ keyword }}" class="form-control"
+           placeholder="Tìm theo tên hoặc địa điểm">
+  </div>
+  <div class="col-md-3">
+    <select name="status" class="form-select">
+      <option value="">— Tất cả trạng thái —</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if value == current_status %}selected{% endif %}>
+          {{ label }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-outline-primary">Lọc</button></div>
+</form>
+
+<div class="row g-3">
+  {% for event in events %}
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 card-event shadow-sm">
+        {% comment %}
+          Ảnh bìa do BTC upload. Chưa upload thì dùng ảnh mặc định trong
+          static/, chọn theo id sự kiện nên mỗi sự kiện một ảnh cố định.
+        {% endcomment %}
+        {% if event.cover %}
+          <img src="{{ event.cover.url }}" class="card-img-top event-cover"
+               alt="Ảnh bìa {{ event.name }}">
+        {% else %}
+          {% with n=event|cover_index %}
+            <img src="{% static 'img/' %}cover-{{ n }}.jpg"
+                 class="card-img-top event-cover" alt="">
+          {% endwith %}
+        {% endif %}
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="card-title mb-0">{{ event.name }}</h5>
+            <span class="badge
+              {% if event.status == 'OPEN' %}bg-success
+              {% elif event.status == 'DRAFT' %}bg-secondary
+              {% elif event.status == 'CANCELLED' %}bg-danger
+              {% elif event.status == 'DONE' %}bg-dark
+              {% else %}bg-warning text-dark{% endif %}">
+              {{ event.get_status_display }}
+            </span>
+          </div>
+          <p class="card-text small text-muted mb-2">
+            {{ event.starts_at|date:"H:i - d/m/Y" }}<br>
+            {{ event.location }}
+          </p>
+          <p class="card-text small">{{ event.description|truncatechars:100 }}</p>
+
+          {% if event.total_quota %}
+            <p class="small mb-0">
+              Còn <strong>{{ event.seats_left }}</strong>/{{ event.total_quota }} chỗ
+            </p>
+          {% endif %}
+        </div>
+        <div class="card-footer bg-white border-0">
+          <a href="{% url 'events:detail' event.pk %}"
+             class="btn btn-sm btn-outline-primary w-100">Xem chi tiết</a>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="alert alert-light text-center">Chưa có sự kiện nào.</div>
+    </div>
+  {% endfor %}
+</div>
+
+{% include "partials/pagination.html" with page=page_obj %}
+{% endblock %}

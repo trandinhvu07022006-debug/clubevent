@@ -1,0 +1,38 @@
+{% comment %}
+  Trang lỗi 500 KHÔNG được extends base.html.
+  Lý do: lỗi 500 nghĩa là server đang hỏng, có thể hỏng ở chính chỗ render
+  context của base.html, lúc đó Django sẽ không render nổi trang lỗi.
+  Nên trang này viết HTML thuần, không phụ thuộc gì.
+{% endcomment %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lỗi hệ thống</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+           background: #f8f9fa; color: #212529; display: flex;
+           align-items: center; justify-content: center; min-height: 100vh;
+           margin: 0; padding: 16px; }
+    .box { text-align: center; max-width: 520px; }
+    .code { font-size: 5rem; font-weight: 700; color: #dc3545; line-height: 1; }
+    h1 { font-size: 1.35rem; margin: 16px 0 8px; }
+    p { color: #6c757d; line-height: 1.6; }
+    a { display: inline-block; margin-top: 16px; padding: 10px 20px;
+        background: #0d6efd; color: #fff; text-decoration: none;
+        border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="code">500</div>
+    <h1>Hệ thống gặp lỗi</h1>
+    <p>
+      Đã có lỗi xảy ra ở phía server. Vui lòng thử lại sau ít phút, hoặc
+      báo cho ban tổ chức để kiểm tra.
+    </p>
+    <a href="/">Về trang chủ</a>
+  </div>
+</body>
+</html>

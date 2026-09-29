@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Không có quyền truy cập{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-7 text-center py-5">
+    <div class="display-1 fw-bold text-danger">403</div>
+    <h4 class="mb-3">Bạn không có quyền truy cập trang này</h4>
+    <p class="text-muted">
+      {% if exception %}{{ exception }}{% else %}
+        Chức năng này chỉ dành cho một số vai trò nhất định.
+      {% endif %}
+    </p>
+    <p class="small text-muted">
+      Bạn đang đăng nhập với vai trò
+      <strong>{{ user.get_role_display|default:"Khách" }}</strong>.
+      Cần đổi vai trò thì liên hệ Admin của CLB.
+    </p>
+    <a href="{% url 'events:list' %}" class="btn btn-primary mt-2">Về trang sự kiện</a>
+  </div>
+</div>
+{% endblock %}

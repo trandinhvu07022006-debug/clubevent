@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Xác nhận thanh toán{% endblock %}
+
+{% block content %}
+<h4 class="mb-1">Xác nhận thanh toán</h4>
+<p class="text-muted small">
+  F4.4 — các vé đang ở trạng thái Chờ thanh toán. Sau khi người đăng ký
+  chuyển khoản, BTC bấm xác nhận để vé có hiệu lực check-in.
+</p>
+
+<form class="row g-2 mb-3">
+  <div class="col-md-4">
+    <input name="q" value="{{ keyword }}" class="form-control"
+           placeholder="Tìm theo mã vé">
+  </div>
+  <div class="col-auto"><button class="btn btn-outline-primary">Tìm</button></div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>Mã vé</th><th>Người đăng ký</th><th>Sự kiện</th>
+            <th>Loại vé</th><th class="text-end">Giá</th>
+            <th>Hạn thanh toán</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for t in tickets %}
+          <tr>
+            <td class="checkin-code">{{ t.code }}</td>
+            <td>
+              {{ t.user.full_name }}<br>
+              <small class="text-muted">{{ t.user.mssv|default:"—" }}</small>
+            </td>
+            <td>{{ t.event.name }}</td>
+            <td>{{ t.ticket_type.name }}</td>
+            <td class="text-end">{{ t.price|floatformat:0 }}đ</td>
+            <td class="small {% if t.is_payment_expired %}text-danger{% endif %}">
+              {{ t.payment_deadline|date:"H:i d/m" }}
+              {% if t.is_payment_expired %}<br>quá hạn{% endif %}
+            </td>
+            <td class="text-end">
+              <form method="post"
+                    action="{% url 'registrations:payment_confirm' t.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-success">Đã thanh toán</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">
+            Không có vé nào chờ xác nhận.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

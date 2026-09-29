@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Người tham gia{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h4 class="mb-1">Người tham gia</h4>
+    <p class="text-muted mb-0 small">{{ event.name }}</p>
+  </div>
+  <a href="{% url 'registrations:participants_csv' event.pk %}"
+     class="btn btn-outline-success btn-sm">Xuất CSV</a>
+</div>
+
+<form class="row g-2 mb-3">
+  <div class="col-md-4">
+    <input name="q" value="{{ keyword }}" class="form-control"
+           placeholder="Tìm theo tên, MSSV hoặc mã vé">
+  </div>
+  <div class="col-md-3">
+    <select name="status" class="form-select">
+      <option value="">— Tất cả trạng thái —</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if value == current_status %}selected{% endif %}>
+          {{ label }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-outline-primary">Lọc</button></div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>Mã vé</th><th>Họ tên</th><th>MSSV</th><th>Loại vé</th>
+            <th>Trạng thái</th><th>Check-in lúc</th></tr>
+      </thead>
+      <tbody>
+        {% for t in tickets %}
+          <tr>
+            <td class="checkin-code small">{{ t.code }}</td>
+            <td>{{ t.user.full_name }}</td>
+            <td>{{ t.user.mssv|default:"—" }}</td>
+            <td>{{ t.ticket_type.name }}</td>
+            <td>
+              <span class="badge
+                {% if t.status == 'CHECKED_IN' %}bg-dark
+                {% elif t.status == 'CONFIRMED' %}bg-success
+                {% elif t.status == 'PENDING' %}bg-warning text-dark
+                {% else %}bg-danger{% endif %}">
+                {{ t.get_status_display }}
+              </span>
+            </td>
+            <td class="small text-muted">
+              {{ t.checked_in_at|date:"H:i d/m"|default:"—" }}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-4">
+            Chưa có ai đăng ký.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% include "partials/pagination.html" with page=page_obj %}
+{% endblock %}

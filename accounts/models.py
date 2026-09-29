@@ -1,0 +1,81 @@
+"""
+M1 - Tài khoản & phân quyền.
+
+Dùng custom user model thay cho User mặc định của Django để thêm MSSV và
+role. Phải khai báo AUTH_USER_MODEL ngay từ đầu dự án, đổi về sau rất mệt.
+"""
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
+
+class Role(models.TextChoices):
+    """4 role theo use case diagram. Admin > Trưởng BTC > TV BTC > Thành viên."""
+    MEMBER = "MEMBER", "Thành viên"
+    STAFF = "STAFF", "Thành viên BTC"
+    LEAD = "LEAD", "Trưởng BTC"
+    ADMIN = "ADMIN", "Admin"
+
+
+class User(AbstractUser):
+    """Người dùng hệ thống. Đăng nhập bằng username, hiển thị theo họ tên."""
+
+    mssv = models.CharField("MSSV", max_length=20, unique=True, null=True, blank=True)
+    full_name = models.CharField("Họ tên", max_length=120, blank=True)
+    phone = models.CharField("Số điện thoại", max_length=20, blank=True)
+    role = models.CharField("Vai trò", max_length=10,
+                            choices=Role.choices, default=Role.MEMBER)
+    avatar = models.ImageField("Ảnh đại diện", upload_to="avatars/",
+                               null=True, blank=True)
+    is_locked = models.BooleanField("Bị khoá", default=False)
+    created_at = models.DateTimeField("Ngày tạo", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Người dùng"
+        verbose_name_plural = "Người dùng"
+
+    def __str__(self):
+        return f"{self.full_name or self.username} ({self.get_role_display()})"
+
+    # --- Các hàm kiểm tra quyền, dùng chung cho view và template ---
+    @property
+    def is_staff_btc(self):
+        """Là Thành viên BTC trở lên (TV BTC, Trưởng BTC, Admin)."""
+        return self.role in (Role.STAFF, Role.LEAD, Role.ADMIN)
+
+    @property
+    def is_lead(self):
+        """Là Trưởng BTC trở lên."""
+        return self.role in (Role.LEAD, Role.ADMIN)
+
+    @property
+    def is_admin_role(self):
+        return self.role == Role.ADMIN
+
+
+class AuditLog(models.Model):
+    """
+    F0.2 - Nhật ký thao tác.
+
+    Ghi lại các hành động quan trọng: gán role, huỷ sự kiện, xác nhận thanh
+    toán, check-in. Dùng để truy vết khi có tranh chấp.
+    """
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                            verbose_name="Người thực hiện")
+    action = models.CharField("Hành động", max_length=60)
+    target = models.CharField("Đối tượng", max_length=200, blank=True)
+    note = models.CharField("Ghi chú", max_length=255, blank=True)
+    created_at = models.DateTimeField("Thời gian", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Nhật ký thao tác"
+        verbose_name_plural = "Nhật ký thao tác"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"[{self.created_at:%d/%m %H:%M}] {self.user} - {self.action}"
+
+    @classmethod
+    def write(cls, user, action, target="", note=""):
+        """Hàm tiện dụng để ghi log từ bất kỳ service nào."""
+        return cls.objects.create(user=user, action=action,
+                                  target=str(target)[:200], note=note[:255])

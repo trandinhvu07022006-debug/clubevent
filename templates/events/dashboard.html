@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Thống kê{% endblock %}
+
+{% block content %}
+<h4 class="mb-1">Thống kê tổng hợp</h4>
+<p class="text-muted small">
+  F6.3 + F6.4 — so sánh các sự kiện: số người tham gia, tỉ lệ check-in,
+  điểm đánh giá và tiến độ công việc BTC.
+</p>
+
+{% comment %}
+  Dữ liệu cho biểu đồ. json_script tự escape nên tên sự kiện có ký tự đặc
+  biệt cũng không gây lỗi hay lỗ hổng XSS.
+{% endcomment %}
+{{ checkin_chart|json_script:"data-checkin" }}
+{{ rating_chart|json_script:"data-rating-events" }}
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title mb-1">Vé đã check-in trên tổng số vé</h6>
+        <p class="small text-muted mb-3">
+          Phần đậm là số người thực sự đến dự. Đưa chuột vào thanh để xem tỉ lệ.
+        </p>
+        {% if rows %}
+          {% comment %}
+            Chiều cao tính theo số sự kiện, cộng thêm chỗ cho nhãn trục và
+            chú giải, để không bị cắt mất phần dưới.
+          {% endcomment %}
+          <div style="height: {{ rows|length|add:1 }}00px">
+            <canvas id="chart-checkin"></canvas>
+          </div>
+        {% else %}
+          <p class="text-muted small mb-0">Chưa có dữ liệu.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title mb-1">Điểm đánh giá trung bình</h6>
+        <p class="small text-muted mb-3">
+          Thang 1–5 sao, chỉ tính sự kiện đã có người đánh giá.
+        </p>
+        {% comment %}
+          Chỉ vẽ biểu đồ khi có từ 2 sự kiện trở lên. Biểu đồ một cột thì
+          không so sánh được gì, hiển thị thẳng con số còn dễ đọc hơn.
+        {% endcomment %}
+        {% if rating_chart.labels|length > 1 %}
+          <div style="height: {{ rating_chart.labels|length|add:1 }}00px">
+            <canvas id="chart-rating-events"></canvas>
+          </div>
+        {% elif rating_chart.labels %}
+          <div class="text-center py-4">
+            <div class="display-5 fw-semibold">
+              {{ rating_chart.values.0 }}<span class="fs-5 text-muted">/5</span>
+            </div>
+            <div class="text-muted">
+              {{ rating_chart.labels.0 }}<br>
+              <span class="small">{{ rating_chart.counts.0 }} lượt đánh giá</span>
+            </div>
+            <p class="small text-muted mt-3 mb-0">
+              Có thêm sự kiện được đánh giá thì chỗ này thành biểu đồ so sánh.
+            </p>
+          </div>
+        {% else %}
+          <p class="text-muted small mb-0">
+            Chưa sự kiện nào có đánh giá.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Sự kiện</th>
+          <th class="text-end">Vé</th>
+          <th class="text-end">Check-in</th>
+          <th class="text-end">Tỉ lệ</th>
+          <th class="text-end">Doanh thu</th>
+          <th class="text-end">Đánh giá</th>
+          <th class="text-end">Công việc</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>
+              <a href="{% url 'events:detail' row.event.pk %}">{{ row.event.name }}</a>
+              <br>
+              <small class="text-muted">
+                {{ row.event.starts_at|date:"d/m/Y" }} ·
+                {{ row.event.get_status_display }}
+              </small>
+            </td>
+            <td class="text-end">{{ row.sold }}</td>
+            <td class="text-end">{{ row.checked_in }}</td>
+            <td class="text-end">
+              <div class="progress" style="height:6px;width:70px;margin-left:auto">
+                <div class="progress-bar bg-success" style="width:{{ row.checkin_rate }}%"></div>
+              </div>
+              <small>{{ row.checkin_rate }}%</small>
+            </td>
+            <td class="text-end">{{ row.revenue|floatformat:0 }}đ</td>
+            <td class="text-end">
+              {% if row.rating_avg %}
+                <span class="star-rating">★</span> {{ row.rating_avg }}
+                <small class="text-muted">({{ row.rating_count }})</small>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {{ row.task_done }}/{{ row.task_total }}
+              {% if row.task_done %}
+                <br><small class="text-muted">{{ row.task_on_time_rate }}% đúng hạn</small>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">
+            Chưa có sự kiện nào được mở.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="small text-muted mt-2">
+  Bảng trên là số liệu chính xác của cùng dữ liệu vẽ trong biểu đồ.
+</p>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

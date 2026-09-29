@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Nhật ký thao tác{% endblock %}
+
+{% block content %}
+<h4 class="mb-1">Nhật ký thao tác</h4>
+<p class="text-muted small">
+  F0.2 — ghi lại các thao tác quan trọng để truy vết khi có tranh chấp.
+</p>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr><th>Thời gian</th><th>Người thực hiện</th><th>Hành động</th>
+            <th>Đối tượng</th><th>Ghi chú</th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td class="text-nowrap">{{ log.created_at|date:"d/m/Y H:i" }}</td>
+            <td>{{ log.user|default:"—" }}</td>
+            <td><span class="badge bg-secondary">{{ log.action }}</span></td>
+            <td>{{ log.target }}</td>
+            <td class="small text-muted">{{ log.note }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-4">
+            Chưa có thao tác nào được ghi.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

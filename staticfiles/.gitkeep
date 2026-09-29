@@ -1,0 +1,2 @@
+Thư mục này do `python manage.py collectstatic` đổ file static vào khi deploy.
+Giữ thư mục rỗng ở đây để WhiteNoise không cảnh báo "No directory at".

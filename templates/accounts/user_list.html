@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Quản lý tài khoản{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Quản lý tài khoản</h4>
+  <a href="{% url 'accounts:audit_log' %}" class="btn btn-outline-secondary btn-sm">
+    Nhật ký thao tác
+  </a>
+</div>
+
+<form class="row g-2 mb-3">
+  <div class="col-md-5">
+    <input name="q" value="{{ keyword }}" class="form-control"
+           placeholder="Tìm theo tên, MSSV hoặc tên đăng nhập">
+  </div>
+  <div class="col-auto"><button class="btn btn-outline-primary">Tìm</button></div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Họ tên</th><th>MSSV</th><th>Tên đăng nhập</th>
+          <th>Vai trò</th><th>Trạng thái</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          <tr>
+            <td>
+              <span class="d-flex align-items-center gap-2">
+                {% include "partials/avatar.html" with person=u size="avatar-sm" %}
+                {{ u.full_name|default:"—" }}
+              </span>
+            </td>
+            <td>{{ u.mssv|default:"—" }}</td>
+            <td>{{ u.username }}</td>
+            <td><span class="badge bg-info text-dark">{{ u.get_role_display }}</span></td>
+            <td>
+              {% if u.is_locked %}
+                <span class="badge bg-danger">Đã khoá</span>
+              {% else %}
+                <span class="badge bg-success">Hoạt động</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{% url 'accounts:user_role' u.pk %}"
+                 class="btn btn-sm btn-outline-primary">Đổi vai trò</a>
+              <form method="post" action="{% url 'accounts:user_lock' u.pk %}"
+                    class="d-inline">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger">
+                  {% if u.is_locked %}Mở khoá{% else %}Khoá{% endif %}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-4">
+            Không tìm thấy tài khoản nào.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% include "partials/pagination.html" with page=page_obj %}
+{% endblock %}

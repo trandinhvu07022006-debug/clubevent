@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Phản hồi & thống kê{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h4 class="mb-1">Phản hồi & thống kê</h4>
+    <p class="text-muted mb-0 small">{{ event.name }}</p>
+  </div>
+  <form method="post" action="{% url 'feedback:ai_summarize' event.pk %}">
+    {% csrf_token %}
+    <button class="btn btn-outline-warning">Tóm tắt phản hồi</button>
+  </form>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="card text-center"><div class="card-body py-3">
+      <div class="h4 mb-0">{{ stat.sold }}</div>
+      <div class="small text-muted">vé đăng ký</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center"><div class="card-body py-3">
+      <div class="h4 mb-0">{{ stat.checkin_rate }}%</div>
+      <div class="small text-muted">tỉ lệ check-in</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center"><div class="card-body py-3">
+      <div class="h4 mb-0">
+        {% if stat.rating_avg %}
+          <span class="star-rating">★</span> {{ stat.rating_avg }}
+        {% else %}—{% endif %}
+      </div>
+      <div class="small text-muted">{{ stat.rating_count }} đánh giá</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center"><div class="card-body py-3">
+      <div class="h4 mb-0">{{ stat.task_done }}/{{ stat.task_total }}</div>
+      <div class="small text-muted">công việc xong</div>
+    </div></div>
+  </div>
+</div>
+
+{{ type_chart|json_script:"data-by-type" }}
+{{ rating_dist|json_script:"data-rating-dist" }}
+
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title mb-3">Số vé theo loại vé</h6>
+        {% if type_chart.labels|length > 1 %}
+          <div style="height: {{ type_chart.labels|length|add:1 }}00px">
+            <canvas id="chart-by-type"></canvas>
+          </div>
+          <ul class="list-unstyled small text-muted mb-0 mt-2">
+            {% for row in stat.by_type %}
+              <li>{{ row.ticket_type__name }}: {{ row.count }} vé</li>
+            {% endfor %}
+          </ul>
+        {% elif type_chart.labels %}
+          {% comment %}
+            Sự kiện chỉ có 1 loại vé thì biểu đồ một cột vô nghĩa, hiện số.
+          {% endcomment %}
+          <div class="text-center py-4">
+            <div class="display-5 fw-semibold">{{ type_chart.values.0 }}</div>
+            <div class="text-muted">
+              vé — {{ type_chart.labels.0 }}
+            </div>
+            <p class="small text-muted mt-3 mb-0">
+              Sự kiện chỉ có một loại vé nên không cần biểu đồ so sánh.
+            </p>
+          </div>
+        {% else %}
+          <p class="text-muted small mb-0">Chưa có vé nào.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title mb-3">Phân bố số sao</h6>
+        {% if stat.rating_count %}
+          <div style="height: 260px">
+            <canvas id="chart-rating-dist"></canvas>
+          </div>
+          <p class="small text-muted mb-0 mt-2">
+            {% for n in stat.rating_distribution %}
+              {{ forloop.counter }}★: {{ n }}{% if not forloop.last %} · {% endif %}
+            {% endfor %}
+          </p>
+        {% else %}
+          <p class="text-muted small mb-0">Chưa có đánh giá nào.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if summary %}
+  <div class="card border-warning mb-3">
+    <div class="card-header bg-warning-subtle">
+      Tổng hợp — dựa trên {{ summary.feedback_count }} phản hồi
+      <span class="small text-muted">
+        ({{ summary.generated_at|date:"H:i d/m/Y" }})
+      </span>
+    </div>
+    <div class="card-body">
+      <p><strong>Được khen:</strong> {{ summary.positive|default:"—" }}</p>
+      <p><strong>Bị góp ý:</strong> {{ summary.negative|default:"—" }}</p>
+      <p class="mb-0"><strong>Đề xuất cải thiện:</strong>
+        {{ summary.suggestion|linebreaksbr|default:"—" }}</p>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">Danh sách phản hồi</div>
+  <ul class="list-group list-group-flush">
+    {% for f in feedbacks %}
+      <li class="list-group-item">
+        <div class="d-flex justify-content-between">
+          <strong>{{ f.user.full_name|default:f.user.username }}</strong>
+          <span class="star-rating">
+            {% for i in "12345"|make_list %}
+              {% if forloop.counter <= f.rating %}★{% else %}☆{% endif %}
+            {% endfor %}
+          </span>
+        </div>
+        <p class="mb-1">{{ f.content|default:"(không ghi góp ý)" }}</p>
+        <small class="text-muted">{{ f.created_at|date:"H:i d/m/Y" }}</small>
+      </li>
+    {% empty %}
+      <li class="list-group-item text-center text-muted py-4">
+        Chưa có phản hồi nào.
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

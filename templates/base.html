@@ -1,0 +1,107 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CLB Event{% endblock %}</title>
+  {% comment %}
+    Bootstrap tải từ thư mục static của dự án, KHÔNG dùng CDN.
+    Lý do: wifi phòng học chập chờn là mất sạch CSS giữa lúc demo.
+
+    Lưu ý cú pháp: {# ... #} của Django CHỈ dùng được cho chú thích 1 dòng.
+    Chú thích nhiều dòng phải dùng {% comment %} như ở đây, nếu không nó sẽ
+    hiện nguyên văn ra trang web.
+  {% endcomment %}
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="bg-body-tertiary">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="{% url 'events:list' %}">CLB Event</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'events:list' %}">Sự kiện</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'aiassist:chat' %}">Hỗ trợ</a>
+        </li>
+        {% if user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'registrations:my_tickets' %}">Vé của tôi</a>
+          </li>
+          {% if user.is_staff_btc %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'organizing:my_tasks' %}">Việc của tôi</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'registrations:payment_list' %}">Xác nhận TT</a>
+            </li>
+          {% endif %}
+          {% if user.is_lead %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'events:dashboard' %}">Thống kê</a>
+            </li>
+          {% endif %}
+          {% if user.is_admin_role %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'accounts:user_list' %}">Tài khoản</a>
+            </li>
+          {% endif %}
+        {% endif %}
+      </ul>
+      <ul class="navbar-nav">
+        {% if user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'accounts:profile' %}">
+              {{ user.full_name|default:user.username }}
+              <span class="badge bg-secondary">{{ user.get_role_display }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <form method="post" action="{% url 'accounts:logout' %}" class="d-inline">
+              {% csrf_token %}
+              <button class="btn btn-link nav-link" type="submit">Đăng xuất</button>
+            </form>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'accounts:login' %}">Đăng nhập</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'accounts:register' %}">Đăng ký</a>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<main class="container py-4">
+  {% if messages %}
+    {% for m in messages %}
+      <div class="alert alert-{{ m.tags|default:'info' }} alert-dismissible fade show">
+        {{ m }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="text-center text-muted py-4 small">
+  Đồ án môn Công nghệ phần mềm — Hệ thống hỗ trợ tổ chức sự kiện CLB sinh viên
+</footer>
+
+<script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

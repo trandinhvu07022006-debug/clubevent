@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Check-in{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <h4 class="mb-1">Check-in</h4>
+    <p class="text-muted small">{{ event.name }}</p>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between small mb-1">
+          <span>Đã vào</span>
+          <span><strong>{{ done }}</strong>/{{ total }} ({{ percent }}%)</span>
+        </div>
+        <div class="progress" style="height:10px">
+          <div class="progress-bar bg-success" style="width:{{ percent }}%"></div>
+        </div>
+      </div>
+    </div>
+
+    {% if result %}
+      <div class="alert alert-{{ css_class }} checkin-result">
+        <strong>
+          {% if result == 'OK' %}✓ HỢP LỆ
+          {% elif result == 'USED' %}⚠ ĐÃ SỬ DỤNG
+          {% else %}✕ KHÔNG HỢP LỆ{% endif %}
+        </strong>
+        <div class="mt-2">{{ note }}</div>
+        {% if ticket %}
+          <hr>
+          <div class="small">
+            Mã vé: <span class="checkin-code">{{ ticket.code }}</span><br>
+            {{ ticket.user.full_name }} ·
+            MSSV {{ ticket.user.mssv|default:"—" }}<br>
+            {{ ticket.ticket_type.name }}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <label class="form-label">Quét QR hoặc nhập mã vé</label>
+          <input name="code" id="code-input" class="form-control mb-3"
+                 placeholder="ABC123DEF456" autocomplete="off" autofocus required>
+          <button class="btn btn-success btn-lg w-100">Check-in</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <a href="{% url 'events:detail' event.pk %}"
+         class="btn btn-sm btn-outline-secondary">Về trang sự kiện</a>
+      {% if user.is_lead %}
+        <a href="{% url 'registrations:participants' event.pk %}"
+           class="btn btn-sm btn-outline-secondary">Danh sách người tham gia</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  // Tự viết hoa và focus lại sau mỗi lần check-in để BTC quét liên tục
+  const input = document.getElementById('code-input');
+  input?.addEventListener('input', e => e.target.value = e.target.value.toUpperCase());
+  input?.focus();
+</script>
+{% endblock %}

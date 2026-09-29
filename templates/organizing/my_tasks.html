@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Việc của tôi{% endblock %}
+
+{% block content %}
+<h4 class="mb-1">Việc của tôi</h4>
+<p class="text-muted small">
+  Sắp theo deadline.
+  {% if overdue_count %}
+    <span class="text-danger">Có {{ overdue_count }} việc quá hạn.</span>
+  {% endif %}
+</p>
+
+<div class="row g-3">
+  {% for task in tasks %}
+    <div class="col-md-6">
+      <div class="card h-100 shadow-sm
+        {% if task.is_overdue %}task-overdue{% elif task.status == 'DONE' %}task-done{% endif %}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <h6 class="mb-0 task-title">{{ task.title }}</h6>
+            <span class="badge
+              {% if task.status == 'DONE' %}bg-success
+              {% elif task.status == 'DOING' %}bg-primary
+              {% else %}bg-secondary{% endif %}">
+              {{ task.get_status_display }}
+            </span>
+          </div>
+          <p class="small text-muted mb-2">
+            {{ task.event.name }}
+            {% if task.deadline %} · hạn {{ task.deadline|date:"H:i d/m" }}{% endif %}
+            {% if task.is_overdue %}
+              <span class="badge bg-danger">quá hạn</span>
+            {% endif %}
+          </p>
+          {% if task.description %}
+            <p class="small mb-2">{{ task.description }}</p>
+          {% endif %}
+
+          <form method="post" action="{% url 'organizing:set_status' task.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'organizing:my_tasks' %}">
+            <div class="input-group input-group-sm mb-2">
+              <select name="status" class="form-select">
+                <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
+                <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
+                <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Xong</option>
+              </select>
+              <button class="btn btn-outline-primary">Cập nhật</button>
+            </div>
+            <input name="note" value="{{ task.note }}" class="form-control form-control-sm"
+                   placeholder="Ghi chú tiến độ (không bắt buộc)">
+          </form>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="alert alert-light text-center">
+        Bạn chưa được giao việc nào.
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

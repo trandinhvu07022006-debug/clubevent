@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Công việc BTC{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h4 class="mb-1">Công việc BTC</h4>
+    <p class="text-muted mb-0 small">
+      {{ event.name }} · {{ event.starts_at|date:"d/m/Y" }}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'organizing:ai_suggest' event.pk %}"
+       class="btn btn-outline-warning">Gợi ý công việc</a>
+    <a href="{% url 'organizing:create' event.pk %}"
+       class="btn btn-primary">+ Tạo công việc</a>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between small mb-1">
+      <span>Tiến độ chuẩn bị</span>
+      <span>
+        <strong>{{ event.task_progress }}%</strong>
+        {% if overdue_count %}
+          · <span class="text-danger">{{ overdue_count }} việc quá hạn</span>
+        {% endif %}
+      </span>
+    </div>
+    <div class="progress" style="height:10px">
+      <div class="progress-bar" style="width:{{ event.task_progress }}%"></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  {% for task in tasks %}
+    <div class="col-md-6">
+      <div class="card h-100 shadow-sm
+        {% if task.is_overdue %}task-overdue{% elif task.status == 'DONE' %}task-done{% endif %}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <h6 class="mb-0 task-title">{{ task.title }}</h6>
+            <span class="badge
+              {% if task.status == 'DONE' %}bg-success
+              {% elif task.status == 'DOING' %}bg-primary
+              {% else %}bg-secondary{% endif %}">
+              {{ task.get_status_display }}
+            </span>
+          </div>
+          <p class="small text-muted mb-2">
+            {{ task.assignee.full_name|default:"Chưa giao người" }}
+            {% if task.deadline %}
+              · hạn {{ task.deadline|date:"H:i d/m" }}
+            {% endif %}
+            {% if task.is_overdue %}
+              <span class="badge bg-danger">quá hạn</span>
+            {% endif %}
+            {% if task.created_by_ai %}
+            {% endif %}
+          </p>
+          {% if task.description %}
+            <p class="small mb-2">{{ task.description|truncatechars:120 }}</p>
+          {% endif %}
+          {% if task.note %}
+            <p class="small text-muted fst-italic mb-2">Ghi chú: {{ task.note }}</p>
+          {% endif %}
+
+          <div class="d-flex gap-1 flex-wrap">
+            <form method="post" action="{% url 'organizing:set_status' task.pk %}"
+                  class="d-flex gap-1">
+              {% csrf_token %}
+              <input type="hidden" name="next"
+                     value="{% url 'organizing:board' event.pk %}">
+              <select name="status" class="form-select form-select-sm"
+                      style="width:auto">
+                <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
+                <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
+                <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Xong</option>
+              </select>
+              <button class="btn btn-sm btn-outline-primary">Cập nhật</button>
+            </form>
+            <a href="{% url 'organizing:update' task.pk %}"
+               class="btn btn-sm btn-outline-secondary">Sửa</a>
+            {% if task.status != 'DONE' %}
+              <form method="post" action="{% url 'organizing:delete' task.pk %}"
+                    class="d-inline">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger">Xoá</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="alert alert-light text-center">
+        Chưa có công việc nào. Thử bấm <strong>Gợi ý công việc</strong> để
+        có ngay danh sách việc cần làm.
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Vé của tôi{% endblock %}
+
+{% block content %}
+<h4 class="mb-3">Vé của tôi</h4>
+
+<div class="row g-3">
+  {% for ticket in tickets %}
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="mb-0">{{ ticket.event.name }}</h6>
+            <span class="badge
+              {% if ticket.status == 'CHECKED_IN' %}bg-dark
+              {% elif ticket.status == 'CONFIRMED' %}bg-success
+              {% elif ticket.status == 'PENDING' %}bg-warning text-dark
+              {% else %}bg-danger{% endif %}">
+              {{ ticket.get_status_display }}
+            </span>
+          </div>
+          <p class="small text-muted mb-2">
+            {{ ticket.event.starts_at|date:"H:i d/m/Y" }} ·
+            {{ ticket.event.location }}<br>
+            {{ ticket.ticket_type.name }} —
+            {% if ticket.price %}{{ ticket.price|floatformat:0 }}đ{% else %}Miễn phí{% endif %}
+          </p>
+
+          {% if ticket.is_active %}
+            <div class="text-center my-3">
+              {% if ticket.qr %}
+                <img src="{{ ticket.qr }}" alt="QR {{ ticket.code }}" class="qr-img">
+              {% endif %}
+              <div class="checkin-code mt-2 h5">{{ ticket.code }}</div>
+              <div class="small text-muted">Đưa mã này cho BTC để check-in</div>
+            </div>
+          {% endif %}
+
+          {% if ticket.status == 'PENDING' %}
+            <div class="alert alert-warning small py-2 mb-2">
+              Vui lòng thanh toán trước
+              {{ ticket.payment_deadline|date:"H:i d/m" }},
+              sau đó BTC sẽ xác nhận. Quá hạn vé sẽ tự huỷ.
+            </div>
+          {% endif %}
+
+          {% if ticket.can_cancel %}
+            <form method="post" action="{% url 'registrations:cancel' ticket.pk %}"
+                  onsubmit="return confirm('Huỷ vé này? Chỗ sẽ được trả lại cho người khác.')">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger">Huỷ vé</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="alert alert-light text-center">
+        Bạn chưa đăng ký sự kiện nào.
+        <a href="{% url 'events:list' %}">Xem sự kiện đang mở</a>.
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

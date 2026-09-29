@@ -1,0 +1,25 @@
+# Thư viện cần thiết. Cài bằng: pip install -r requirements.txt
+
+Django>=5.0,<6.0
+
+# Driver MySQL viết bằng Python thuần, không cần biên dịch như mysqlclient
+# nên cài dễ hơn trên Windows.
+PyMySQL>=1.1.0
+
+# Băm mật khẩu bcrypt. Nếu máy không cài được, dự án tự chuyển sang PBKDF2
+# có sẵn trong Django (xem config/settings.py).
+bcrypt>=4.0.0
+
+# Sinh mã QR cho vé. Pillow là thư viện xử lý ảnh mà qrcode cần.
+qrcode>=7.4
+Pillow>=10.0
+
+# Phục vụ file static khi DEBUG=False. Không có nó thì deploy lên host thật
+# là mất sạch CSS và JavaScript.
+whitenoise>=6.6
+
+# --- Chỉ cần khi deploy ---
+# Bỏ dấu # ở 2 dòng dưới nếu deploy lên host dùng PostgreSQL (Render, Fly...).
+# Chạy MySQL hoặc SQLite thì không cần.
+# psycopg[binary]>=3.1
+# gunicorn>=21.0
