@@ -227,7 +227,9 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   border-radius: var(--bs-border-radius-xl);
   padding: 4rem 3rem;
   color: #fff;
-  background: linear-gradient(135deg, #1e3a8a, var(--brand), #3b82f6);
+  background-image: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(37, 99, 235, 0.7)), url('../img/music_bg.jpg');
+  background-size: cover;
+  background-position: center;
   box-shadow: var(--app-shadow-lg);
   margin-bottom: 2rem;
 }
