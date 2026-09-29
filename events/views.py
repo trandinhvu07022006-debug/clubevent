@@ -162,6 +162,12 @@ def dashboard(request):
 
     rows = semester_overview()
 
+    # Tính KPI tổng quan
+    total_sold = sum(r["sold"] for r in rows)
+    total_revenue = sum(r["revenue"] for r in rows)
+    total_checked = sum(r["checked_in"] for r in rows)
+    checkin_rate = round(total_checked * 100 / total_sold) if total_sold else 0
+
     # Dữ liệu cho biểu đồ. Truyền sang template bằng |json_script để tránh XSS
     # khi tên sự kiện có ký tự đặc biệt. Tên dài thì cắt bớt cho nhãn đỡ tràn.
     def short(name, limit=28):
@@ -187,4 +193,8 @@ def dashboard(request):
         "rating_chart": rating_chart,
         "upcoming": Event.objects.filter(
             status=EventStatus.OPEN, starts_at__gte=timezone.now()).count(),
+        "total_sold": total_sold,
+        "total_revenue": total_revenue,
+        "total_checked": total_checked,
+        "checkin_rate": checkin_rate,
     })

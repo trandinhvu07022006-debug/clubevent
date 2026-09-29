@@ -40,10 +40,10 @@
   --app-heading-font:    'Outfit', 'Inter', system-ui, sans-serif;
 
   /* Token riêng của app */
-  --app-surface:   rgba(255, 255, 255, 0.15);
-  --app-surface-2: rgba(255, 255, 255, 0.08);
-  --app-border:    rgba(255, 255, 255, 0.3);
-  --app-bg-overlay: rgba(248, 250, 252, 0.75);
+  --app-surface:   rgba(255, 255, 255, 0.92);
+  --app-surface-2: rgba(241, 245, 249, 0.85);
+  --app-border:    rgba(226, 232, 240, 0.8);
+  --app-bg-overlay: rgba(248, 250, 252, 0.8);
   
   /* Glassmorphism navbar */
   --app-header-bg: rgba(255, 255, 255, 0.1);
@@ -53,11 +53,11 @@
 [data-bs-theme="dark"] {
   --bs-body-bg:      #0f172a;
   --bs-body-color:   #f8fafc;
-  --bs-border-color: rgba(255, 255, 255, 0.1);
-  --app-surface:     rgba(15, 23, 42, 0.25);
-  --app-surface-2:   rgba(15, 23, 42, 0.15);
-  --app-border:      rgba(255, 255, 255, 0.15);
-  --app-bg-overlay:  rgba(15, 23, 42, 0.2);
+  --bs-border-color: rgba(51, 65, 85, 0.8);
+  --app-surface:     rgba(30, 41, 59, 0.92);
+  --app-surface-2:   rgba(51, 65, 85, 0.85);
+  --app-border:      rgba(51, 65, 85, 0.8);
+  --app-bg-overlay:  rgba(15, 23, 42, 0.4);
   
   --app-header-bg:   rgba(15, 23, 42, 0.1);
   
@@ -82,13 +82,28 @@ body {
   cursor: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2338bdf8' /%3E%3Cstop offset='100%25' stop-color='%23818cf8' /%3E%3C/linearGradient%3E%3Cfilter id='s'%3E%3CfeDropShadow dx='0' dy='2' stdDeviation='2' flood-color='rgba(0,0,0,0.4)'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M4 2 L22 10 L14 14 L20 22 L17 24 L11 16 L6 22 Z' fill='url(%23g)' stroke='%23ffffff' stroke-width='1.5' filter='url(%23s)'/%3E%3Ctext x='16' y='26' font-size='12'%3E🎵%3C/text%3E%3C/svg%3E") 4 2, auto;
 }
 
-a, button, .btn, .nav-link, input, select {
+a, button, .btn, .nav-link, .cursor-pointer {
   cursor: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g2' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fde047' /%3E%3Cstop offset='100%25' stop-color='%23f59e0b' /%3E%3C/linearGradient%3E%3Cfilter id='s'%3E%3CfeDropShadow dx='0' dy='2' stdDeviation='2' flood-color='rgba(0,0,0,0.4)'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M4 2 L22 10 L14 14 L20 22 L17 24 L11 16 L6 22 Z' fill='url(%23g2)' stroke='%23ffffff' stroke-width='1.5' filter='url(%23s)'/%3E%3Ctext x='16' y='26' font-size='12'%3E✨%3C/text%3E%3C/svg%3E") 4 2, pointer !important;
+}
+input, textarea, select {
+  cursor: auto !important;
 }
 
 @keyframes cosmicDrift {
   0% { background-position: 0% 0%; }
   100% { background-position: 100% 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    animation: none;
+    background-position: center;
+  }
+  * {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+  }
 }
 
 h1, h2, h3, h4, h5, h6, .navbar-brand { 
@@ -150,9 +165,7 @@ a { text-underline-offset: .15em; }
   --bs-card-border-radius: var(--bs-border-radius-lg);
   --bs-card-cap-bg: transparent;
   border-width: 1px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -246,9 +259,9 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   border-radius: var(--bs-border-radius-xl);
   padding: 4rem 3rem;
   color: var(--bs-body-color);
-  background: var(--app-surface);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(15, 23, 42, 0.35); /* Vẫn giữ kính mờ cho hero */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--app-border);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;

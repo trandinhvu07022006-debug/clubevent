@@ -90,11 +90,17 @@
           <div style="height: 260px">
             <canvas id="chart-rating-dist"></canvas>
           </div>
-          <p class="small text-muted mb-0 mt-2">
+          <div class="d-flex flex-column-reverse mt-3 gap-2">
             {% for n in stat.rating_distribution %}
-              {{ forloop.counter }}★: {{ n }}{% if not forloop.last %} · {% endif %}
+              <div class="d-flex align-items-center">
+                <div class="text-warning me-2 fw-bold text-end" style="width: 25px;">{{ forloop.counter }}★</div>
+                <div class="progress flex-grow-1 bg-warning-subtle" style="height: 10px;">
+                  <div class="progress-bar bg-warning" style="width: {% widthratio n stat.rating_count|default:1 100 %}%"></div>
+                </div>
+                <div class="ms-2 small fw-bold text-muted" style="width: 25px;">{{ n }}</div>
+              </div>
             {% endfor %}
-          </p>
+          </div>
         {% else %}
           <p class="text-muted small mb-0">Chưa có đánh giá nào.</p>
         {% endif %}
@@ -104,44 +110,67 @@
 </div>
 
 {% if summary %}
-  <div class="card border-warning mb-3">
-    <div class="card-header bg-warning-subtle">
-      Tổng hợp — dựa trên {{ summary.feedback_count }} phản hồi
-      <span class="small text-muted">
-        ({{ summary.generated_at|date:"H:i d/m/Y" }})
-      </span>
-    </div>
-    <div class="card-body">
-      <p><strong>Được khen:</strong> {{ summary.positive|default:"—" }}</p>
-      <p><strong>Bị góp ý:</strong> {{ summary.negative|default:"—" }}</p>
-      <p class="mb-0"><strong>Đề xuất cải thiện:</strong>
-        {{ summary.suggestion|linebreaksbr|default:"—" }}</p>
+  <div class="card shadow-sm border-0 mb-4 bg-primary-subtle rounded-4 overflow-hidden">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="card-title fw-bold text-primary-emphasis mb-0">
+          ✨ Insight từ AI
+        </h5>
+        <span class="badge bg-primary text-white rounded-pill px-3 py-2">
+          Dựa trên {{ summary.feedback_count }} phản hồi
+        </span>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="p-3 bg-white bg-opacity-75 rounded-3 h-100 border border-white">
+            <h6 class="fw-bold text-success-emphasis mb-2">👍 Được khen</h6>
+            <p class="mb-0 small text-dark">{{ summary.positive|default:"—" }}</p>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="p-3 bg-white bg-opacity-75 rounded-3 h-100 border border-white">
+            <h6 class="fw-bold text-danger-emphasis mb-2">🎯 Cần cải thiện</h6>
+            <p class="mb-0 small text-dark">{{ summary.negative|default:"—" }}</p>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="p-3 bg-white rounded-3 shadow-sm border border-primary-subtle">
+            <h6 class="fw-bold text-primary-emphasis mb-2">💡 Đề xuất hành động</h6>
+            <p class="mb-0 text-dark">{{ summary.suggestion|linebreaksbr|default:"—" }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="text-end mt-3">
+        <small class="text-primary-emphasis opacity-75">Tạo lúc: {{ summary.generated_at|date:"H:i d/m/Y" }}</small>
+      </div>
     </div>
   </div>
 {% endif %}
 
-<div class="card">
-  <div class="card-header">Danh sách phản hồi</div>
-  <ul class="list-group list-group-flush">
-    {% for f in feedbacks %}
-      <li class="list-group-item">
-        <div class="d-flex justify-content-between">
-          <strong>{{ f.user.full_name|default:f.user.username }}</strong>
-          <span class="star-rating">
-            {% for i in "12345"|make_list %}
-              {% if forloop.counter <= f.rating %}★{% else %}☆{% endif %}
-            {% endfor %}
-          </span>
-        </div>
-        <p class="mb-1">{{ f.content|default:"(không ghi góp ý)" }}</p>
-        <small class="text-muted">{{ f.created_at|date:"H:i d/m/Y" }}</small>
-      </li>
-    {% empty %}
-      <li class="list-group-item text-center text-muted py-4">
-        Chưa có phản hồi nào.
-      </li>
-    {% endfor %}
-  </ul>
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <h6 class="card-header bg-transparent fw-bold py-3">Danh sách phản hồi</h6>
+    <ul class="list-group list-group-flush">
+      {% for f in feedbacks %}
+        <li class="list-group-item p-3">
+          <div class="d-flex justify-content-between mb-1">
+            <strong class="text-primary-emphasis">{{ f.user.full_name|default:f.user.username }}</strong>
+            <span class="star-rating fs-6 text-warning">
+              {% for i in "12345"|make_list %}
+                {% if forloop.counter <= f.rating %}★{% else %}<span class="text-muted opacity-25">★</span>{% endif %}
+              {% endfor %}
+            </span>
+          </div>
+          <p class="mb-2 text-dark">{{ f.content|default:"(không ghi góp ý)" }}</p>
+          <small class="text-muted">{{ f.created_at|date:"H:i d/m/Y" }}</small>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-center text-muted py-5">
+          Chưa có phản hồi nào.
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
 </div>
 {% endblock %}
 

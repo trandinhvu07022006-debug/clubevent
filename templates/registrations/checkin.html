@@ -1,62 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Check-in{% endblock %}
+{% block title %}Check-in Kiosk{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-6">
-    <h4 class="mb-1">Check-in</h4>
-    <p class="text-muted small">{{ event.name }}</p>
+<div class="row justify-content-center mt-2">
+  <div class="col-lg-5 col-md-8">
+    <div class="text-center mb-4">
+      <h3 class="fw-bold mb-1">Check-in Sự Kiện</h3>
+      <p class="text-muted">{{ event.name }}</p>
+    </div>
 
-    <div class="card mb-3">
-      <div class="card-body">
-        <div class="d-flex justify-content-between small mb-1">
-          <span>Đã vào</span>
-          <span><strong>{{ done }}</strong>/{{ total }} ({{ percent }}%)</span>
+    <!-- Bộ đếm check-in -->
+    <div class="card shadow-sm mb-4 border-0">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted fw-bold small text-uppercase">Tiến độ vào cổng</span>
+          <span class="badge bg-primary rounded-pill fs-6">{{ done }} / {{ total }}</span>
         </div>
-        <div class="progress" style="height:10px">
-          <div class="progress-bar bg-success" style="width:{{ percent }}%"></div>
+        <div class="progress seats" style="height: 12px;">
+          <div class="progress-bar bg-primary" style="width:{{ percent }}%"></div>
         </div>
       </div>
     </div>
 
+    <!-- Kết quả -->
     {% if result %}
-      <div class="alert alert-{{ css_class }} checkin-result">
-        <strong>
-          {% if result == 'OK' %}✓ HỢP LỆ
-          {% elif result == 'USED' %}⚠ ĐÃ SỬ DỤNG
-          {% else %}✕ KHÔNG HỢP LỆ{% endif %}
-        </strong>
-        <div class="mt-2">{{ note }}</div>
-        {% if ticket %}
-          <hr>
-          <div class="small">
-            Mã vé: <span class="checkin-code">{{ ticket.code }}</span><br>
-            {{ ticket.user.full_name }} ·
-            MSSV {{ ticket.user.mssv|default:"—" }}<br>
-            {{ ticket.ticket_type.name }}
-          </div>
-        {% endif %}
+      <div class="card shadow-sm mb-4 border-0 text-center checkin-result bg-{{ css_class }}-subtle text-{{ css_class }}-emphasis">
+        <div class="card-body p-4">
+          <h2 class="fw-bold mb-2" style="font-size: 2rem;">
+            {% if result == 'OK' %}✓ HỢP LỆ
+            {% elif result == 'USED' %}⚠ ĐÃ SỬ DỤNG
+            {% else %}✕ KHÔNG HỢP LỆ{% endif %}
+          </h2>
+          <div class="fs-5 mb-3">{{ note }}</div>
+          {% if ticket %}
+            <div class="bg-body bg-opacity-50 p-3 rounded-3 text-start">
+              <div class="text-muted small mb-1">Mã vé</div>
+              <div class="checkin-code fs-4 mb-3">{{ ticket.code }}</div>
+              <hr class="my-2 border-secondary opacity-25">
+              <div class="fw-bold fs-5">{{ ticket.user.full_name }}</div>
+              <div class="text-muted mb-2">MSSV: {{ ticket.user.mssv|default:"—" }}</div>
+              <span class="badge bg-secondary px-3 py-2 fs-6">{{ ticket.ticket_type.name }}</span>
+            </div>
+          {% endif %}
+        </div>
       </div>
     {% endif %}
 
-    <div class="card shadow-sm">
-      <div class="card-body">
+    <!-- Form quét mã -->
+    <div class="card shadow border-0 mb-4">
+      <div class="card-body p-4">
         <form method="post">
           {% csrf_token %}
-          <label class="form-label">Quét QR hoặc nhập mã vé</label>
-          <input name="code" id="code-input" class="form-control mb-3"
-                 placeholder="ABC123DEF456" autocomplete="off" autofocus required>
-          <button class="btn btn-success btn-lg w-100">Check-in</button>
+          <label class="form-label fw-bold text-center w-100 mb-3 text-uppercase letter-spacing-1">Quét QR hoặc nhập mã vé</label>
+          <input name="code" id="code-input" class="form-control form-control-lg mb-4 py-3"
+                 placeholder="ABC123DEF" autocomplete="off" autofocus required>
+          <button class="btn btn-primary btn-lg w-100 py-3 fw-bold fs-5 shadow-sm text-uppercase">
+            Xác nhận
+          </button>
         </form>
       </div>
     </div>
 
-    <div class="mt-3">
-      <a href="{% url 'events:detail' event.pk %}"
-         class="btn btn-sm btn-outline-secondary">Về trang sự kiện</a>
+    <div class="d-flex flex-column gap-2 pb-4">
+      <a href="{% url 'events:detail' event.pk %}" class="btn btn-outline-secondary w-100 py-2 fw-medium">Quay lại trang sự kiện</a>
       {% if user.is_lead %}
-        <a href="{% url 'registrations:participants' event.pk %}"
-           class="btn btn-sm btn-outline-secondary">Danh sách người tham gia</a>
+        <a href="{% url 'registrations:participants' event.pk %}" class="btn btn-outline-secondary w-100 py-2 fw-medium">Danh sách người tham gia</a>
       {% endif %}
     </div>
   </div>
@@ -66,6 +74,7 @@
   // Tự viết hoa và focus lại sau mỗi lần check-in để BTC quét liên tục
   const input = document.getElementById('code-input');
   input?.addEventListener('input', e => e.target.value = e.target.value.toUpperCase());
-  input?.focus();
+  // Delay focus slightly to ensure it works on mobile devices after reload
+  setTimeout(() => input?.focus(), 100);
 </script>
 {% endblock %}
