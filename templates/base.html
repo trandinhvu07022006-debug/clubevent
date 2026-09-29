@@ -29,7 +29,7 @@
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
-<body>
+<body class="scene-0">
 
 {% comment %} navbar luôn tông tối (data-bs-theme="dark") để làm dải thương hiệu,
    bất kể trang đang ở chế độ sáng hay tối. {% endcomment %}
@@ -161,6 +161,7 @@
     });
   })();
 </script>
+<script src="{% static 'js/scene-theme.js' %}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
