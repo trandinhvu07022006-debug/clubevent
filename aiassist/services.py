@@ -13,12 +13,22 @@ Nguyên tắc thiết kế:
   - Không gửi kèm tên hay MSSV sang dịch vụ bên thứ ba (yêu cầu phi chức
     năng về quyền riêng tư).
 """
+from __future__ import annotations
+
 import json
+import logging
 import re
 import urllib.error
 import urllib.request
+from typing import TYPE_CHECKING
 
 from django.conf import settings
+
+if TYPE_CHECKING:
+    from events.models import Event
+    from feedback.models import FeedbackSummary
+
+logger = logging.getLogger(__name__)
 
 
 class AIError(Exception):
@@ -28,7 +38,7 @@ class AIError(Exception):
 # ---------------------------------------------------------------------------
 # Gọi API
 # ---------------------------------------------------------------------------
-def _call_gemini(prompt):
+def _call_gemini(prompt: str) -> str:
     """Gọi Google Gemini API. Trả về chuỗi text mà model sinh ra."""
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{settings.AI_MODEL}:generateContent?key={settings.AI_API_KEY}")
@@ -44,7 +54,7 @@ def _call_gemini(prompt):
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
-def _call_openai(prompt):
+def _call_openai(prompt: str) -> str:
     """Gọi OpenAI API. Dùng nếu nhóm chọn OpenAI thay vì Gemini."""
     body = json.dumps({
         "model": settings.AI_MODEL,
@@ -62,7 +72,7 @@ def _call_openai(prompt):
     return data["choices"][0]["message"]["content"]
 
 
-def _ask_ai(prompt):
+def _ask_ai(prompt: str) -> dict | list:
     """
     Gửi prompt tới AI, trả về dict đã parse từ JSON.
 
@@ -78,18 +88,22 @@ def _ask_ai(prompt):
         raw = (_call_openai(prompt) if settings.AI_PROVIDER == "openai"
                else _call_gemini(prompt))
     except urllib.error.HTTPError as e:
+        logger.warning("AI API HTTP error %d: %s", e.code, e.reason)
         raise AIError(f"Dịch vụ AI trả lỗi {e.code}. Có thể hết quota hoặc sai API key.")
     except urllib.error.URLError as e:
+        logger.warning("AI API connection error: %s", e.reason)
         raise AIError(f"Không kết nối được dịch vụ AI: {e.reason}")
     except (KeyError, IndexError):
+        logger.warning("AI API returned unexpected response structure")
         raise AIError("Dịch vụ AI trả về dữ liệu không đúng định dạng mong đợi.")
     except Exception as e:  # timeout và các lỗi còn lại
+        logger.warning("AI API unexpected error: %s", e, exc_info=True)
         raise AIError(f"Lỗi khi gọi AI: {e}")
 
     return _parse_json(raw)
 
 
-def _parse_json(raw):
+def _parse_json(raw: str) -> dict | list:
     """
     Làm sạch và parse JSON từ output của model.
 
@@ -155,7 +169,7 @@ FALLBACK_TASKS = [
 ]
 
 
-def suggest_tasks(event, count=8):
+def suggest_tasks(event: Event, count: int = 8) -> tuple[list[dict], bool, str]:
     """
     Gợi ý danh sách công việc cho sự kiện.
 
@@ -183,7 +197,7 @@ def suggest_tasks(event, count=8):
         return _clean_tasks(FALLBACK_TASKS[:count], days_left), False, str(e)
 
 
-def _clean_tasks(tasks, days_left):
+def _clean_tasks(tasks, days_left: int) -> list[dict]:
     """Lọc và chuẩn hoá dữ liệu AI trả về — không tin dữ liệu bên ngoài."""
     result = []
     for item in (tasks or []):
@@ -220,7 +234,7 @@ Hãy đọc và tổng hợp. Chỉ trả về JSON đúng định dạng sau, k
   "suggestion": "3 đề xuất cụ thể để lần sau tổ chức tốt hơn"}}"""
 
 
-def summarize_feedback(event):
+def summarize_feedback(event: Event) -> tuple[FeedbackSummary | None, str]:
     """
     Tóm tắt phản hồi của sự kiện bằng AI, lưu kết quả vào DB.
 

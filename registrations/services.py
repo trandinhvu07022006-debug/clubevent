@@ -8,6 +8,10 @@ Vì sao tách riêng khỏi view:
 
 Đây là phần đáng nói nhất khi bảo vệ đồ án.
 """
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -18,6 +22,12 @@ from events.models import EventStatus, TicketType
 
 from .models import Ticket, TicketStatus
 
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
+    from accounts.models import User
+    from events.models import Event
+
 
 class BookingError(Exception):
     """Lỗi nghiệp vụ khi đặt vé. View bắt lỗi này và hiện thông báo cho user."""
@@ -27,7 +37,7 @@ class BookingError(Exception):
 # F4.1 - ĐẶT VÉ
 # ---------------------------------------------------------------------------
 @transaction.atomic
-def book_tickets(user, ticket_type_id, quantity):
+def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]:
     """
     Đặt `quantity` vé loại `ticket_type_id` cho `user`.
 
@@ -116,7 +126,7 @@ def book_tickets(user, ticket_type_id, quantity):
 # F4.3 - HUỶ VÉ
 # ---------------------------------------------------------------------------
 @transaction.atomic
-def cancel_ticket(user, ticket_id):
+def cancel_ticket(user: User, ticket_id: int) -> Ticket:
     """Huỷ vé và TRẢ LẠI chỗ. Cũng phải khoá dòng loại vé khi cộng lại sold."""
     try:
         ticket = Ticket.objects.select_related("event", "ticket_type").get(
@@ -142,10 +152,16 @@ def cancel_ticket(user, ticket_id):
 # ---------------------------------------------------------------------------
 # F4.4 - XÁC NHẬN THANH TOÁN
 # ---------------------------------------------------------------------------
-def confirm_payment(staff, ticket_id):
-    """BTC đánh dấu vé đã thanh toán: Chờ thanh toán -> Đã xác nhận."""
+@transaction.atomic
+def confirm_payment(staff: User, ticket_id: int) -> Ticket:
+    """
+    BTC đánh dấu vé đã thanh toán: Chờ thanh toán -> Đã xác nhận.
+
+    Dùng select_for_update() để chặn 2 BTC cùng xác nhận 1 vé đồng thời,
+    nhất quán với cách xử lý ở book_tickets() và cancel_ticket().
+    """
     try:
-        ticket = Ticket.objects.get(pk=ticket_id)
+        ticket = Ticket.objects.select_for_update().get(pk=ticket_id)
     except Ticket.DoesNotExist:
         raise BookingError("Không tìm thấy vé.")
 
@@ -173,7 +189,8 @@ CHECKIN_INVALID = "INVALID"
 
 
 @transaction.atomic
-def check_in(staff, code, event=None):
+def check_in(staff: User, code: str,
+             event: Event | None = None) -> tuple[str, Ticket | None, str]:
     """
     Quét hoặc nhập mã vé để check-in.
 
@@ -227,7 +244,7 @@ def check_in(staff, code, event=None):
 # F4.5 - TỰ HUỶ VÉ QUÁ HẠN THANH TOÁN
 # ---------------------------------------------------------------------------
 @transaction.atomic
-def release_expired_tickets():
+def release_expired_tickets() -> int:
     """
     Huỷ các vé Chờ thanh toán quá 24h và trả lại chỗ.
 
@@ -256,7 +273,8 @@ def release_expired_tickets():
 # ---------------------------------------------------------------------------
 # F4.6 - DANH SÁCH NGƯỜI THAM GIA
 # ---------------------------------------------------------------------------
-def participants(event, status=None, keyword=""):
+def participants(event: Event, status: str | None = None,
+                 keyword: str = "") -> QuerySet[Ticket]:
     """Danh sách vé của một sự kiện, có lọc theo trạng thái và tìm theo tên/MSSV."""
     qs = (Ticket.objects
           .filter(event=event)

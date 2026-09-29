@@ -7,6 +7,8 @@ môi trường trong file .env — KHÔNG hard-code, KHÔNG commit lên Git.
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -28,11 +30,18 @@ if _env_file.exists():
         if not _line or _line.startswith("#") or "=" not in _line:
             continue
         _k, _v = _line.split("=", 1)
-        os.environ.setdefault(_k.strip(), _v.strip())
+        # Strip dấu ngoặc bao quanh giá trị, vì file .env chuẩn hay viết
+        # KEY="value" hoặc KEY='value'. Không strip sẽ đọc kèm dấu ngoặc.
+        _v = _v.strip().strip("'\"")
+        os.environ.setdefault(_k.strip(), _v)
 
 SECRET_KEY = env("SECRET_KEY", "dev-only-doi-key-nay-truoc-khi-deploy")
 DEBUG = env_bool("DEBUG", True)
 ALLOWED_HOSTS = [h for h in env("ALLOWED_HOSTS", "*").split(",") if h]
+
+# Deploy thật mà quên đổi SECRET_KEY thì báo lỗi ngay, không chạy với key yếu
+if not DEBUG and SECRET_KEY.startswith("dev-only"):
+    raise ImproperlyConfigured("Phải đổi SECRET_KEY trong .env trước khi deploy!")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -230,6 +239,48 @@ AI_PROVIDER = env("AI_PROVIDER", "gemini")   # gemini | openai | mock
 AI_API_KEY = env("AI_API_KEY", "")           # để trong .env, không commit
 AI_MODEL = env("AI_MODEL", "gemini-2.0-flash")
 AI_TIMEOUT_SECONDS = int(env("AI_TIMEOUT_SECONDS", "20"))
+
+# --- Logging ---
+# AuditLog chỉ ghi hành động nghiệp vụ vào DB. Phần logging ở đây ghi lỗi
+# kỹ thuật (500, timeout, exception) vào file để debug khi deploy.
+_log_dir = BASE_DIR / "logs"
+_log_dir.mkdir(exist_ok=True)
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "file": {
+            "level": "WARNING",
+            "class": "logging.FileHandler",
+            "filename": _log_dir / "app.log",
+            "formatter": "verbose",
+            "encoding": "utf-8",
+        },
+        "console": {
+            "level": "DEBUG" if DEBUG else "WARNING",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["file", "console"],
+            "level": "WARNING",
+            "propagate": True,
+        },
+        "django.security": {
+            "handlers": ["file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
 
 # --- Bảo mật khi deploy thật (DEBUG=False) ---
 if not DEBUG:

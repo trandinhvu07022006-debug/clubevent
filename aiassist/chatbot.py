@@ -20,6 +20,7 @@ Cách nhận diện ý định:
 """
 import unicodedata
 
+from django.urls import reverse
 from django.utils import timezone
 
 
@@ -150,7 +151,7 @@ def answer(question, user=None):
         return {
             "intent": intent["code"],
             "text": "Bạn cần đăng nhập thì mình mới tra được thông tin cá nhân.",
-            "links": [{"label": "Đăng nhập", "url": "/taikhoan/dangnhap/"}],
+            "links": [{"label": "Đăng nhập", "url": reverse("accounts:login")}],
         }
 
     handler = HANDLERS[intent["code"]]
@@ -176,7 +177,7 @@ def _upcoming_events(user):
     for e in events:
         lines.append(f"• {e.name} — {timezone.localtime(e.starts_at):%H:%M %d/%m} "
                      f"tại {e.location}")
-        links.append({"label": e.name, "url": f"/sukien/{e.pk}/"})
+        links.append({"label": e.name, "url": reverse("events:detail", args=[e.pk])})
     return {"text": "\n".join(lines), "links": links}
 
 
@@ -200,7 +201,7 @@ def _seats_left(user):
             f"{t.name}: {'hết chỗ' if t.is_sold_out else str(t.remaining) + ' chỗ'}"
             for t in types)
         lines.append(f"• {e.name} — {detail}")
-        links.append({"label": f"Đăng ký {e.name}", "url": f"/sukien/{e.pk}/"})
+        links.append({"label": f"Đăng ký {e.name}", "url": reverse("events:detail", args=[e.pk])})
 
     if not lines:
         return {"text": "Các sự kiện đang mở chưa cấu hình loại vé.", "links": []}
@@ -218,7 +219,7 @@ def _my_tickets(user):
     if not tickets:
         return {
             "text": "Bạn chưa đăng ký sự kiện nào.",
-            "links": [{"label": "Xem sự kiện đang mở", "url": "/"}],
+            "links": [{"label": "Xem sự kiện đang mở", "url": reverse("events:list")}],
         }
 
     lines = [f"Bạn đang có {len(tickets)} vé:"]
@@ -229,7 +230,7 @@ def _my_tickets(user):
         lines.append(f"\nCó {pending} vé chờ thanh toán. Thanh toán xong báo BTC "
                      f"xác nhận, quá 24h vé sẽ tự huỷ.")
     return {"text": "\n".join(lines),
-            "links": [{"label": "Mở trang vé của tôi", "url": "/ve/cua-toi/"}]}
+            "links": [{"label": "Mở trang vé của tôi", "url": reverse("registrations:my_tickets")}]}
 
 
 def _my_tasks(user):
@@ -247,7 +248,7 @@ def _my_tasks(user):
              .order_by("deadline"))
     if not tasks:
         return {"text": "Bạn không còn việc nào chưa xong. Tốt lắm.",
-                "links": [{"label": "Xem tất cả việc", "url": "/congviec/viec-cua-toi/"}]}
+                "links": [{"label": "Xem tất cả việc", "url": reverse("organizing:my_tasks")}]}
 
     lines = [f"Bạn còn {len(tasks)} việc chưa xong:"]
     overdue = 0
@@ -263,7 +264,7 @@ def _my_tasks(user):
         lines.append(f"\nTrong đó {overdue} việc đã quá hạn.")
     return {"text": "\n".join(lines),
             "links": [{"label": "Mở trang việc của tôi",
-                       "url": "/congviec/viec-cua-toi/"}]}
+                       "url": reverse("organizing:my_tasks")}]}
 
 
 def _how_to_register(user):
@@ -281,7 +282,7 @@ def _how_to_register(user):
             f"{settings.PAYMENT_DEADLINE_HOURS}h chưa xác nhận là vé tự huỷ.\n"
             "5. Vé và mã QR nằm ở mục Vé của tôi."
         ),
-        "links": [{"label": "Xem sự kiện đang mở", "url": "/"}],
+        "links": [{"label": "Xem sự kiện đang mở", "url": reverse("events:list")}],
     }
 
 
@@ -290,7 +291,7 @@ def _how_to_checkin(user):
         "text": ("Hôm diễn ra sự kiện, bạn mở mục Vé của tôi và đưa mã QR "
                  "cho ban tổ chức quét. Không quét được thì đọc mã 12 ký tự "
                  "để ban tổ chức nhập tay. Mỗi vé chỉ check-in được một lần."),
-        "links": [{"label": "Mở trang vé của tôi", "url": "/ve/cua-toi/"}],
+        "links": [{"label": "Mở trang vé của tôi", "url": reverse("registrations:my_tickets")}],
     }
 
 
@@ -302,7 +303,7 @@ def _cancel_ticket(user):
                  f"{settings.CANCEL_BEFORE_HOURS} giờ nữa mới tới giờ diễn ra "
                  f"và vé chưa check-in. Huỷ xong chỗ đó được trả lại cho "
                  f"người khác đăng ký."),
-        "links": [{"label": "Mở trang vé của tôi", "url": "/ve/cua-toi/"}],
+        "links": [{"label": "Mở trang vé của tôi", "url": reverse("registrations:my_tickets")}],
     }
 
 

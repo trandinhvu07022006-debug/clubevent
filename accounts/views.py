@@ -7,10 +7,12 @@ from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.views.decorators.http import require_POST
+
+from core.pagination import paginate
 
 from .forms import LoginForm, ProfileForm, RegisterForm, RoleForm
 from .models import AuditLog, User
-from .pagination import paginate
 from .permissions import admin_required
 
 
@@ -106,9 +108,15 @@ def user_set_role(request, pk):
                   {"form": form, "target": target})
 
 
+@require_POST
 @admin_required
 def user_toggle_lock(request, pk):
-    """F1.4 - Khoá hoặc mở khoá tài khoản."""
+    """
+    F1.4 - Khoá hoặc mở khoá tài khoản.
+
+    Bắt buộc POST để chống CSRF via GET: nếu chỉ nhận GET thì attacker gửi
+    link cho admin click vào là khoá/mở khoá tài khoản mà admin không biết.
+    """
     target = get_object_or_404(User, pk=pk)
     if target == request.user:
         messages.error(request, "Không thể tự khoá tài khoản của mình.")

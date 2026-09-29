@@ -14,9 +14,12 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 
+from accounts.models import Role, User
 from events.models import Event, EventStatus
+from feedback.models import Feedback, FeedbackSummary
 
-from .services import AIError, _clean_tasks, _parse_json, suggest_tasks
+from .services import (AIError, _clean_tasks, _parse_json, suggest_tasks,
+                       summarize_feedback)
 
 
 class ParseJsonTests(TestCase):
@@ -119,3 +122,101 @@ class SuggestTasksFallbackTests(TestCase):
 
         self.assertFalse(used_ai)
         self.assertGreater(len(tasks), 0)
+
+
+class SummarizeFeedbackTests(TestCase):
+    """
+    Tóm tắt phản hồi bằng AI — test phần tích hợp và yêu cầu quyền riêng tư.
+
+    Không test nội dung tóm tắt (AI mỗi lần một khác), chỉ test:
+      - AI chạy được thì lưu FeedbackSummary vào DB, đếm đúng số phản hồi.
+      - AI lỗi thì KHÔNG crash, trả (None, thông báo lỗi) để view hiện fallback.
+      - Sự kiện chưa có phản hồi thì không gọi AI.
+      - QUYỀN RIÊNG TƯ: prompt gửi sang AI chỉ có số sao và nội dung góp ý,
+        TUYỆT ĐỐI không kèm họ tên hay MSSV người đánh giá.
+    """
+
+    def setUp(self):
+        now = timezone.now()
+        self.event = Event.objects.create(
+            name="Đêm nhạc đã xong", location="Hội trường B",
+            starts_at=now - timezone.timedelta(days=2),
+            register_deadline=now - timezone.timedelta(days=5),
+            capacity=200, status=EventStatus.DONE)
+
+        # Người đánh giá có họ tên và MSSV rất dễ nhận ra, để test quyền riêng
+        # tư: hai chuỗi này KHÔNG được xuất hiện trong prompt gửi sang AI.
+        self.u1 = User.objects.create_user(
+            username="nguoi1", password="x", mssv="SV0000001",
+            full_name="Nguyễn Văn Bí Mật", role=Role.MEMBER)
+        self.u2 = User.objects.create_user(
+            username="nguoi2", password="x", mssv="SV0000002",
+            full_name="Trần Thị Kín Đáo", role=Role.MEMBER)
+        Feedback.objects.create(event=self.event, user=self.u1, rating=5,
+                                content="Chương trình rất hay, âm thanh tốt.")
+        Feedback.objects.create(event=self.event, user=self.u2, rating=2,
+                                content="Chỗ ngồi hơi chật, cần cải thiện.")
+
+    @patch("aiassist.services._ask_ai")
+    def test_creates_summary_when_ai_works(self, mock_ask):
+        """AI chạy được -> lưu FeedbackSummary, đếm đúng số phản hồi."""
+        mock_ask.return_value = {
+            "positive": "Nội dung hay, âm thanh tốt.",
+            "negative": "Chỗ ngồi chật.",
+            "suggestion": "Thuê hội trường rộng hơn.",
+        }
+
+        summary, error = summarize_feedback(self.event)
+
+        self.assertEqual(error, "")
+        self.assertIsNotNone(summary)
+        self.assertEqual(summary.feedback_count, 2)
+        self.assertEqual(summary.positive, "Nội dung hay, âm thanh tốt.")
+
+        # Gọi lại lần nữa chỉ cập nhật, không đẻ thêm bản ghi (event là OneToOne)
+        summarize_feedback(self.event)
+        self.assertEqual(
+            FeedbackSummary.objects.filter(event=self.event).count(), 1)
+
+    @patch("aiassist.services._ask_ai", side_effect=AIError("Hết quota"))
+    def test_returns_error_when_ai_fails(self, mock_ask):
+        """AI lỗi -> KHÔNG crash, trả (None, thông báo), không lưu gì."""
+        summary, error = summarize_feedback(self.event)
+
+        self.assertIsNone(summary)
+        self.assertIn("Hết quota", error)
+        self.assertFalse(
+            FeedbackSummary.objects.filter(event=self.event).exists())
+
+    @patch("aiassist.services._ask_ai")
+    def test_no_feedback_does_not_call_ai(self, mock_ask):
+        """Sự kiện chưa có phản hồi thì không gọi AI, chỉ trả thông báo."""
+        empty = Event.objects.create(
+            name="Sự kiện chưa có phản hồi", location="C1",
+            starts_at=timezone.now() - timezone.timedelta(days=1),
+            register_deadline=timezone.now() - timezone.timedelta(days=3),
+            status=EventStatus.DONE)
+
+        summary, error = summarize_feedback(empty)
+
+        self.assertIsNone(summary)
+        self.assertIn("chưa có phản hồi", error)
+        mock_ask.assert_not_called()
+
+    @patch("aiassist.services._ask_ai")
+    def test_does_not_send_name_or_mssv_to_ai(self, mock_ask):
+        """
+        QUYỀN RIÊNG TƯ (yêu cầu phi chức năng): chỉ gửi số sao + nội dung góp
+        ý sang dịch vụ bên thứ ba, không gửi họ tên hay MSSV.
+        """
+        mock_ask.return_value = {"positive": "a", "negative": "b",
+                                 "suggestion": "c"}
+
+        summarize_feedback(self.event)
+
+        prompt = mock_ask.call_args.args[0]
+        self.assertNotIn("Nguyễn Văn Bí Mật", prompt)
+        self.assertNotIn("Trần Thị Kín Đáo", prompt)
+        self.assertNotIn("SV0000001", prompt)
+        # Nội dung góp ý thì phải có, nếu không thì bản tóm tắt vô nghĩa
+        self.assertIn("âm thanh tốt", prompt)

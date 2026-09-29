@@ -1,5 +1,4 @@
 """View cho M6 - Phản hồi & thống kê."""
-from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
@@ -8,27 +7,10 @@ from accounts.permissions import lead_required
 from aiassist.services import summarize_feedback
 from events.models import Event
 
+from .forms import FeedbackForm
 from .models import Feedback
 from .services import (FeedbackError, can_submit_feedback, event_statistics,
                        submit_feedback)
-
-
-class FeedbackForm(forms.ModelForm):
-    """F6.1 - Form gửi đánh giá 1-5 sao."""
-
-    rating = forms.ChoiceField(
-        label="Bạn chấm sự kiện mấy sao?",
-        choices=[(i, f"{i} sao") for i in range(5, 0, -1)],
-        widget=forms.RadioSelect,
-    )
-
-    class Meta:
-        model = Feedback
-        fields = ("rating", "content")
-        widgets = {"content": forms.Textarea(attrs={
-            "class": "form-control", "rows": 4,
-            "placeholder": "Điều bạn thích nhất, điều nên cải thiện..."})}
-        labels = {"content": "Góp ý (không bắt buộc)"}
 
 
 @login_required

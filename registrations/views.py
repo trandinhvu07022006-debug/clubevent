@@ -6,8 +6,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from accounts.pagination import paginate
 from accounts.permissions import lead_required, staff_required
+from core.pagination import paginate
 from events.models import Event
 
 from .models import Ticket, TicketStatus

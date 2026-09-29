@@ -15,6 +15,7 @@ db.sqlite3-journal
 /media/
 /staticfiles/*
 !/staticfiles/.gitkeep
+/logs/
 *.log
 
 # IDE

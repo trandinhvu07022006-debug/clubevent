@@ -3,10 +3,11 @@ from django.contrib import messages
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from accounts.models import AuditLog
-from accounts.pagination import paginate
 from accounts.permissions import lead_required
+from core.pagination import paginate
 from feedback.services import event_statistics
 
 from .forms import EventForm, TicketTypeForm
@@ -89,6 +90,7 @@ def event_update(request, pk):
                   {"form": form, "event": event, "is_new": False})
 
 
+@require_POST
 @lead_required
 def event_set_status(request, pk):
     """

@@ -1,4 +1,8 @@
 """Service cho M6 - Phản hồi & thống kê."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.conf import settings
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
@@ -8,12 +12,16 @@ from registrations.models import Ticket, TicketStatus
 
 from .models import Feedback
 
+if TYPE_CHECKING:
+    from accounts.models import User
+    from events.models import Event
+
 
 class FeedbackError(Exception):
     """Lỗi nghiệp vụ khi gửi phản hồi."""
 
 
-def can_submit_feedback(user, event):
+def can_submit_feedback(user: User, event: Event) -> tuple[bool, str]:
     """
     F6.1 - Điều kiện gửi đánh giá:
       1. Đã check-in sự kiện này (không dự thì không đánh giá).
@@ -40,7 +48,8 @@ def can_submit_feedback(user, event):
     return True, ""
 
 
-def submit_feedback(user, event, rating, content):
+def submit_feedback(user: User, event: Event, rating: int,
+                    content: str) -> Feedback:
     """Lưu đánh giá sau khi kiểm tra đủ điều kiện."""
     ok, reason = can_submit_feedback(user, event)
     if not ok:
@@ -49,7 +58,7 @@ def submit_feedback(user, event, rating, content):
                                    rating=rating, content=content)
 
 
-def event_statistics(event):
+def event_statistics(event: Event) -> dict:
     """
     F6.3 - Thống kê một sự kiện.
 
@@ -102,12 +111,66 @@ def event_statistics(event):
     }
 
 
-def semester_overview():
-    """F6.4 - So sánh các sự kiện: số người tham gia và điểm đánh giá."""
+def semester_overview() -> list[dict]:
+    """
+    F6.4 - So sánh các sự kiện: số người tham gia và điểm đánh giá.
+
+    Phiên bản tối ưu: dùng annotate để gộp hầu hết thống kê vào 1 query
+    thay vì gọi event_statistics() cho từng sự kiện (N+1 query).
+    Trước: 20 sự kiện → 120+ SQL queries.
+    Sau: 20 sự kiện → ~3 SQL queries.
+    """
     from events.models import Event, EventStatus
 
+    events = (Event.objects
+              .exclude(status=EventStatus.DRAFT)
+              .annotate(
+                  _sold=Count("tickets", filter=~Q(tickets__status=TicketStatus.CANCELLED)),
+                  _checked_in=Count("tickets", filter=Q(tickets__status=TicketStatus.CHECKED_IN)),
+                  _pending=Count("tickets", filter=Q(tickets__status=TicketStatus.PENDING)),
+                  _cancelled=Count("tickets", filter=Q(tickets__status=TicketStatus.CANCELLED)),
+                  _revenue=Sum("tickets__price", filter=Q(
+                      tickets__status__in=[TicketStatus.CONFIRMED, TicketStatus.CHECKED_IN]),
+                      default=0),
+                  _rating_avg=Avg("feedbacks__rating"),
+                  _rating_count=Count("feedbacks"),
+                  _task_total=Count("tasks"),
+                  _task_done=Count("tasks", filter=Q(tasks__status=TaskStatus.DONE)),
+              )
+              .order_by("starts_at"))
+
+    # on_time cần logic Python (so sánh done_at với deadline), nên vẫn phải
+    # query tasks riêng, nhưng chỉ 1 query cho tất cả sự kiện.
+    event_ids = [e.pk for e in events]
+    done_tasks = (Task.objects
+                  .filter(event_id__in=event_ids, status=TaskStatus.DONE)
+                  .only("event_id", "deadline", "done_at"))
+    on_time_map = {}
+    for t in done_tasks:
+        if t.deadline and t.done_at:
+            on_time_map.setdefault(t.event_id, [0, 0])
+            on_time_map[t.event_id][1] += 1  # total done
+            if t.done_at <= t.deadline:
+                on_time_map[t.event_id][0] += 1  # on time
+
     rows = []
-    for event in Event.objects.exclude(status=EventStatus.DRAFT).order_by("starts_at"):
-        stat = event_statistics(event)
-        rows.append({"event": event, **stat})
+    for event in events:
+        done = event._task_done
+        ot = on_time_map.get(event.pk, [0, 0])
+        rows.append({
+            "event": event,
+            "sold": event._sold,
+            "checked_in": event._checked_in,
+            "checkin_rate": round(event._checked_in * 100 / event._sold) if event._sold else 0,
+            "pending": event._pending,
+            "cancelled": event._cancelled,
+            "revenue": event._revenue,
+            "by_type": [],  # không cần chi tiết loại vé ở trang so sánh tổng
+            "rating_avg": round(event._rating_avg, 1) if event._rating_avg else None,
+            "rating_count": event._rating_count,
+            "rating_distribution": [],
+            "task_total": event._task_total,
+            "task_done": done,
+            "task_on_time_rate": round(ot[0] * 100 / ot[1]) if ot[1] else 0,
+        })
     return rows

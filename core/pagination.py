@@ -5,10 +5,20 @@ Yêu cầu phi chức năng ghi hệ thống phục vụ khoảng 500 người d
 mấy trăm dòng ra một trang thì vừa chậm vừa khó đọc, nên các danh sách đều
 phân trang.
 """
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.core.paginator import Paginator
 
+if TYPE_CHECKING:
+    from django.core.paginator import Page
+    from django.db.models import QuerySet
+    from django.http import HttpRequest
 
-def paginate(request, queryset, per_page=12):
+
+def paginate(request: HttpRequest, queryset: QuerySet,
+             per_page: int = 12) -> tuple[Page, str]:
     """
     Cắt queryset thành từng trang.
 
