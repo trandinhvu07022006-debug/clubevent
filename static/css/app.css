@@ -70,7 +70,7 @@
 /* ---- 2. NỀN CHUNG ------------------------------------------------------- */
 body {
   background-color: var(--bs-body-bg);
-  background-image: linear-gradient(var(--app-bg-overlay), var(--app-bg-overlay)), url('../img/galaxy_bg.jpg');
+  background-image: linear-gradient(var(--app-bg-overlay), var(--app-bg-overlay)), url('../img/ocean_galaxy_bg.jpg');
   background-attachment: fixed;
   background-size: 120% 120%;
   color: var(--bs-body-color);
@@ -78,6 +78,11 @@ body {
   text-rendering: optimizeLegibility;
   transition: background-color 0.3s ease, color 0.3s ease;
   animation: cosmicDrift 60s ease-in-out infinite alternate;
+  cursor: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 512' width='22' height='35'%3E%3Cpath fill='%23ffffff' stroke='%232563eb' stroke-width='24' d='M285.5 174c-4.4-18.7-11.8-37.1-22.1-55.2C253 100.8 240.2 83.1 225 65.5V16c0-8.8-7.2-16-16-16s-16 7.2-16 16v55.8c-14.7 15-28 32-39.7 51C128.8 152 112 191.1 112 233.9c0 14.8 2.6 29.5 7.6 44 4.8 13.9 11.6 26.6 20.3 38-16.7 18.5-38.3 35.8-63.1 51.5C53.7 382 32 399.7 32 418.1c0 8.7 6.3 16.8 18.2 23.3 11.4 6.3 26 9.8 41.6 10 25.4 .3 52.8-11 77.2-29.6V496c0 8.8 7.2 16 16 16s16-7.2 16-16V403.4c29.1-31.2 55.4-71.1 76-118 7.4-16.6 11-34 11-51.5 .1-19.7-4.1-39.7-12.5-59.9z' /%3E%3C/svg%3E") 11 1, auto;
+}
+
+a, button, .btn, .nav-link, input, select {
+  cursor: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 512' width='22' height='35'%3E%3Cpath fill='%23f59e0b' stroke='%23ffffff' stroke-width='24' d='M285.5 174c-4.4-18.7-11.8-37.1-22.1-55.2C253 100.8 240.2 83.1 225 65.5V16c0-8.8-7.2-16-16-16s-16 7.2-16 16v55.8c-14.7 15-28 32-39.7 51C128.8 152 112 191.1 112 233.9c0 14.8 2.6 29.5 7.6 44 4.8 13.9 11.6 26.6 20.3 38-16.7 18.5-38.3 35.8-63.1 51.5C53.7 382 32 399.7 32 418.1c0 8.7 6.3 16.8 18.2 23.3 11.4 6.3 26 9.8 41.6 10 25.4 .3 52.8-11 77.2-29.6V496c0 8.8 7.2 16 16 16s16-7.2 16-16V403.4c29.1-31.2 55.4-71.1 76-118 7.4-16.6 11-34 11-51.5 .1-19.7-4.1-39.7-12.5-59.9z' /%3E%3C/svg%3E") 11 1, pointer !important;
 }
 
 @keyframes cosmicDrift {
