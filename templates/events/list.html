@@ -5,12 +5,6 @@
 {% block content %}
 {% comment %} CSS gọn chỉ dùng cho trang này — không đụng vào app.css. {% endcomment %}
 <style>
-  .events-header { border-top: 3px solid var(--brand); }
-  .events-kicker {
-    display: inline-block; font-size: .72rem; letter-spacing: .16em;
-    font-weight: 700; color: var(--brand); text-transform: uppercase;
-  }
-
   .filter-pill {
     display: inline-block; padding: .38rem .9rem; border-radius: 999px;
     font-size: .85rem; font-weight: 500; text-decoration: none; white-space: nowrap;
@@ -48,16 +42,18 @@
   .ev-card:hover .date-badge .m { color: var(--brand-strong); }
 </style>
 
-{% comment %} 1. PAGE HEADER {% endcomment %}
-<header class="card border-0 shadow-sm mb-4 events-header">
-  <div class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+{% comment %} 1. PAGE HEADER — dùng class .page-header dùng chung {% endcomment %}
+<header class="page-header">
+  <span class="kicker">Sự kiện</span>
+  <div class="page-header-row">
     <div>
-      <span class="events-kicker">Sự kiện</span>
-      <h1 class="h3 fw-bold mt-1 mb-1">Sự kiện của câu lạc bộ</h1>
-      <p class="text-secondary mb-0">Khám phá, đăng ký và theo dõi các hoạt động sắp tới của KMG Club.</p>
+      <h1 class="h3 fw-bold">Sự kiện của câu lạc bộ</h1>
+      <p class="text-secondary">Khám phá, đăng ký và theo dõi các hoạt động sắp tới của KMG Club.</p>
     </div>
     {% if user.is_lead %}
-      <a href="{% url 'events:create' %}" class="btn btn-primary px-4">+ Tạo sự kiện</a>
+      <div class="page-header-actions">
+        <a href="{% url 'events:create' %}" class="btn btn-primary px-4"><i class="bi bi-plus-lg"></i> Tạo sự kiện</a>
+      </div>
     {% endif %}
   </div>
 </header>
@@ -80,7 +76,7 @@
       <form class="ms-auto" role="search">
         {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
         <div class="input-group input-group-sm search-box">
-          <span class="input-group-text bg-transparent border-end-0">🔎</span>
+          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
           <input name="q" value="{{ keyword }}" class="form-control border-start-0 ps-0"
                  placeholder="Tìm theo tên hoặc địa điểm">
           <button class="btn btn-outline-secondary" type="submit">Tìm</button>
@@ -139,8 +135,8 @@
         <div class="card-body d-flex flex-column">
           <h2 class="h5 card-title mb-1 text-clamp-2">{{ event.name }}</h2>
           <p class="small text-secondary mb-3">
-            🕒 {{ event.starts_at|date:"H:i · D, d/m/Y" }}<br>
-            📍 <span class="text-clamp-2 d-inline">{{ event.location }}</span>
+            <i class="bi bi-clock"></i> {{ event.starts_at|date:"H:i · D, d/m/Y" }}<br>
+            <i class="bi bi-geo-alt"></i> <span class="text-clamp-2 d-inline">{{ event.location }}</span>
           </p>
 
           {% if event.total_quota %}
@@ -178,7 +174,7 @@
   {% empty %}
     <div class="col-12">
       <div class="card border-0 shadow-sm text-center text-secondary py-5">
-        <div class="display-6 mb-2">🗓️</div>
+        <div class="display-6 mb-2"><i class="bi bi-calendar-x"></i></div>
         <p class="mb-1 fw-semibold">Không tìm thấy sự kiện nào</p>
         {% if current_status or keyword %}
           <p class="small mb-0">Thử <a href="{% url 'events:list' %}">bỏ bộ lọc</a> để xem tất cả.</p>

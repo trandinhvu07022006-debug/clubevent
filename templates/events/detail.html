@@ -5,10 +5,10 @@
 {% block content %}
 <div class="hero px-4 py-5 mb-4 position-relative overflow-hidden border-0">
   {% if event.cover %}
-    <img src="{{ event.cover.url }}" class="position-absolute w-100 h-100 object-fit-cover top-0 start-0 z-0" style="object-position: center;" alt="">
+    <img src="{{ event.cover.url }}" class="position-absolute w-100 h-100 object-fit-cover top-0 start-0 z-0" alt="">
   {% else %}
     {% with n=event|cover_index %}
-      <img src="{% static 'img/' %}cover-{{ n }}.jpg" class="position-absolute w-100 h-100 object-fit-cover top-0 start-0 z-0" style="object-position: center;" alt="">
+      <img src="{% static 'img/' %}cover-{{ n }}.jpg" class="position-absolute w-100 h-100 object-fit-cover top-0 start-0 z-0" alt="">
     {% endwith %}
   {% endif %}
   <div class="cover-overlay z-1"></div>
@@ -96,7 +96,7 @@
   </div>
 
   <div class="col-lg-5">
-    <div class="sticky-top" style="top: 5.5rem;">
+    <div class="sticky-top sticky-offset">
       <div class="card shadow-sm">
         <div class="card-body">
           <h6 class="card-title fw-bold mb-3">Đăng ký tham gia</h6>
@@ -184,7 +184,7 @@
                     {% if user.is_lead and tt.sold == 0 %}
                       <form method="post" action="{% url 'events:tt_delete' tt.pk %}" class="d-inline">
                         {% csrf_token %}
-                        <button class="btn btn-sm btn-link text-danger p-0 ms-1 text-decoration-none" title="Xoá">&times;</button>
+                        <button class="btn btn-sm btn-link text-danger p-0 ms-1 text-decoration-none" title="Xoá"><i class="bi bi-x-lg"></i></button>
                       </form>
                     {% endif %}
                   </span>

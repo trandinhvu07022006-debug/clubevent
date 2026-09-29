@@ -34,9 +34,11 @@
     for (var k = 0; k < SCENES; k++) {
       body.classList.remove("scene-" + k);
       layers[k].style.opacity = 0;
+      layers[k].classList.remove("active");   // chỉ lớp đang hiện mới chạy animation -> đỡ giật
     }
     body.classList.add("scene-" + n);
     layers[n].style.opacity = 1;
+    layers[n].classList.add("active");
   }
 
   show(0);

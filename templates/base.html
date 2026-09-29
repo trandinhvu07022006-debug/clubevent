@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}KMG Club{% endblock %}</title>
-  <link rel="icon" href="{% static 'img/logo.jpg' %}" type="image/jpeg">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
 
   {% comment %}
     Bật lại theme sáng/tối đã lưu TRƯỚC khi tải CSS, để không bị "nháy" trắng
@@ -27,9 +27,11 @@
     Lý do: wifi phòng học chập chờn là mất sạch CSS giữa lúc demo.
   {% endcomment %}
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+  {% comment %} Bộ icon thật (Bootstrap Icons) self-host trong static/vendor — KHÔNG CDN. {% endcomment %}
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
-<body class="scene-0">
+<body>
 
 {% comment %} navbar luôn tông tối (data-bs-theme="dark") để làm dải thương hiệu,
    bất kể trang đang ở chế độ sáng hay tối. {% endcomment %}
@@ -88,7 +90,7 @@
         <li class="nav-item me-lg-2">
           <button class="btn btn-sm nav-theme-toggle" type="button" id="themeToggle"
                   title="Đổi giao diện sáng / tối" aria-label="Đổi giao diện sáng / tối">
-            <span class="theme-icon-light">☀</span><span class="theme-icon-dark">🌙</span>
+            <span class="theme-icon-light"><i class="bi bi-sun-fill"></i></span><span class="theme-icon-dark"><i class="bi bi-moon-stars-fill"></i></span>
           </button>
         </li>
         {% if user.is_authenticated %}
@@ -161,7 +163,6 @@
     });
   })();
 </script>
-<script src="{% static 'js/scene-theme.js' %}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

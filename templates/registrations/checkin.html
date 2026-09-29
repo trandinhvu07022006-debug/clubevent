@@ -16,7 +16,7 @@
           <span class="text-muted fw-bold small text-uppercase">Tiến độ vào cổng</span>
           <span class="badge bg-primary rounded-pill fs-6">{{ done }} / {{ total }}</span>
         </div>
-        <div class="progress seats" style="height: 12px;">
+        <div class="progress seats progress-lg">
           <div class="progress-bar bg-primary" style="width:{{ percent }}%"></div>
         </div>
       </div>
@@ -26,10 +26,10 @@
     {% if result %}
       <div class="card shadow-sm mb-4 border-0 text-center checkin-result bg-{{ css_class }}-subtle text-{{ css_class }}-emphasis">
         <div class="card-body p-4">
-          <h2 class="fw-bold mb-2" style="font-size: 2rem;">
-            {% if result == 'OK' %}✓ HỢP LỆ
-            {% elif result == 'USED' %}⚠ ĐÃ SỬ DỤNG
-            {% else %}✕ KHÔNG HỢP LỆ{% endif %}
+          <h2 class="fw-bold mb-2 checkin-verdict">
+            {% if result == 'OK' %}<i class="bi bi-check-circle-fill"></i> HỢP LỆ
+            {% elif result == 'USED' %}<i class="bi bi-exclamation-triangle-fill"></i> ĐÃ SỬ DỤNG
+            {% else %}<i class="bi bi-x-circle-fill"></i> KHÔNG HỢP LỆ{% endif %}
           </h2>
           <div class="fs-5 mb-3">{{ note }}</div>
           {% if ticket %}

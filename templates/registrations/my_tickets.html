@@ -13,7 +13,6 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   .ticket-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0,0,0,0.1);
   }
   .ticket-info {
@@ -71,11 +70,11 @@
   }
 </style>
 
-<div class="mb-4 pb-3 border-bottom" style="border-top: 3px solid var(--brand); padding-top: 1rem;">
-  <span class="text-uppercase fw-bold small" style="color: var(--brand);">Đăng ký của bạn</span>
-  <h1 class="h3 fw-bold mb-1 mt-1">Vé của tôi</h1>
-  <p class="text-muted mb-0">Quản lý các sự kiện bạn đã đăng ký tham gia</p>
-</div>
+<header class="page-header">
+  <span class="kicker">Đăng ký của bạn</span>
+  <h1 class="h3 fw-bold">Vé của tôi</h1>
+  <p class="text-muted">Quản lý các sự kiện bạn đã đăng ký tham gia</p>
+</header>
 
 <div class="row g-4">
   {% for ticket in tickets %}
@@ -86,9 +85,9 @@
             <div>
               <h5 class="fw-bold mb-1">{{ ticket.event.name }}</h5>
               <div class="text-muted small d-flex align-items-center gap-2">
-                <span>🗓 {{ ticket.event.starts_at|date:"H:i · d/m/Y" }}</span>
+                <span><i class="bi bi-calendar-event"></i> {{ ticket.event.starts_at|date:"H:i · d/m/Y" }}</span>
                 <span>•</span>
-                <span>📍 {{ ticket.event.location }}</span>
+                <span><i class="bi bi-geo-alt"></i> {{ ticket.event.location }}</span>
               </div>
             </div>
             <span class="status-pill px-3 py-1 rounded-pill fw-medium small
@@ -117,7 +116,7 @@
 
           {% if ticket.status == 'PENDING' %}
             <div class="alert alert-warning d-flex align-items-center gap-2 py-2 px-3 mb-3 border-warning-subtle">
-              <span class="fs-5">⏳</span>
+              <span class="fs-5"><i class="bi bi-hourglass-split"></i></span>
               <div class="small">
                 <strong>Vui lòng thanh toán trước {{ ticket.payment_deadline|date:"H:i d/m" }}</strong><br>
                 Sau đó BTC sẽ xác nhận. Quá hạn vé sẽ tự huỷ.
@@ -151,11 +150,11 @@
             {% endif %}
             <div class="text-center mt-2">
               <div class="fw-bold tracking-widest text-uppercase text-muted">{{ ticket.code }}</div>
-              <div class="small text-muted mt-1" style="font-size: 0.75rem;">Đưa mã/QR cho BTC<br>để check-in</div>
+              <div class="text-muted mt-1 text-xs">Đưa mã/QR cho BTC<br>để check-in</div>
             </div>
           {% else %}
             <div class="text-center text-muted opacity-50">
-              <div class="display-4 mb-2">🚫</div>
+              <div class="display-4 mb-2"><i class="bi bi-slash-circle"></i></div>
               <span class="small">Vé không khả dụng</span>
             </div>
           {% endif %}
@@ -165,7 +164,7 @@
   {% empty %}
     <div class="col-12">
       <div class="card card-body border-0 shadow-sm text-center py-5">
-        <div class="display-1 opacity-25 mb-3">🎫</div>
+        <div class="display-1 opacity-25 mb-3"><i class="bi bi-ticket-perforated"></i></div>
         <h4 class="fw-bold text-muted">Chưa có vé nào</h4>
         <p class="text-muted mb-4">Bạn chưa đăng ký tham gia sự kiện nào cả.</p>
         <div>

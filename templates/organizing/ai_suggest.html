@@ -2,6 +2,12 @@
 {% block title %}Gợi ý công việc{% endblock %}
 
 {% block content %}
+<style>
+  /* Bề rộng cột cố định cho bảng gợi ý (thay cho inline style) */
+  .col-w-40  { width: 40px; }
+  .col-w-120 { width: 120px; }
+  .col-w-170 { width: 170px; }
+</style>
 <h4 class="mb-1">Gợi ý công việc</h4>
 <p class="text-muted small">
   {{ event.name }}
@@ -21,12 +27,12 @@
       <table class="table align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th style="width:40px">
+            <th class="col-w-40">
               <input type="checkbox" class="form-check-input" id="check-all" checked>
             </th>
             <th>Công việc</th>
-            <th style="width:120px">Trước (ngày)</th>
-            <th style="width:170px">Deadline</th>
+            <th class="col-w-120">Trước (ngày)</th>
+            <th class="col-w-170">Deadline</th>
           </tr>
         </thead>
         <tbody>

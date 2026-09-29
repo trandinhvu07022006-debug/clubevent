@@ -1,23 +1,22 @@
 /* =========================================================================
    LỚP DESIGN SYSTEM — theme tùy biến trên nền Bootstrap 5.3 (self-hosted)
    -------------------------------------------------------------------------
-   Nguyên tắc:
+   Nguyên tắc (BẢN TINH GIẢN — chuẩn chuyên nghiệp):
      - KHÔNG thêm thư viện, KHÔNG CDN. Chỉ dựa trên biến CSS của Bootstrap 5.3
        và một ít token riêng, nên rớt mạng giữa lúc demo vẫn còn nguyên giao diện.
      - Dark mode dùng cơ chế có sẵn của Bootstrap 5.3: đặt data-bs-theme="dark"
        lên thẻ <html>. Ở đây chỉ tinh chỉnh lại token cho hợp tông.
-     - Mọi component tùy biến (chat, check-in, hero...) đều dùng biến theme để
-       tự đổi màu theo sáng/tối, không hard-code màu nữa.
+     - Bề mặt ĐẶC, nền TĨNH, ÍT chuyển động: nội dung dẫn, chrome phục vụ.
    ========================================================================= */
 
 /* ---- 1. TOKENS ---------------------------------------------------------- */
 :root {
-  /* Màu thương hiệu — Xanh đậm & Vàng kim (Premium) */
-  --brand:        #2563eb;
-  --brand-strong: #1d4ed8;
-  --brand-rgb:    37, 99, 235;
-  --accent:       #f59e0b;
-  
+  /* Màu thương hiệu — INDIGO. Muốn đổi màu chỉ cần sửa 3 dòng dưới đây. */
+  --brand:        #4f46e5;   /* indigo-600 */
+  --brand-strong: #4338ca;   /* indigo-700 (trạng thái hover/active) */
+  --brand-rgb:    79, 70, 229;
+  --accent:       #f59e0b;   /* hổ phách — dùng cho "đang làm", sao đánh giá */
+
   --bs-primary:          var(--brand);
   --bs-primary-rgb:      var(--brand-rgb);
   --bs-link-color:       var(--brand);
@@ -27,151 +26,67 @@
   --bs-border-radius-sm:  0.5rem;
   --bs-border-radius-lg:  1rem;
   --bs-border-radius-xl:  1.5rem;
-  
-  --app-shadow-sm:        0 2px 5px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --app-shadow:           0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
-  --app-shadow-lg:        0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  --app-shadow-hover:     0 25px 35px -5px rgba(37, 99, 235, 0.15), 0 10px 15px -6px rgba(37, 99, 235, 0.1);
+
+  --app-shadow-sm:    0 2px 5px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --app-shadow:       0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --app-shadow-lg:    0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --app-shadow-hover: 0 12px 20px -6px rgba(var(--brand-rgb), 0.18), 0 6px 10px -6px rgba(var(--brand-rgb), 0.12);
 
   --bs-body-bg:          #f8fafc;
   --bs-body-color:       #1e293b;
   --bs-body-font-size:   0.98rem;
-  --bs-body-font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  --app-heading-font:    'Outfit', 'Inter', system-ui, sans-serif;
+  --bs-body-font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --app-heading-font:    'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 
-  /* Token riêng của app */
-  --app-surface:   rgba(255, 255, 255, 0.92);
-  --app-surface-2: rgba(241, 245, 249, 0.85);
-  --app-border:    rgba(226, 232, 240, 0.8);
-  --app-bg-overlay: rgba(248, 250, 252, 0.8);
-  
-  /* Glassmorphism navbar */
-  --app-header-bg: rgba(255, 255, 255, 0.1);
-  --app-header-blur: blur(16px);
+  /* Token riêng của app — BỀ MẶT ĐẶC (alpha = 1) để tương phản luôn ổn định */
+  --app-surface:   #ffffff;
+  --app-surface-2: #f1f5f9;
+  --app-border:    #e2e8f0;
+
+  /* Navbar: nền tối ĐẶC để chữ trắng luôn rõ. Giữ chút blur — chỗ DUY NHẤT. */
+  --app-header-bg:   rgba(15, 23, 42, 0.9);
+  --app-header-blur: blur(10px);
 }
 
 [data-bs-theme="dark"] {
   --bs-body-bg:      #0f172a;
   --bs-body-color:   #f8fafc;
-  --bs-border-color: rgba(51, 65, 85, 0.8);
-  --app-surface:     rgba(30, 41, 59, 0.92);
-  --app-surface-2:   rgba(51, 65, 85, 0.85);
-  --app-border:      rgba(51, 65, 85, 0.8);
-  --app-bg-overlay:  rgba(15, 23, 42, 0.4);
-  
-  --app-header-bg:   rgba(15, 23, 42, 0.1);
-  
+  --bs-border-color: #334155;
+  --app-surface:     #1e293b;   /* đặc */
+  --app-surface-2:   #0f172a;   /* đặc */
+  --app-border:      #334155;
+
   --app-shadow-sm:   0 2px 5px rgba(0, 0, 0, 0.4);
   --app-shadow:      0 10px 15px -3px rgba(0, 0, 0, 0.5);
   --app-shadow-lg:   0 20px 25px -5px rgba(0, 0, 0, 0.6);
-  --app-shadow-hover:0 25px 35px -5px rgba(37, 99, 235, 0.25);
+  --app-shadow-hover:0 12px 20px -6px rgba(0, 0, 0, 0.55);
 }
 
-/* ---- 2. NỀN CHUNG ------------------------------------------------------- */
+/* ---- 2. NỀN CHUNG — TĨNH: không ảnh, không animation, không cross-fade -- */
 body {
   background-color: var(--bs-body-bg);
+  /* Đúng MỘT lớp gradient on-brand rất nhẹ (alpha .05) ở góc trên, đứng yên. */
+  background-image: radial-gradient(1200px 620px at 100% -8%, rgba(var(--brand-rgb), 0.05), transparent 60%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--bs-body-color);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Chuyển màu giao diện MƯỢT khi đổi cảnh nền (xem mục CẢNH NỀN bên dưới) */
-  transition: background-color .3s ease, color .3s ease,
-              --brand 1.6s ease, --brand-strong 1.6s ease, --accent 1.6s ease;
-  cursor: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%234158D0' /%3E%3Cstop offset='46%25' stop-color='%23C850C0' /%3E%3Cstop offset='100%25' stop-color='%23FFCC70' /%3E%3C/linearGradient%3E%3Cfilter id='s'%3E%3CfeDropShadow dx='1' dy='3' stdDeviation='2' flood-color='rgba(0,0,0,0.5)'/%3E%3C/filter%3E%3C/defs%3E%3Cg transform='rotate(-22 20 20)'%3E%3Ctext x='8' y='32' font-size='34' font-family='sans-serif' fill='url(%23g)' stroke='%23ffffff' stroke-width='1.2' filter='url(%23s)'%3E𝄞%3C/text%3E%3C/g%3E%3C/svg%3E") 14 8, auto;
+  transition: background-color .3s ease, color .3s ease;
 }
 
-a, button, .btn, .nav-link, .cursor-pointer {
-  cursor: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g2' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23FEE140' /%3E%3Cstop offset='100%25' stop-color='%23FA709A' /%3E%3C/linearGradient%3E%3Cfilter id='s'%3E%3CfeDropShadow dx='1' dy='3' stdDeviation='2' flood-color='rgba(0,0,0,0.5)'/%3E%3C/filter%3E%3C/defs%3E%3Cg transform='rotate(-22 20 20)'%3E%3Ctext x='8' y='32' font-size='34' font-family='sans-serif' fill='url(%23g2)' stroke='%23ffffff' stroke-width='1.2' filter='url(%23s)'%3E𝄞%3C/text%3E%3C/g%3E%3C/svg%3E") 14 8, pointer !important;
-}
-input, textarea, select {
-  cursor: auto !important;
-}
-
-@keyframes cosmicDrift {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 100% 100%; }
-}
-
-/* =========================================================================
-   CẢNH NỀN ĐỔI MÀU THEO CẢNH — mỗi lần đổi ảnh nền thì đổi luôn màu giao diện
-   -------------------------------------------------------------------------
-   - Hai ảnh nền cross-fade bằng ::before/::after (KHÔNG cần thêm div).
-   - Mỗi cảnh có một bộ màu thương hiệu riêng, hợp tông với ảnh.
-   - @property cho phép các biến màu CHUYỂN MƯỢT thay vì nhảy đột ngột.
-   - File static/js/scene-theme.js lật class .scene-0 / .scene-1 trên <body>.
-   ========================================================================= */
-@property --brand        { syntax: "<color>"; inherits: true; initial-value: #2563eb; }
-@property --brand-strong { syntax: "<color>"; inherits: true; initial-value: #1d4ed8; }
-@property --accent       { syntax: "<color>"; inherits: true; initial-value: #f59e0b; }
-
-/* Container chứa các lớp ảnh nền (được tạo bởi js) */
-.scene-bg-container {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-}
-.scene-layer {
-  position: absolute;
-  inset: 0;
-  background-size: 110% 110%;
-  background-position: center;
-  transition: opacity 2s ease-in-out;
-  opacity: 0;
-  animation: cosmicDrift 180s ease-in-out infinite alternate;  /* giữ hiệu ứng trôi */
-}
-
-/* 🌅 Cảnh 1 — Hoàng hôn: cam san hô + vàng nắng */
-body.scene-0 {
-  --brand:        #c85f2a;
-  --brand-strong: #a54a1c;
-  --brand-rgb:    200, 95, 42;
-  --accent:       #f4b15e;
-}
-/* 🌫️ Cảnh 2 — Bình minh sương: xanh lam-đá + vàng kim dịu */
-body.scene-1 {
-  --brand:        #4a6c7e;
-  --brand-strong: #375562;
-  --brand-rgb:    74, 108, 126;
-  --accent:       #d8b978;
-}
-/* 🌌 Cảnh 3 - Đêm sao đại dương */
-body.scene-2 {
-  --brand:        #2b7a5a;
-  --brand-strong: #1e5a42;
-  --brand-rgb:    43, 122, 90;
-  --accent:       #9edbba;
-}
-/* 🏔 Cảnh 4 - Núi hùng vĩ hoàng hôn */
-body.scene-3 {
-  --brand:        #8a3f8a;
-  --brand-strong: #662266;
-  --brand-rgb:    138, 63, 138;
-  --accent:       #e5b3e5;
-}
-/* 🏙 Cảnh 5 - Cyberpunk City / Skyline */
-body.scene-4 {
-  --brand:        #24588e;
-  --brand-strong: #173b61;
-  --brand-rgb:    36, 88, 142;
-  --accent:       #9ecbed;
-}
-
+/* Tôn trọng người dùng tắt hiệu ứng chuyển động: bỏ mọi transition/animation. */
 @media (prefers-reduced-motion: reduce) {
-  body {
-    animation: none;
-    background-position: center;
-  }
   * {
     transition: none !important;
-    transform: none !important;
     animation: none !important;
   }
 }
 
-h1, h2, h3, h4, h5, h6, .navbar-brand { 
+h1, h2, h3, h4, h5, h6, .navbar-brand {
   font-family: var(--app-heading-font);
   font-weight: 700;
-  letter-spacing: -0.02em; 
+  letter-spacing: -0.01em;   /* nới nhẹ để dấu tiếng Việt "thở" */
 }
 
 main.container { max-width: 1140px; }
@@ -187,17 +102,52 @@ a { text-underline-offset: .15em; }
   box-shadow: 0 0 0 .2rem rgba(var(--brand-rgb), .18);
 }
 
-/* ---- 3. NÚT ------------------------------------------------------------- */
-.btn { 
-  font-weight: 600; 
+/* ---- 3. HEADER TRANG — MỘT kiểu dùng CHUNG cho mọi trang --------------- */
+/* Cấu trúc: <header class="page-header">
+     <span class="kicker">NHÃN</span>
+     <div class="page-header-row">
+       <div><h1 class="h3">TIÊU ĐỀ</h1><p>Mô tả</p></div>
+       <div class="page-header-actions">…nút…</div>
+     </div>
+   </header> */
+.page-header {
+  border-top: 3px solid var(--brand);   /* viền accent trên */
+  padding: 1rem 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--app-border);
+}
+.page-header .page-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-top: .25rem;
+}
+.page-header .page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.page-header h1 { margin-bottom: .25rem; }
+.page-header p  { margin-bottom: 0; }
+
+/* Kicker: nhãn thương hiệu nhỏ phía trên tiêu đề (dùng lại ở nhiều nơi). */
+.kicker {
+  display: inline-block;
+  font-size: .72rem;
+  letter-spacing: .16em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+/* ---- 4. NÚT ------------------------------------------------------------- */
+.btn {
+  font-weight: 600;
   letter-spacing: 0.01em;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.btn:hover {
-  transform: translateY(-1px);
-}
-.btn:active {
-  transform: translateY(1px);
+  /* CẮT 5: KHÔNG dịch chuyển nút khi hover — chỉ đổi màu/đổ bóng nhẹ. */
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
 }
 
 .btn-primary {
@@ -220,40 +170,38 @@ a { text-underline-offset: .15em; }
   --bs-btn-active-border-color: var(--brand);
 }
 
-/* ---- 4. THẺ (CARD) ------------------------------------------------------ */
+/* ---- 5. THẺ (CARD) ------------------------------------------------------ */
 .card {
   --bs-card-bg: var(--app-surface);
   --bs-card-border-color: var(--app-border);
   --bs-card-border-radius: var(--bs-border-radius-lg);
   --bs-card-cap-bg: transparent;
   border-width: 1px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--app-shadow-sm);
+  transition: box-shadow .2s ease, border-color .2s ease;
 }
 
-/* Thẻ sự kiện: hiệu ứng nâng nhẹ khi rê chuột */
+/* Thẻ sự kiện: CẮT 5 — bỏ nhấc/scale, chỉ đổi bóng + viền nhẹ khi rê chuột. */
 .card-event {
   overflow: hidden;
-  border: 1px solid transparent; 
+  border: 1px solid transparent;
 }
 .card-event:hover {
-  transform: translateY(-5px) scale(1.01);
   box-shadow: var(--app-shadow-hover);
   border-color: rgba(var(--brand-rgb), 0.3);
 }
 
-/* ---- 5. THANH ĐIỀU HƯỚNG (NAVBAR) -------------------------------------- */
+/* ---- 6. THANH ĐIỀU HƯỚNG (NAVBAR) -------------------------------------- */
 .app-nav {
   position: sticky;
   top: 0;
   z-index: 1030;
-  background: var(--app-header-bg) !important;
-  backdrop-filter: var(--app-header-blur);
+  background: var(--app-header-bg) !important;   /* nền tối ĐẶC (.9) */
+  backdrop-filter: var(--app-header-blur);        /* blur — chỗ DUY NHẤT được giữ */
   -webkit-backdrop-filter: var(--app-header-blur);
   box-shadow: var(--app-shadow);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.8rem 0;
-  transition: all 0.3s ease;
 }
 .app-nav .navbar-brand {
   display: inline-flex;
@@ -261,26 +209,8 @@ a { text-underline-offset: .15em; }
   gap: 0.75rem;
   font-weight: 800;
   font-size: 1.35rem;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: #ffffff !important;
-}
-.app-nav .navbar-brand img {
-  box-shadow: 0 0 12px rgba(255,255,255,0.15);
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.app-nav .navbar-brand:hover img {
-  transform: rotate(8deg) scale(1.15);
-}
-.app-brand-mark {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  display: inline-grid;
-  place-items: center;
-  font-weight: 800;
-  color: #fff;
-  background: linear-gradient(135deg, var(--brand), #7aa8ff);
-  box-shadow: 0 4px 10px rgba(var(--brand-rgb), .4);
 }
 .app-nav .nav-link {
   font-family: var(--app-heading-font);
@@ -289,17 +219,16 @@ a { text-underline-offset: .15em; }
   margin: 0 0.15rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  transition: all 0.25s ease;
+  transition: background-color .2s ease, color .2s ease;
   color: rgba(255, 255, 255, 0.75) !important;
 }
-.app-nav .nav-link.active { 
-  background: rgba(255, 255, 255, 0.15); 
-  color: #fff !important; 
-}
-.app-nav .nav-link:hover { 
-  background: rgba(255, 255, 255, 0.1); 
+.app-nav .nav-link.active {
+  background: rgba(255, 255, 255, 0.15);
   color: #fff !important;
-  transform: translateY(-1px);
+}
+.app-nav .nav-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff !important;
 }
 
 /* Nút đổi sáng/tối: chỉ hiện icon đúng theo theme của trang (thẻ <html>) */
@@ -314,41 +243,28 @@ a { text-underline-offset: .15em; }
 html[data-bs-theme="dark"] .theme-icon-light { display: none; }
 html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 
-/* ---- 6. HERO (dải mở đầu trang) ---------------------------------------- */
+/* ---- 7. HERO (chỉ dùng ở trang chi tiết — dải ảnh bìa có chữ đè) -------- */
 .hero {
   position: relative;
   overflow: hidden;
   border-radius: var(--bs-border-radius-xl);
   padding: 4rem 3rem;
-  color: var(--bs-body-color);
-  background: rgba(15, 23, 42, 0.35); /* Vẫn giữ kính mờ cho hero */
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  color: #ffffff;
+  background: #0f172a;              /* ĐẶC — CẮT 3: không còn kính mờ */
   border: 1px solid var(--app-border);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow);
   margin-bottom: 2rem;
 }
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at top right, rgba(255,255,255,0.25), transparent 60%),
-              radial-gradient(circle at bottom left, rgba(0,0,0,0.2), transparent 50%);
-  pointer-events: none;
-}
-.hero h1 { 
-  font-weight: 800; 
-  letter-spacing: -0.025em; 
-  font-size: 2.8rem;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.15);
+.hero h1 {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-size: 2.4rem;
   margin-bottom: 1rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);   /* đọc rõ trên ảnh sáng */
 }
 .hero .lead {
-  font-size: 1.2rem;
-  opacity: 0.95;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  font-size: 1.15rem;
 }
-.hero .hero-stat { font-weight: 800; font-size: 1.75rem; line-height: 1; }
 
 /* Ảnh bìa có chữ đè lên: lớp phủ tối để chữ luôn đọc được */
 .cover-overlay {
@@ -357,7 +273,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   background: linear-gradient(to top, rgba(0, 0, 0, .72) 0%, rgba(0, 0, 0, .15) 55%, transparent 100%);
 }
 
-/* ---- 7. TRẠNG THÁI, TIẾN ĐỘ -------------------------------------------- */
+/* ---- 8. TRẠNG THÁI, TIẾN ĐỘ -------------------------------------------- */
 /* Pill trạng thái mềm hơn badge đặc — dùng kèm class bg-*-subtle của BS 5.3 */
 .status-pill {
   border-radius: 999px;
@@ -367,15 +283,22 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   border: 1px solid transparent;
 }
 
-.progress.seats { height: 7px; background: var(--app-surface-2); border-radius: 999px; }
+/* Thanh tiến độ: 3 độ dày dùng chung (thay cho inline style tĩnh) */
+.progress.seats       { height: 7px; background: var(--app-surface-2); border-radius: 999px; }
+.progress.progress-md { height: 10px; }
+.progress.progress-lg { height: 12px; }
 
-/* Task quá hạn / đã xong — F3.3 (giữ nguyên ý nghĩa, dùng biến theme) */
-.task-overdue { border-left: 4px solid var(--bs-danger); }
-.task-done    { border-left: 4px solid var(--bs-success); }
+/* Màu 3 TRẠNG THÁI công việc — CỐ ĐỊNH (mang ý nghĩa nên không đổi).
+   Gắn class theo status: task-todo / task-doing / task-done; thêm task-overdue nếu trễ. */
+.task-todo    { border-left: 4px solid #94a3b8; }                     /* Chưa làm — xám */
+.task-doing   { border-left: 4px solid var(--accent); }               /* Đang làm — hổ phách */
+.task-done    { border-left: 4px solid var(--bs-success); }           /* Xong — xanh lá */
+.task-overdue { border-left: 4px solid var(--bs-danger) !important; } /* Quá hạn — đỏ (đè) */
 .task-done .task-title { text-decoration: line-through; opacity: .6; }
 
-/* ---- 8. CHECK-IN (màn BTC dùng ở cửa, trên điện thoại) ------------------ */
+/* ---- 9. CHECK-IN (màn BTC dùng ở cửa, trên điện thoại) ------------------ */
 .checkin-result { font-size: 1.25rem; padding: 1.25rem; border-radius: var(--bs-border-radius-lg); }
+.checkin-verdict { font-size: 2rem; }
 .checkin-code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
   letter-spacing: .12em;
@@ -387,11 +310,9 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   letter-spacing: .1em;
 }
 
-.qr-img { width: 160px; height: 160px; border-radius: 12px; }
-
 .star-rating { color: var(--accent); letter-spacing: .1em; }
 
-/* ---- 9. TRỢ LÝ TRA CỨU (chat) — theme-aware ---------------------------- */
+/* ---- 10. TRỢ LÝ TRA CỨU (chat) — theme-aware --------------------------- */
 .chat-log {
   height: 420px;
   overflow-y: auto;
@@ -421,7 +342,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 }
 .chat-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 
-/* ---- 10. ẢNH BÌA & AVATAR ---------------------------------------------- */
+/* ---- 11. ẢNH BÌA & AVATAR ---------------------------------------------- */
 .event-cover    { aspect-ratio: 16 / 9; object-fit: cover; }
 .event-cover-lg { aspect-ratio: 21 / 9; object-fit: cover; }
 
@@ -444,3 +365,12 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 }
 .avatar-lg, .avatar-lg.avatar-initials { width: 96px; height: 96px; font-size: 1.75rem; }
 .avatar-sm, .avatar-sm.avatar-initials { width: 28px; height: 28px; font-size: .68rem; }
+
+/* ---- 12. TIỆN ÍCH NHỎ — thay cho các inline style TĨNH ------------------ */
+.text-xs          { font-size: .75rem; }             /* chú thích rất nhỏ */
+.progress-inline  { width: 70px; margin-left: auto; }/* thanh mini trong bảng thống kê */
+.rating-label     { width: 25px; }                   /* nhãn số sao / số lượng */
+.chart-box        { height: 260px; }                 /* khung biểu đồ cố định */
+.sticky-offset    { top: 5.5rem; }                   /* cột dính, lệch dưới navbar */
+.letter-spacing-1 { letter-spacing: .1em; }
+.tracking-widest  { letter-spacing: .15em; }

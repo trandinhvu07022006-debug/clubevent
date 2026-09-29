@@ -23,7 +23,7 @@
     align-items: center;
   }
   .task-card {
-    background: var(--app-bg);
+    background: var(--app-surface);
     border: 1px solid var(--app-border);
     border-radius: 0.75rem;
     padding: 1rem;
@@ -33,12 +33,16 @@
     transition: transform 0.2s, box-shadow 0.2s;
   }
   .task-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   }
   .task-overdue { border-left-color: var(--bs-danger) !important; }
   .task-done { border-left-color: var(--bs-success) !important; opacity: 0.8; }
   .task-doing { border-left-color: var(--bs-primary) !important; }
+  /* Màu gạch chân cột theo trạng thái (thay cho inline style) */
+  .kanban-header.is-doing { border-bottom-color: var(--bs-primary); }
+  .kanban-header.is-done  { border-bottom-color: var(--bs-success); }
+  .kanban-scroll { min-height: 500px; }
+  .task-status-select { width: 110px; }
   
   .avatar-sm {
     width: 28px;
@@ -54,21 +58,21 @@
   }
 </style>
 
-<div class="mb-4 pb-3 border-bottom" style="border-top: 3px solid var(--brand); padding-top: 1rem;">
-  <span class="text-uppercase fw-bold small" style="color: var(--brand);">{{ event.name }}</span>
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-1">
+<header class="page-header">
+  <span class="kicker">{{ event.name }}</span>
+  <div class="page-header-row">
     <div>
-      <h1 class="h3 fw-bold mb-1">Bảng công việc</h1>
-      <p class="text-muted mb-0">Quản lý và theo dõi tiến độ công việc sự kiện</p>
+      <h1 class="h3 fw-bold">Bảng công việc</h1>
+      <p class="text-muted">Quản lý và theo dõi tiến độ công việc sự kiện</p>
     </div>
-    <div class="d-flex gap-2">
-      <a href="{% url 'organizing:ai_suggest' event.pk %}" class="btn btn-outline-warning fw-medium shadow-sm"><i class="bi bi-robot"></i> ✨ Gợi ý AI</a>
-      <a href="{% url 'organizing:create' event.pk %}" class="btn btn-primary fw-bold shadow-sm">+ Tạo việc mới</a>
+    <div class="page-header-actions">
+      <a href="{% url 'organizing:ai_suggest' event.pk %}" class="btn btn-outline-warning fw-medium shadow-sm"><i class="bi bi-robot"></i> Gợi ý AI</a>
+      <a href="{% url 'organizing:create' event.pk %}" class="btn btn-primary fw-bold shadow-sm"><i class="bi bi-plus-lg"></i> Tạo việc mới</a>
     </div>
   </div>
-</div>
+</header>
 
-<div class="card border-0 shadow-sm mb-4 bg-transparent" style="border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(8px);">
+<div class="card border-0 shadow-sm mb-4">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center small mb-2">
       <span class="fw-semibold">Tiến độ chuẩn bị chung</span>
@@ -79,20 +83,20 @@
         {% endif %}
       </div>
     </div>
-    <div class="progress rounded-pill bg-dark-subtle" style="height: 12px">
-      <div class="progress-bar progress-bar-striped progress-bar-animated {% if event.task_progress == 100 %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ event.task_progress }}%"></div>
+    <div class="progress progress-lg rounded-pill bg-dark-subtle">
+      <div class="progress-bar {% if event.task_progress == 100 %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ event.task_progress }}%"></div>
     </div>
   </div>
 </div>
 
 {% if not tasks %}
   <div class="card card-body text-center py-5 shadow-sm border-0">
-    <div class="display-1 opacity-25 mb-3">📋</div>
+    <div class="display-1 opacity-25 mb-3"><i class="bi bi-clipboard-check"></i></div>
     <h5 class="fw-bold text-muted">Chưa có công việc nào</h5>
     <p class="text-muted mb-4">Nhấn nút "Gợi ý AI" để tạo nhanh kế hoạch tổ chức cho sự kiện này.</p>
   </div>
 {% else %}
-  <div class="row g-4 flex-nowrap overflow-auto pb-3" style="min-height: 500px;">
+  <div class="row g-4 flex-nowrap overflow-auto pb-3 kanban-scroll">
     <!-- Cột Chưa làm -->
     <div class="col-11 col-md-6 col-lg-4">
       <div class="kanban-col">
@@ -111,7 +115,7 @@
     <!-- Cột Đang làm -->
     <div class="col-11 col-md-6 col-lg-4">
       <div class="kanban-col">
-        <div class="kanban-header" style="border-bottom-color: var(--bs-primary);">
+        <div class="kanban-header is-doing">
           <span class="text-primary">Đang làm</span>
           <span class="badge bg-primary rounded-pill">DOING</span>
         </div>
@@ -126,7 +130,7 @@
     <!-- Cột Đã xong -->
     <div class="col-11 col-md-6 col-lg-4">
       <div class="kanban-col">
-        <div class="kanban-header" style="border-bottom-color: var(--bs-success);">
+        <div class="kanban-header is-done">
           <span class="text-success">Hoàn thành</span>
           <span class="badge bg-success rounded-pill">DONE</span>
         </div>

@@ -3,16 +3,19 @@
 {% block title %}Phản hồi & thống kê{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-start mb-3">
-  <div>
-    <h4 class="mb-1">Phản hồi & thống kê</h4>
-    <p class="text-muted mb-0 small">{{ event.name }}</p>
+<header class="page-header">
+  <span class="kicker">Phản hồi</span>
+  <div class="page-header-row">
+    <div>
+      <h1 class="h3 fw-bold">Phản hồi & thống kê</h1>
+      <p class="text-muted">{{ event.name }}</p>
+    </div>
+    <form method="post" action="{% url 'feedback:ai_summarize' event.pk %}" class="page-header-actions">
+      {% csrf_token %}
+      <button class="btn btn-outline-warning"><i class="bi bi-stars"></i> Tóm tắt phản hồi</button>
+    </form>
   </div>
-  <form method="post" action="{% url 'feedback:ai_summarize' event.pk %}">
-    {% csrf_token %}
-    <button class="btn btn-outline-warning">Tóm tắt phản hồi</button>
-  </form>
-</div>
+</header>
 
 <div class="row g-3 mb-3">
   <div class="col-6 col-md-3">
@@ -31,7 +34,7 @@
     <div class="card text-center"><div class="card-body py-3">
       <div class="h4 mb-0">
         {% if stat.rating_avg %}
-          <span class="star-rating">★</span> {{ stat.rating_avg }}
+          <i class="bi bi-star-fill star-rating"></i> {{ stat.rating_avg }}
         {% else %}—{% endif %}
       </div>
       <div class="small text-muted">{{ stat.rating_count }} đánh giá</div>
@@ -87,17 +90,17 @@
       <div class="card-body">
         <h6 class="card-title mb-3">Phân bố số sao</h6>
         {% if stat.rating_count %}
-          <div style="height: 260px">
+          <div class="chart-box">
             <canvas id="chart-rating-dist"></canvas>
           </div>
           <div class="d-flex flex-column-reverse mt-3 gap-2">
             {% for n in stat.rating_distribution %}
               <div class="d-flex align-items-center">
-                <div class="text-warning me-2 fw-bold text-end" style="width: 25px;">{{ forloop.counter }}★</div>
-                <div class="progress flex-grow-1 bg-warning-subtle" style="height: 10px;">
+                <div class="text-warning me-2 fw-bold text-end rating-label">{{ forloop.counter }}<i class="bi bi-star-fill"></i></div>
+                <div class="progress progress-md flex-grow-1 bg-warning-subtle">
                   <div class="progress-bar bg-warning" style="width: {% widthratio n stat.rating_count|default:1 100 %}%"></div>
                 </div>
-                <div class="ms-2 small fw-bold text-muted" style="width: 25px;">{{ n }}</div>
+                <div class="ms-2 small fw-bold text-muted rating-label">{{ n }}</div>
               </div>
             {% endfor %}
           </div>
@@ -114,7 +117,7 @@
     <div class="card-body p-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="card-title fw-bold text-primary-emphasis mb-0">
-          ✨ Insight từ AI
+          <i class="bi bi-stars"></i> Insight từ AI
         </h5>
         <span class="badge bg-primary text-white rounded-pill px-3 py-2">
           Dựa trên {{ summary.feedback_count }} phản hồi
@@ -123,19 +126,19 @@
       <div class="row g-3">
         <div class="col-md-6">
           <div class="p-3 bg-white bg-opacity-75 rounded-3 h-100 border border-white">
-            <h6 class="fw-bold text-success-emphasis mb-2">👍 Được khen</h6>
+            <h6 class="fw-bold text-success-emphasis mb-2"><i class="bi bi-hand-thumbs-up"></i> Được khen</h6>
             <p class="mb-0 small text-dark">{{ summary.positive|default:"—" }}</p>
           </div>
         </div>
         <div class="col-md-6">
           <div class="p-3 bg-white bg-opacity-75 rounded-3 h-100 border border-white">
-            <h6 class="fw-bold text-danger-emphasis mb-2">🎯 Cần cải thiện</h6>
+            <h6 class="fw-bold text-danger-emphasis mb-2"><i class="bi bi-bullseye"></i> Cần cải thiện</h6>
             <p class="mb-0 small text-dark">{{ summary.negative|default:"—" }}</p>
           </div>
         </div>
         <div class="col-12">
           <div class="p-3 bg-white rounded-3 shadow-sm border border-primary-subtle">
-            <h6 class="fw-bold text-primary-emphasis mb-2">💡 Đề xuất hành động</h6>
+            <h6 class="fw-bold text-primary-emphasis mb-2"><i class="bi bi-lightbulb"></i> Đề xuất hành động</h6>
             <p class="mb-0 text-dark">{{ summary.suggestion|linebreaksbr|default:"—" }}</p>
           </div>
         </div>
@@ -157,7 +160,7 @@
             <strong class="text-primary-emphasis">{{ f.user.full_name|default:f.user.username }}</strong>
             <span class="star-rating fs-6 text-warning">
               {% for i in "12345"|make_list %}
-                {% if forloop.counter <= f.rating %}★{% else %}<span class="text-muted opacity-25">★</span>{% endif %}
+                {% if forloop.counter <= f.rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star text-muted opacity-25"></i>{% endif %}
               {% endfor %}
             </span>
           </div>

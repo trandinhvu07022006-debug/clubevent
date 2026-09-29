@@ -3,17 +3,22 @@
 {% block title %}Thống kê{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h4 class="mb-1 fw-bold">Thống kê tổng hợp</h4>
-    <p class="text-muted small mb-0">
-      So sánh các sự kiện: số người tham gia, tỉ lệ check-in, điểm đánh giá và tiến độ công việc BTC.
-    </p>
+<header class="page-header">
+  <span class="kicker">Thống kê</span>
+  <div class="page-header-row">
+    <div>
+      <h1 class="h3 fw-bold">Thống kê tổng hợp</h1>
+      <p class="text-muted">
+        So sánh các sự kiện: số người tham gia, tỉ lệ check-in, điểm đánh giá và tiến độ công việc BTC.
+      </p>
+    </div>
+    <div class="page-header-actions">
+      <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle rounded-pill px-3 py-2">
+        Sắp tới: {{ upcoming }} sự kiện
+      </span>
+    </div>
   </div>
-  <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle rounded-pill px-3 py-2">
-    Sắp tới: {{ upcoming }} sự kiện
-  </span>
-</div>
+</header>
 
 <!-- KPI Tiles -->
 <div class="row g-3 mb-4">
@@ -131,7 +136,7 @@
               <td class="text-end">{{ row.sold }}</td>
               <td class="text-end">{{ row.checked_in }}</td>
               <td class="text-end">
-                <div class="progress seats mb-1" style="width:70px;margin-left:auto">
+                <div class="progress seats progress-inline mb-1">
                   <div class="progress-bar bg-primary" style="width:{{ row.checkin_rate }}%"></div>
                 </div>
                 <small class="fw-bold">{{ row.checkin_rate }}%</small>
@@ -139,7 +144,7 @@
               <td class="text-end">{{ row.revenue|floatformat:0 }}đ</td>
               <td class="text-end">
                 {% if row.rating_avg %}
-                  <span class="star-rating">★</span> <span class="fw-bold">{{ row.rating_avg }}</span>
+                  <i class="bi bi-star-fill star-rating"></i> <span class="fw-bold">{{ row.rating_avg }}</span>
                   <small class="text-muted">({{ row.rating_count }})</small>
                 {% else %}
                   <span class="text-muted">—</span>

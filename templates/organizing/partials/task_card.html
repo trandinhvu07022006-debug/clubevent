@@ -41,7 +41,7 @@
     <form method="post" action="{% url 'organizing:set_status' task.pk %}" class="d-flex gap-1 mb-0">
       {% csrf_token %}
       <input type="hidden" name="next" value="{% url 'organizing:board' event.pk %}">
-      <select name="status" class="form-select form-select-sm border-0 bg-light-subtle" style="width:110px" onchange="this.form.submit()">
+      <select name="status" class="form-select form-select-sm border-0 bg-light-subtle task-status-select" onchange="this.form.submit()">
         <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
         <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
         <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Hoàn thành</option>
