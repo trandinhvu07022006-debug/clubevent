@@ -70,14 +70,19 @@
 /* ---- 2. NỀN CHUNG ------------------------------------------------------- */
 body {
   background-color: var(--bs-body-bg);
-  background-image: linear-gradient(var(--app-bg-overlay), var(--app-bg-overlay)), url('../img/music_bg.jpg');
+  background-image: linear-gradient(var(--app-bg-overlay), var(--app-bg-overlay)), url('../img/galaxy_bg.jpg');
   background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
+  background-size: 120% 120%;
   color: var(--bs-body-color);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color 0.3s ease, color 0.3s ease;
+  animation: cosmicDrift 60s ease-in-out infinite alternate;
+}
+
+@keyframes cosmicDrift {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
 }
 
 h1, h2, h3, h4, h5, h6, .navbar-brand { 
