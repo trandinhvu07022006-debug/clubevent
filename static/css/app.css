@@ -67,13 +67,18 @@
   --app-shadow-hover:0 25px 35px -5px rgba(37, 99, 235, 0.25);
 }
 
-/* ---- 2. NỀN CHUNG & SLIDESHOW VŨ TRỤ ------------------------------------ */
+/* ---- 2. NỀN CHUNG ------------------------------------------------------- */
 body {
   background-color: var(--bs-body-bg);
+  background-image: linear-gradient(var(--app-bg-overlay), var(--app-bg-overlay)), url('../img/bg_music_1.jpg');
+  background-attachment: fixed;
+  background-size: 110% 110%;
+  background-position: center;
   color: var(--bs-body-color);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color 0.3s ease, color 0.3s ease;
+  animation: cosmicDrift 180s ease-in-out infinite alternate;
   cursor: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 512' width='22' height='35'%3E%3Cpath fill='%23ffffff' stroke='%232563eb' stroke-width='24' d='M285.5 174c-4.4-18.7-11.8-37.1-22.1-55.2C253 100.8 240.2 83.1 225 65.5V16c0-8.8-7.2-16-16-16s-16 7.2-16 16v55.8c-14.7 15-28 32-39.7 51C128.8 152 112 191.1 112 233.9c0 14.8 2.6 29.5 7.6 44 4.8 13.9 11.6 26.6 20.3 38-16.7 18.5-38.3 35.8-63.1 51.5C53.7 382 32 399.7 32 418.1c0 8.7 6.3 16.8 18.2 23.3 11.4 6.3 26 9.8 41.6 10 25.4 .3 52.8-11 77.2-29.6V496c0 8.8 7.2 16 16 16s16-7.2 16-16V403.4c29.1-31.2 55.4-71.1 76-118 7.4-16.6 11-34 11-51.5 .1-19.7-4.1-39.7-12.5-59.9z' /%3E%3C/svg%3E") 11 1, auto;
 }
 
@@ -81,38 +86,9 @@ a, button, .btn, .nav-link, input, select {
   cursor: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 512' width='22' height='35'%3E%3Cpath fill='%23f59e0b' stroke='%23ffffff' stroke-width='24' d='M285.5 174c-4.4-18.7-11.8-37.1-22.1-55.2C253 100.8 240.2 83.1 225 65.5V16c0-8.8-7.2-16-16-16s-16 7.2-16 16v55.8c-14.7 15-28 32-39.7 51C128.8 152 112 191.1 112 233.9c0 14.8 2.6 29.5 7.6 44 4.8 13.9 11.6 26.6 20.3 38-16.7 18.5-38.3 35.8-63.1 51.5C53.7 382 32 399.7 32 418.1c0 8.7 6.3 16.8 18.2 23.3 11.4 6.3 26 9.8 41.6 10 25.4 .3 52.8-11 77.2-29.6V496c0 8.8 7.2 16 16 16s16-7.2 16-16V403.4c29.1-31.2 55.4-71.1 76-118 7.4-16.6 11-34 11-51.5 .1-19.7-4.1-39.7-12.5-59.9z' /%3E%3C/svg%3E") 11 1, pointer !important;
 }
 
-.bg-slideshow {
-  position: fixed;
-  inset: -10%; /* Tràn ra ngoài 10% để dịch chuyển mượt mà */
-  z-index: -1;
-  background-color: var(--bs-body-bg);
-}
-.bg-overlay {
-  position: absolute;
-  inset: 0;
-  background: var(--app-bg-overlay);
-  backdrop-filter: blur(5px); /* Làm mờ ảnh nền một chút để dịu mắt hơn */
-  -webkit-backdrop-filter: blur(5px);
-  z-index: 1;
-}
-.bg-slide {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  opacity: 0;
-  animation: cosmicSlideshow 45s linear infinite;
-}
-.slide-1 { background-image: url('../img/bg_music_1.jpg'); animation-delay: 0s; }
-.slide-2 { background-image: url('../img/bg_music_2.jpg'); animation-delay: 15s; }
-.slide-3 { background-image: url('../img/bg_music_3.jpg'); animation-delay: 30s; }
-
-@keyframes cosmicSlideshow {
-  0% { opacity: 0; transform: scale(1) translate(0, 0); }
-  10% { opacity: 1; }
-  33% { opacity: 1; }
-  43% { opacity: 0; transform: scale(1.05) translate(-1%, -1%); }
-  100% { opacity: 0; }
+@keyframes cosmicDrift {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
 }
 
 h1, h2, h3, h4, h5, h6, .navbar-brand { 
