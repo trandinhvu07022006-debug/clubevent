@@ -2,105 +2,141 @@
 {% block title %}Công việc BTC{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-start mb-3">
-  <div>
-    <h4 class="mb-1">Công việc BTC</h4>
-    <p class="text-muted mb-0 small">
-      {{ event.name }} · {{ event.starts_at|date:"d/m/Y" }}
-    </p>
-  </div>
-  <div class="d-flex gap-2">
-    <a href="{% url 'organizing:ai_suggest' event.pk %}"
-       class="btn btn-outline-warning">Gợi ý công việc</a>
-    <a href="{% url 'organizing:create' event.pk %}"
-       class="btn btn-primary">+ Tạo công việc</a>
+<style>
+  .kanban-col {
+    background: var(--app-surface);
+    border-radius: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--app-border);
+    height: 100%;
+    min-height: 400px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+  }
+  .kanban-header {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--app-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .task-card {
+    background: var(--app-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    border-left: 4px solid var(--bs-secondary);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+  .task-overdue { border-left-color: var(--bs-danger) !important; }
+  .task-done { border-left-color: var(--bs-success) !important; opacity: 0.8; }
+  .task-doing { border-left-color: var(--bs-primary) !important; }
+  
+  .avatar-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--brand);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+  }
+</style>
+
+<div class="mb-4 pb-3 border-bottom" style="border-top: 3px solid var(--brand); padding-top: 1rem;">
+  <span class="text-uppercase fw-bold small" style="color: var(--brand);">{{ event.name }}</span>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-1">
+    <div>
+      <h1 class="h3 fw-bold mb-1">Bảng công việc</h1>
+      <p class="text-muted mb-0">Quản lý và theo dõi tiến độ công việc sự kiện</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'organizing:ai_suggest' event.pk %}" class="btn btn-outline-warning fw-medium shadow-sm"><i class="bi bi-robot"></i> ✨ Gợi ý AI</a>
+      <a href="{% url 'organizing:create' event.pk %}" class="btn btn-primary fw-bold shadow-sm">+ Tạo việc mới</a>
+    </div>
   </div>
 </div>
 
-<div class="card mb-3">
+<div class="card border-0 shadow-sm mb-4 bg-transparent" style="border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(8px);">
   <div class="card-body">
-    <div class="d-flex justify-content-between small mb-1">
-      <span>Tiến độ chuẩn bị</span>
-      <span>
-        <strong>{{ event.task_progress }}%</strong>
+    <div class="d-flex justify-content-between align-items-center small mb-2">
+      <span class="fw-semibold">Tiến độ chuẩn bị chung</span>
+      <div class="text-end">
+        <strong class="fs-5">{{ event.task_progress }}%</strong>
         {% if overdue_count %}
-          · <span class="text-danger">{{ overdue_count }} việc quá hạn</span>
+          <span class="text-danger fw-medium ms-2"><i class="bi bi-exclamation-circle-fill"></i> {{ overdue_count }} việc quá hạn</span>
         {% endif %}
-      </span>
+      </div>
     </div>
-    <div class="progress" style="height:10px">
-      <div class="progress-bar" style="width:{{ event.task_progress }}%"></div>
+    <div class="progress rounded-pill bg-dark-subtle" style="height: 12px">
+      <div class="progress-bar progress-bar-striped progress-bar-animated {% if event.task_progress == 100 %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ event.task_progress }}%"></div>
     </div>
   </div>
 </div>
 
-<div class="row g-3">
-  {% for task in tasks %}
-    <div class="col-md-6">
-      <div class="card h-100 shadow-sm
-        {% if task.is_overdue %}task-overdue{% elif task.status == 'DONE' %}task-done{% endif %}">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-1">
-            <h6 class="mb-0 task-title">{{ task.title }}</h6>
-            <span class="badge
-              {% if task.status == 'DONE' %}bg-success
-              {% elif task.status == 'DOING' %}bg-primary
-              {% else %}bg-secondary{% endif %}">
-              {{ task.get_status_display }}
-            </span>
-          </div>
-          <p class="small text-muted mb-2">
-            {{ task.assignee.full_name|default:"Chưa giao người" }}
-            {% if task.deadline %}
-              · hạn {{ task.deadline|date:"H:i d/m" }}
-            {% endif %}
-            {% if task.is_overdue %}
-              <span class="badge bg-danger">quá hạn</span>
-            {% endif %}
-            {% if task.created_by_ai %}
-            {% endif %}
-          </p>
-          {% if task.description %}
-            <p class="small mb-2">{{ task.description|truncatechars:120 }}</p>
-          {% endif %}
-          {% if task.note %}
-            <p class="small text-muted fst-italic mb-2">Ghi chú: {{ task.note }}</p>
-          {% endif %}
-
-          <div class="d-flex gap-1 flex-wrap">
-            <form method="post" action="{% url 'organizing:set_status' task.pk %}"
-                  class="d-flex gap-1">
-              {% csrf_token %}
-              <input type="hidden" name="next"
-                     value="{% url 'organizing:board' event.pk %}">
-              <select name="status" class="form-select form-select-sm"
-                      style="width:auto">
-                <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
-                <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
-                <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Xong</option>
-              </select>
-              <button class="btn btn-sm btn-outline-primary">Cập nhật</button>
-            </form>
-            <a href="{% url 'organizing:update' task.pk %}"
-               class="btn btn-sm btn-outline-secondary">Sửa</a>
-            {% if task.status != 'DONE' %}
-              <form method="post" action="{% url 'organizing:delete' task.pk %}"
-                    class="d-inline">
-                {% csrf_token %}
-                <button class="btn btn-sm btn-outline-danger">Xoá</button>
-              </form>
-            {% endif %}
-          </div>
+{% if not tasks %}
+  <div class="card card-body text-center py-5 shadow-sm border-0">
+    <div class="display-1 opacity-25 mb-3">📋</div>
+    <h5 class="fw-bold text-muted">Chưa có công việc nào</h5>
+    <p class="text-muted mb-4">Nhấn nút "Gợi ý AI" để tạo nhanh kế hoạch tổ chức cho sự kiện này.</p>
+  </div>
+{% else %}
+  <div class="row g-4 flex-nowrap overflow-auto pb-3" style="min-height: 500px;">
+    <!-- Cột Chưa làm -->
+    <div class="col-11 col-md-6 col-lg-4">
+      <div class="kanban-col">
+        <div class="kanban-header">
+          <span>Chưa làm</span>
+          <span class="badge bg-secondary rounded-pill">TODO</span>
         </div>
+        {% for task in tasks %}
+          {% if task.status == 'TODO' %}
+            {% include "organizing/partials/task_card.html" %}
+          {% endif %}
+        {% endfor %}
       </div>
     </div>
-  {% empty %}
-    <div class="col-12">
-      <div class="alert alert-light text-center">
-        Chưa có công việc nào. Thử bấm <strong>Gợi ý công việc</strong> để
-        có ngay danh sách việc cần làm.
+
+    <!-- Cột Đang làm -->
+    <div class="col-11 col-md-6 col-lg-4">
+      <div class="kanban-col">
+        <div class="kanban-header" style="border-bottom-color: var(--bs-primary);">
+          <span class="text-primary">Đang làm</span>
+          <span class="badge bg-primary rounded-pill">DOING</span>
+        </div>
+        {% for task in tasks %}
+          {% if task.status == 'DOING' %}
+            {% include "organizing/partials/task_card.html" %}
+          {% endif %}
+        {% endfor %}
       </div>
     </div>
-  {% endfor %}
-</div>
+
+    <!-- Cột Đã xong -->
+    <div class="col-11 col-md-6 col-lg-4">
+      <div class="kanban-col">
+        <div class="kanban-header" style="border-bottom-color: var(--bs-success);">
+          <span class="text-success">Hoàn thành</span>
+          <span class="badge bg-success rounded-pill">DONE</span>
+        </div>
+        {% for task in tasks %}
+          {% if task.status == 'DONE' %}
+            {% include "organizing/partials/task_card.html" %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endif %}
 {% endblock %}

@@ -2,63 +2,83 @@
 {% block title %}Việc của tôi{% endblock %}
 
 {% block content %}
-<h4 class="mb-1">Việc của tôi</h4>
-<p class="text-muted small">
-  Sắp theo deadline.
-  {% if overdue_count %}
-    <span class="text-danger">Có {{ overdue_count }} việc quá hạn.</span>
-  {% endif %}
-</p>
+<style>
+  .task-list-card {
+    background: var(--app-surface);
+    border-radius: 1rem;
+    border: 1px solid var(--app-border);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-left: 4px solid var(--bs-secondary);
+  }
+  .task-list-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  }
+  .task-list-overdue { border-left-color: var(--bs-danger) !important; }
+  .task-list-doing { border-left-color: var(--bs-primary) !important; }
+  .task-list-done { border-left-color: var(--bs-success) !important; opacity: 0.7; }
+</style>
 
-<div class="row g-3">
-  {% for task in tasks %}
-    <div class="col-md-6">
-      <div class="card h-100 shadow-sm
-        {% if task.is_overdue %}task-overdue{% elif task.status == 'DONE' %}task-done{% endif %}">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-1">
-            <h6 class="mb-0 task-title">{{ task.title }}</h6>
-            <span class="badge
-              {% if task.status == 'DONE' %}bg-success
-              {% elif task.status == 'DOING' %}bg-primary
-              {% else %}bg-secondary{% endif %}">
-              {{ task.get_status_display }}
-            </span>
-          </div>
-          <p class="small text-muted mb-2">
-            {{ task.event.name }}
-            {% if task.deadline %} · hạn {{ task.deadline|date:"H:i d/m" }}{% endif %}
-            {% if task.is_overdue %}
-              <span class="badge bg-danger">quá hạn</span>
-            {% endif %}
-          </p>
-          {% if task.description %}
-            <p class="small mb-2">{{ task.description }}</p>
-          {% endif %}
+<div class="mb-4 pb-3 border-bottom" style="border-top: 3px solid var(--brand); padding-top: 1rem;">
+  <span class="text-uppercase fw-bold small" style="color: var(--brand);">Cá nhân</span>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-1">
+    <div>
+      <h1 class="h3 fw-bold mb-1">Việc của tôi</h1>
+      <p class="text-muted mb-0">Danh sách công việc bạn cần hoàn thành</p>
+    </div>
+    {% if overdue_count %}
+      <div class="badge bg-danger px-3 py-2 fs-6 shadow-sm"><i class="bi bi-exclamation-triangle-fill"></i> {{ overdue_count }} việc quá hạn</div>
+    {% endif %}
+  </div>
+</div>
 
-          <form method="post" action="{% url 'organizing:set_status' task.pk %}">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{% url 'organizing:my_tasks' %}">
-            <div class="input-group input-group-sm mb-2">
-              <select name="status" class="form-select">
-                <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
-                <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
-                <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Xong</option>
-              </select>
-              <button class="btn btn-outline-primary">Cập nhật</button>
+<div class="row g-4">
+  <div class="col-12">
+    {% for task in tasks %}
+      <div class="task-list-card shadow-sm {% if task.is_overdue %}task-list-overdue{% elif task.status == 'DONE' %}task-list-done{% elif task.status == 'DOING' %}task-list-doing{% endif %}">
+        <div class="row g-3 align-items-center">
+          <div class="col-md-7">
+            <h5 class="fw-bold mb-2">{{ task.title }}</h5>
+            <div class="small text-muted mb-2 d-flex flex-wrap gap-2 align-items-center">
+              <span class="badge bg-light text-dark border">{{ task.event.name }}</span>
+              {% if task.deadline %}
+                <span class="{% if task.is_overdue %}text-danger fw-bold{% endif %}">
+                  <i class="bi bi-clock"></i> Hạn: {{ task.deadline|date:"H:i d/m" }}
+                  {% if task.is_overdue %}(Quá hạn){% endif %}
+                </span>
+              {% endif %}
             </div>
-            <input name="note" value="{{ task.note }}" class="form-control form-control-sm"
-                   placeholder="Ghi chú tiến độ (không bắt buộc)">
-          </form>
+            {% if task.description %}
+              <p class="small text-body-secondary mb-0">{{ task.description|truncatechars:150 }}</p>
+            {% endif %}
+          </div>
+          
+          <div class="col-md-5">
+            <form method="post" action="{% url 'organizing:set_status' task.pk %}" class="bg-light-subtle p-3 rounded border">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'organizing:my_tasks' %}">
+              <div class="d-flex gap-2 mb-2">
+                <select name="status" class="form-select form-select-sm fw-medium">
+                  <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>⚪ Chưa làm</option>
+                  <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>🔵 Đang làm</option>
+                  <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>🟢 Hoàn thành</option>
+                </select>
+                <button class="btn btn-sm btn-primary fw-medium px-3">Lưu</button>
+              </div>
+              <input name="note" value="{{ task.note }}" class="form-control form-control-sm border-0 shadow-none bg-body" placeholder="Thêm ghi chú tiến độ...">
+            </form>
+          </div>
         </div>
       </div>
-    </div>
-  {% empty %}
-    <div class="col-12">
-      <div class="alert alert-light text-center">
-        Bạn chưa được giao việc nào.
+    {% empty %}
+      <div class="card card-body border-0 shadow-sm text-center py-5">
+        <div class="display-1 opacity-25 mb-3">☕</div>
+        <h4 class="fw-bold text-muted">Thảnh thơi</h4>
+        <p class="text-muted mb-0">Bạn hiện không có công việc nào được giao.</p>
       </div>
-    </div>
-  {% endfor %}
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}

@@ -3,62 +3,121 @@
 {% block title %}Sự kiện{% endblock %}
 
 {% block content %}
-{% comment %} Dải hero mở đầu — giới thiệu và chỗ đặt nút tạo sự kiện (Trưởng BTC). {% endcomment %}
-<section class="card shadow border-0 mb-4 bg-transparent overflow-hidden" style="backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.15) !important;">
-  <div class="position-absolute top-0 start-0 w-100 h-100 bg-primary opacity-25"></div>
-  <div class="card-body p-4 p-md-5 d-flex flex-wrap justify-content-between align-items-center gap-3 position-relative z-1">
+{% comment %} CSS gọn chỉ dùng cho trang này — không đụng vào app.css. {% endcomment %}
+<style>
+  .events-header { border-top: 3px solid var(--brand); }
+  .events-kicker {
+    display: inline-block; font-size: .72rem; letter-spacing: .16em;
+    font-weight: 700; color: var(--brand); text-transform: uppercase;
+  }
+
+  .filter-pill {
+    display: inline-block; padding: .38rem .9rem; border-radius: 999px;
+    font-size: .85rem; font-weight: 500; text-decoration: none; white-space: nowrap;
+    color: var(--bs-body-color); background: var(--app-surface-2);
+    border: 1px solid var(--app-border); transition: all .15s ease;
+  }
+  .filter-pill:hover { border-color: rgba(var(--brand-rgb), .55); color: var(--brand); }
+  .filter-pill.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .search-box { min-width: 230px; }
+
+  .ev-cover { position: relative; overflow: hidden; }
+  .ev-scrim {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,.30), transparent 40%,
+                                transparent 68%, rgba(0,0,0,.34));
+  }
+  .date-badge {
+    position: absolute; top: .6rem; left: .6rem; z-index: 2; line-height: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-width: 3rem; padding: .35rem .5rem; border-radius: .7rem;
+    background: rgba(255,255,255,.93); color: #1e293b;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+  .date-badge .d { font-size: 1.3rem; font-weight: 800; font-family: var(--app-heading-font); }
+  .date-badge .m { font-size: .68rem; font-weight: 700; text-transform: uppercase; color: var(--brand); }
+  .ev-price {
+    position: absolute; left: .6rem; bottom: .6rem; z-index: 2;
+    font-size: .78rem; font-weight: 700; color: #fff;
+    padding: .22rem .62rem; border-radius: 999px; background: rgba(0,0,0,.5);
+  }
+  .text-clamp-2 {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .ev-card:hover .date-badge .m { color: var(--brand-strong); }
+</style>
+
+{% comment %} 1. PAGE HEADER {% endcomment %}
+<header class="card border-0 shadow-sm mb-4 events-header">
+  <div class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div>
-      <h1 class="h2 fw-bold mb-2">Sự kiện của CLB</h1>
-      <p class="mb-0 opacity-75">
-        Khám phá, đăng ký và theo dõi các hoạt động sắp tới của KMG Club.
-      </p>
+      <span class="events-kicker">Sự kiện</span>
+      <h1 class="h3 fw-bold mt-1 mb-1">Sự kiện của câu lạc bộ</h1>
+      <p class="text-secondary mb-0">Khám phá, đăng ký và theo dõi các hoạt động sắp tới của KMG Club.</p>
     </div>
     {% if user.is_lead %}
-      <a href="{% url 'events:create' %}" class="btn btn-primary fw-bold shadow-sm px-4">+ Tạo sự kiện</a>
+      <a href="{% url 'events:create' %}" class="btn btn-primary px-4">+ Tạo sự kiện</a>
     {% endif %}
   </div>
-</section>
+</header>
 
-<form class="card card-body shadow-sm mb-4">
-  <div class="row g-2 align-items-center">
-    <div class="col-md-5">
-      <input name="q" value="{{ keyword }}" class="form-control"
-             placeholder="🔎 Tìm theo tên hoặc địa điểm">
-    </div>
-    <div class="col-md-4">
-      <select name="status" class="form-select">
-        <option value="">— Tất cả trạng thái —</option>
+{% comment %} 2. TOOLBAR: lọc trạng thái + tìm kiếm + số đếm {% endcomment %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      <div class="d-flex flex-wrap gap-1">
+        <a href="?{% if keyword %}q={{ keyword|urlencode }}{% endif %}"
+           class="filter-pill {% if not current_status %}active{% endif %}">Tất cả</a>
         {% for value, label in statuses %}
-          <option value="{{ value }}" {% if value == current_status %}selected{% endif %}>
-            {{ label }}
-          </option>
+          {% if value != 'DRAFT' or user.is_staff_btc %}
+            <a href="?status={{ value }}{% if keyword %}&q={{ keyword|urlencode }}{% endif %}"
+               class="filter-pill {% if value == current_status %}active{% endif %}">{{ label }}</a>
+          {% endif %}
         {% endfor %}
-      </select>
+      </div>
+
+      <form class="ms-auto" role="search">
+        {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+        <div class="input-group input-group-sm search-box">
+          <span class="input-group-text bg-transparent border-end-0">🔎</span>
+          <input name="q" value="{{ keyword }}" class="form-control border-start-0 ps-0"
+                 placeholder="Tìm theo tên hoặc địa điểm">
+          <button class="btn btn-outline-secondary" type="submit">Tìm</button>
+        </div>
+      </form>
     </div>
-    <div class="col-md-3 d-grid">
-      <button class="btn btn-outline-primary">Lọc</button>
+
+    <div class="small text-secondary mt-2">
+      <strong>{{ page_obj.paginator.count }}</strong> sự kiện
+      {% if current_status or keyword %}
+        · <a href="{% url 'events:list' %}" class="text-decoration-none">bỏ lọc</a>
+      {% endif %}
     </div>
   </div>
-</form>
+</div>
 
-<div class="row g-3">
+{% comment %} 3. LƯỚI SỰ KIỆN {% endcomment %}
+<div class="row g-3 g-lg-4">
   {% for event in events %}
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 card-event shadow-sm overflow-hidden">
-        {% comment %}
-          Ảnh bìa do BTC upload. Chưa upload thì dùng ảnh mặc định trong
-          static/, chọn theo id sự kiện nên mỗi sự kiện một ảnh cố định.
-        {% endcomment %}
-        <div class="position-relative">
+    <div class="col-12 col-sm-6 col-lg-4">
+      <article class="card h-100 card-event ev-card border-0 shadow-sm overflow-hidden">
+        <div class="ev-cover">
           {% if event.cover %}
             <img src="{{ event.cover.url }}" class="card-img-top event-cover"
                  alt="Ảnh bìa {{ event.name }}">
           {% else %}
             {% with n=event|cover_index %}
-              <img src="{% static 'img/' %}cover-{{ n }}.jpg"
-                   class="card-img-top event-cover" alt="">
+              <img src="{% static 'img/' %}cover-{{ n }}.jpg" class="card-img-top event-cover" alt="">
             {% endwith %}
           {% endif %}
+          <span class="ev-scrim"></span>
+
+          <div class="date-badge">
+            <span class="d">{{ event.starts_at|date:"d" }}</span>
+            <span class="m">Th{{ event.starts_at|date:"n" }}</span>
+          </div>
+
           <span class="status-pill position-absolute top-0 end-0 m-2
             {% if event.status == 'OPEN' %}bg-success-subtle text-success-emphasis
             {% elif event.status == 'DRAFT' %}bg-secondary-subtle text-secondary-emphasis
@@ -67,50 +126,63 @@
             {% else %}bg-warning-subtle text-warning-emphasis{% endif %}">
             {{ event.get_status_display }}
           </span>
+
+          {% with tt=event.ticket_types.all %}
+            {% if tt %}
+              <span class="ev-price">
+                {% if tt.0.is_free %}Miễn phí{% else %}từ {{ tt.0.price|floatformat:0 }}đ{% endif %}
+              </span>
+            {% endif %}
+          {% endwith %}
         </div>
 
-        <div class="card-body">
-          <h5 class="card-title mb-2">{{ event.name }}</h5>
-          <p class="card-text small text-muted mb-2">
-            🗓 {{ event.starts_at|date:"H:i · d/m/Y" }}<br>
-            📍 {{ event.location }}
-          </p>
-          <p class="card-text small text-body-secondary">
-            {{ event.description|truncatechars:100 }}
+        <div class="card-body d-flex flex-column">
+          <h2 class="h5 card-title mb-1 text-clamp-2">{{ event.name }}</h2>
+          <p class="small text-secondary mb-3">
+            🕒 {{ event.starts_at|date:"H:i · D, d/m/Y" }}<br>
+            📍 <span class="text-clamp-2 d-inline">{{ event.location }}</span>
           </p>
 
           {% if event.total_quota %}
-            <div class="mt-3">
-              <div class="d-flex justify-content-between small mb-1">
-                {% if event.seats_left %}
-                  <span class="text-muted">Chỗ còn lại</span>
-                  <span class="fw-semibold">{{ event.seats_left }}/{{ event.total_quota }}</span>
-                {% else %}
-                  <span class="text-danger fw-semibold">Đã hết chỗ</span>
-                  <span class="text-muted">{{ event.total_quota }} vé</span>
-                {% endif %}
-              </div>
-              {% comment %} Thanh thể hiện tỉ lệ ĐÃ đăng ký = 100% - phần còn lại. {% endcomment %}
-              <div class="progress seats" role="progressbar"
-                   aria-label="Tỉ lệ đã đăng ký">
-                <div class="progress-bar {% if not event.seats_left %}bg-danger{% endif %}"
-                     style="width: calc(100% - {% widthratio event.seats_left event.total_quota 100 %}%)"></div>
-              </div>
+            <div class="d-flex justify-content-between align-items-baseline mb-1">
+              {% if event.seats_left %}
+                <span class="small text-secondary">Chỗ còn lại</span>
+                <span class="small fw-semibold">{{ event.seats_left }}<span class="text-secondary fw-normal">/{{ event.total_quota }}</span></span>
+              {% else %}
+                <span class="small fw-semibold text-danger">Đã hết chỗ</span>
+                <span class="small text-secondary">{{ event.total_quota }} vé</span>
+              {% endif %}
             </div>
+            <div class="progress seats" role="progressbar" aria-label="Tỉ lệ đã đăng ký">
+              <div class="progress-bar {% if not event.seats_left %}bg-danger{% endif %}"
+                   style="width: calc(100% - {% widthratio event.seats_left event.total_quota 100 %}%)"></div>
+            </div>
+          {% else %}
+            <p class="small text-secondary mb-0">Chưa mở bán vé</p>
           {% endif %}
-        </div>
 
-        <div class="card-footer bg-transparent border-0 pt-0">
-          <a href="{% url 'events:detail' event.pk %}"
-             class="btn btn-sm btn-primary w-100">Xem chi tiết</a>
+          <div class="mt-auto pt-3">
+            {% if event.is_registerable %}
+              <a href="{% url 'events:detail' event.pk %}" class="btn btn-primary w-100 stretched-link">
+                Đăng ký ngay
+              </a>
+            {% else %}
+              <a href="{% url 'events:detail' event.pk %}" class="btn btn-outline-secondary w-100 stretched-link">
+                Xem chi tiết
+              </a>
+            {% endif %}
+          </div>
         </div>
-      </div>
+      </article>
     </div>
   {% empty %}
     <div class="col-12">
-      <div class="card card-body text-center text-muted py-5">
-        <div class="display-6 mb-2">🗓</div>
-        <p class="mb-0">Chưa có sự kiện nào phù hợp.</p>
+      <div class="card border-0 shadow-sm text-center text-secondary py-5">
+        <div class="display-6 mb-2">🗓️</div>
+        <p class="mb-1 fw-semibold">Không tìm thấy sự kiện nào</p>
+        {% if current_status or keyword %}
+          <p class="small mb-0">Thử <a href="{% url 'events:list' %}">bỏ bộ lọc</a> để xem tất cả.</p>
+        {% endif %}
       </div>
     </div>
   {% endfor %}

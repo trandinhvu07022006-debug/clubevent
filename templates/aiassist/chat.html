@@ -1,49 +1,171 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Trợ lý tra cứu{% endblock %}
+{% block title %}Trợ lý KMG{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-7">
-    <h4 class="mb-1">Trợ lý tra cứu</h4>
-    <p class="text-muted small">
-      Hỏi nhanh về sự kiện, vé và công việc. Trợ lý chạy hoàn toàn trên máy
-      chủ của hệ thống, không gửi câu hỏi của bạn ra dịch vụ bên ngoài.
-    </p>
+<style>
+  .chat-container {
+    height: calc(100vh - 200px);
+    min-height: 500px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--app-border);
+    border-radius: 1rem;
+    overflow: hidden;
+    background: var(--app-surface);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  }
+  .chat-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    scroll-behavior: smooth;
+  }
+  .chat-footer {
+    padding: 1rem;
+    background: var(--app-surface);
+    border-top: 1px solid var(--app-border);
+  }
+  .chat-msg {
+    max-width: 85%;
+    padding: 0.8rem 1.2rem;
+    border-radius: 1rem;
+    line-height: 1.5;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  
+  .chat-bot {
+    align-self: flex-start;
+    background: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+    border-bottom-left-radius: 0.25rem;
+  }
+  .chat-user {
+    align-self: flex-end;
+    background: var(--brand);
+    color: white;
+    border-bottom-right-radius: 0.25rem;
+  }
+  .chip {
+    border-radius: 20px;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .chip:hover {
+    background: var(--brand);
+    color: white;
+    border-color: var(--brand);
+  }
+  
+  .typing-indicator {
+    display: none;
+    align-self: flex-start;
+    background: var(--bs-secondary-bg);
+    padding: 0.8rem 1.2rem;
+    border-radius: 1rem;
+    border-bottom-left-radius: 0.25rem;
+  }
+  .typing-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--bs-gray-500);
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: typing 1.4s infinite ease-in-out both;
+  }
+  .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+  .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes typing {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+  }
+</style>
 
-    <div class="card shadow-sm">
-      <div class="card-body chat-log" id="chat-log">
-        <div class="chat-msg chat-bot">
-          Chào bạn. Mình trả lời được về sự kiện sắp tới, số chỗ còn lại,
-          vé của bạn, công việc được giao, và cách đăng ký hoặc check-in.
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="mb-4 pb-2 border-bottom text-center" style="border-top: 3px solid var(--brand); padding-top: 1rem;">
+      <span class="text-uppercase fw-bold small" style="color: var(--brand);">AI Assist</span>
+      <h1 class="h3 fw-bold mb-1 mt-1">Trợ lý KMG</h1>
+      <p class="text-muted small mb-0">Hỏi đáp thông tin sự kiện, công việc nhanh chóng</p>
+    </div>
+
+    <div class="chat-container shadow-sm">
+      <div class="chat-log" id="chat-log">
+        <div class="chat-msg chat-bot shadow-sm">
+          👋 Chào bạn. Mình là trợ lý sự kiện KMG.<br>
+          Bạn có thể hỏi mình về lịch trình sự kiện sắp tới, số chỗ còn lại, vé của bạn, công việc được giao, hoặc cách thức đăng ký/check-in.
+        </div>
+        
+        <div class="typing-indicator shadow-sm" id="typing-indicator">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
         </div>
       </div>
 
-      <div class="card-footer bg-white">
-        <div class="d-flex flex-wrap gap-1 mb-2" id="chat-suggestions">
+      <div class="chat-footer">
+        <div class="d-flex flex-wrap gap-2 mb-3" id="chat-suggestions">
           {% for s in suggestions %}
-            <button type="button" class="btn btn-sm btn-outline-secondary chip">
+            <button type="button" class="btn btn-sm btn-outline-secondary chip shadow-sm" onclick="fillAndSubmit(this.innerText)">
               {{ s }}
             </button>
           {% endfor %}
         </div>
-        <form id="chat-form" class="d-flex gap-2">
+        
+        <form id="chat-form" class="position-relative">
           {% csrf_token %}
-          <input id="chat-input" class="form-control" autocomplete="off"
-                 placeholder="Nhập câu hỏi..." maxlength="500" required>
-          <button class="btn btn-primary">Gửi</button>
+          <input id="chat-input" class="form-control form-control-lg rounded-pill pe-5 shadow-sm bg-body" autocomplete="off" placeholder="Nhập câu hỏi của bạn..." maxlength="500" required>
+          <button class="btn btn-primary rounded-circle position-absolute top-50 end-0 translate-middle-y me-1 shadow-sm" style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center;">
+            <i class="bi bi-send-fill"></i>
+          </button>
         </form>
       </div>
     </div>
-
-    <p class="small text-muted mt-3">
-      Trợ lý nhận diện ý định câu hỏi bằng từ khoá rồi tra thẳng cơ sở dữ liệu,
-      nên thông tin trả về luôn đúng với dữ liệu thật và không bao giờ bịa.
-    </p>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="{% static 'js/chatbot.js' %}"></script>
+<script>
+  function fillAndSubmit(text) {
+    const input = document.getElementById('chat-input');
+    input.value = text;
+    // Dispath submit event to trigger chatbot.js logic
+    const form = document.getElementById('chat-form');
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  }
+
+  // Hook into form to show typing indicator
+  const form = document.getElementById('chat-form');
+  const typing = document.getElementById('typing-indicator');
+  const log = document.getElementById('chat-log');
+  
+  form.addEventListener('submit', () => {
+    // Wait a tick for chatbot.js to add user msg, then show typing
+    setTimeout(() => {
+      log.appendChild(typing);
+      typing.style.display = 'block';
+      log.scrollTop = log.scrollHeight;
+    }, 10);
+  });
+  
+  // Hide typing when a new bot message appears
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.classList && node.classList.contains('chat-bot') && node !== typing) {
+          typing.style.display = 'none';
+          log.scrollTop = log.scrollHeight;
+        }
+      });
+    });
+  });
+  observer.observe(log, { childList: true });
+</script>
 {% endblock %}

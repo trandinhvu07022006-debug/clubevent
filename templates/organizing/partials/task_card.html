@@ -1,0 +1,60 @@
+<div class="task-card {% if task.is_overdue %}task-overdue{% elif task.status == 'DONE' %}task-done{% elif task.status == 'DOING' %}task-doing{% endif %}">
+  <div class="d-flex justify-content-between align-items-start mb-2">
+    <h6 class="mb-0 fw-bold">{{ task.title }}</h6>
+    {% if task.created_by_ai %}
+      <span class="badge bg-warning text-dark ms-2 shadow-sm" title="Do AI tạo"><i class="bi bi-robot"></i> AI</span>
+    {% endif %}
+  </div>
+  
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="d-flex align-items-center gap-2">
+      {% if task.assignee %}
+        <div class="avatar-sm shadow-sm" title="{{ task.assignee.full_name }}">
+          {{ task.assignee.full_name|first|upper }}
+        </div>
+        <span class="small fw-medium">{{ task.assignee.full_name }}</span>
+      {% else %}
+        <div class="avatar-sm bg-secondary opacity-50"><i class="bi bi-person"></i></div>
+        <span class="small text-muted fst-italic">Chưa giao</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if task.deadline %}
+    <div class="small mb-2 {% if task.is_overdue %}text-danger fw-bold{% else %}text-muted{% endif %}">
+      <i class="bi bi-clock"></i> Hạn: {{ task.deadline|date:"H:i d/m" }}
+      {% if task.is_overdue %}<span class="badge bg-danger ms-1">Quá hạn</span>{% endif %}
+    </div>
+  {% endif %}
+
+  {% if task.description %}
+    <p class="small text-body-secondary mb-2">{{ task.description|truncatechars:100 }}</p>
+  {% endif %}
+  
+  {% if task.note %}
+    <p class="small text-muted fst-italic mb-3 border-start border-2 ps-2">Ghi chú: {{ task.note }}</p>
+  {% endif %}
+
+  <hr class="my-2 opacity-10">
+
+  <div class="d-flex justify-content-between align-items-center">
+    <form method="post" action="{% url 'organizing:set_status' task.pk %}" class="d-flex gap-1 mb-0">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'organizing:board' event.pk %}">
+      <select name="status" class="form-select form-select-sm border-0 bg-light-subtle" style="width:110px" onchange="this.form.submit()">
+        <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
+        <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
+        <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Hoàn thành</option>
+      </select>
+    </form>
+    <div>
+      <a href="{% url 'organizing:update' task.pk %}" class="btn btn-sm btn-light text-muted px-2" title="Sửa"><i class="bi bi-pencil"></i></a>
+      {% if task.status != 'DONE' %}
+        <form method="post" action="{% url 'organizing:delete' task.pk %}" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xoá việc này?');">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-light text-danger px-2" title="Xoá"><i class="bi bi-trash"></i></button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
