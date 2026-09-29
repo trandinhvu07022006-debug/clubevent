@@ -40,9 +40,10 @@
   --app-heading-font:    'Outfit', 'Inter', system-ui, sans-serif;
 
   /* Token riêng của app */
-  --app-surface:   #ffffff;
-  --app-surface-2: #f1f5f9;
-  --app-border:    #e2e8f0;
+  --app-surface:   rgba(255, 255, 255, 0.85);
+  --app-surface-2: rgba(241, 245, 249, 0.8);
+  --app-border:    rgba(226, 232, 240, 0.5);
+  --app-bg-overlay: rgba(248, 250, 252, 0.88);
   
   /* Glassmorphism navbar */
   --app-header-bg: rgba(15, 23, 42, 0.85);
@@ -52,10 +53,11 @@
 [data-bs-theme="dark"] {
   --bs-body-bg:      #0f172a;
   --bs-body-color:   #f8fafc;
-  --bs-border-color: #334155;
-  --app-surface:     #1e293b;
-  --app-surface-2:   #334155;
-  --app-border:      #334155;
+  --bs-border-color: rgba(51, 65, 85, 0.5);
+  --app-surface:     rgba(30, 41, 59, 0.8);
+  --app-surface-2:   rgba(51, 65, 85, 0.75);
+  --app-border:      rgba(51, 65, 85, 0.5);
+  --app-bg-overlay:  rgba(15, 23, 42, 0.82);
   
   --app-header-bg:   rgba(15, 23, 42, 0.85);
   
@@ -67,7 +69,11 @@
 
 /* ---- 2. NỀN CHUNG ------------------------------------------------------- */
 body {
-  background: var(--bs-body-bg);
+  background-color: var(--bs-body-bg);
+  background-image: linear-gradient(var(--app-bg-overlay), var(--app-bg-overlay)), url('../img/music_bg.jpg');
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
   color: var(--bs-body-color);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -134,6 +140,8 @@ a { text-underline-offset: .15em; }
   --bs-card-cap-bg: transparent;
   border-width: 1px;
   box-shadow: var(--app-shadow-sm);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -227,9 +235,9 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   border-radius: var(--bs-border-radius-xl);
   padding: 4rem 3rem;
   color: #fff;
-  background-image: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(37, 99, 235, 0.7)), url('../img/music_bg.jpg');
-  background-size: cover;
-  background-position: center;
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.7), rgba(37, 99, 235, 0.5));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   box-shadow: var(--app-shadow-lg);
   margin-bottom: 2rem;
 }
