@@ -46,8 +46,8 @@
   --app-bg-overlay: rgba(248, 250, 252, 0.88);
   
   /* Glassmorphism navbar */
-  --app-header-bg: rgba(15, 23, 42, 0.85);
-  --app-header-blur: blur(12px);
+  --app-header-bg: rgba(15, 23, 42, 0.4);
+  --app-header-blur: blur(16px);
 }
 
 [data-bs-theme="dark"] {
@@ -59,7 +59,7 @@
   --app-border:      rgba(51, 65, 85, 0.5);
   --app-bg-overlay:  rgba(15, 23, 42, 0.82);
   
-  --app-header-bg:   rgba(15, 23, 42, 0.85);
+  --app-header-bg:   rgba(15, 23, 42, 0.4);
   
   --app-shadow-sm:   0 2px 5px rgba(0, 0, 0, 0.4);
   --app-shadow:      0 10px 15px -3px rgba(0, 0, 0, 0.5);
@@ -244,10 +244,11 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   overflow: hidden;
   border-radius: var(--bs-border-radius-xl);
   padding: 4rem 3rem;
-  color: #fff;
-  background: linear-gradient(135deg, rgba(30, 58, 138, 0.7), rgba(37, 99, 235, 0.5));
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  color: var(--bs-body-color);
+  background: var(--app-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--app-border);
   box-shadow: var(--app-shadow-lg);
   margin-bottom: 2rem;
 }
