@@ -3,81 +3,114 @@
 {% block title %}Sự kiện{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Sự kiện của CLB</h4>
-  {% if user.is_lead %}
-    <a href="{% url 'events:create' %}" class="btn btn-primary">+ Tạo sự kiện</a>
-  {% endif %}
-</div>
+{% comment %} Dải hero mở đầu — giới thiệu và chỗ đặt nút tạo sự kiện (Trưởng BTC). {% endcomment %}
+<section class="hero mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <h1 class="h3 mb-1">Sự kiện của CLB</h1>
+      <p class="mb-0 opacity-75">
+        Khám phá, đăng ký và theo dõi các hoạt động sắp tới của KMG Club.
+      </p>
+    </div>
+    {% if user.is_lead %}
+      <a href="{% url 'events:create' %}" class="btn btn-light fw-semibold">+ Tạo sự kiện</a>
+    {% endif %}
+  </div>
+</section>
 
-<form class="row g-2 mb-4">
-  <div class="col-md-4">
-    <input name="q" value="{{ keyword }}" class="form-control"
-           placeholder="Tìm theo tên hoặc địa điểm">
+<form class="card card-body shadow-sm mb-4">
+  <div class="row g-2 align-items-center">
+    <div class="col-md-5">
+      <input name="q" value="{{ keyword }}" class="form-control"
+             placeholder="🔎 Tìm theo tên hoặc địa điểm">
+    </div>
+    <div class="col-md-4">
+      <select name="status" class="form-select">
+        <option value="">— Tất cả trạng thái —</option>
+        {% for value, label in statuses %}
+          <option value="{{ value }}" {% if value == current_status %}selected{% endif %}>
+            {{ label }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 d-grid">
+      <button class="btn btn-outline-primary">Lọc</button>
+    </div>
   </div>
-  <div class="col-md-3">
-    <select name="status" class="form-select">
-      <option value="">— Tất cả trạng thái —</option>
-      {% for value, label in statuses %}
-        <option value="{{ value }}" {% if value == current_status %}selected{% endif %}>
-          {{ label }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-auto"><button class="btn btn-outline-primary">Lọc</button></div>
 </form>
 
 <div class="row g-3">
   {% for event in events %}
     <div class="col-md-6 col-lg-4">
-      <div class="card h-100 card-event shadow-sm">
+      <div class="card h-100 card-event shadow-sm overflow-hidden">
         {% comment %}
           Ảnh bìa do BTC upload. Chưa upload thì dùng ảnh mặc định trong
           static/, chọn theo id sự kiện nên mỗi sự kiện một ảnh cố định.
         {% endcomment %}
-        {% if event.cover %}
-          <img src="{{ event.cover.url }}" class="card-img-top event-cover"
-               alt="Ảnh bìa {{ event.name }}">
-        {% else %}
-          {% with n=event|cover_index %}
-            <img src="{% static 'img/' %}cover-{{ n }}.jpg"
-                 class="card-img-top event-cover" alt="">
-          {% endwith %}
-        {% endif %}
+        <div class="position-relative">
+          {% if event.cover %}
+            <img src="{{ event.cover.url }}" class="card-img-top event-cover"
+                 alt="Ảnh bìa {{ event.name }}">
+          {% else %}
+            {% with n=event|cover_index %}
+              <img src="{% static 'img/' %}cover-{{ n }}.jpg"
+                   class="card-img-top event-cover" alt="">
+            {% endwith %}
+          {% endif %}
+          <span class="status-pill position-absolute top-0 end-0 m-2
+            {% if event.status == 'OPEN' %}bg-success-subtle text-success-emphasis
+            {% elif event.status == 'DRAFT' %}bg-secondary-subtle text-secondary-emphasis
+            {% elif event.status == 'CANCELLED' %}bg-danger-subtle text-danger-emphasis
+            {% elif event.status == 'DONE' %}bg-dark-subtle text-dark-emphasis
+            {% else %}bg-warning-subtle text-warning-emphasis{% endif %}">
+            {{ event.get_status_display }}
+          </span>
+        </div>
+
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <h5 class="card-title mb-0">{{ event.name }}</h5>
-            <span class="badge
-              {% if event.status == 'OPEN' %}bg-success
-              {% elif event.status == 'DRAFT' %}bg-secondary
-              {% elif event.status == 'CANCELLED' %}bg-danger
-              {% elif event.status == 'DONE' %}bg-dark
-              {% else %}bg-warning text-dark{% endif %}">
-              {{ event.get_status_display }}
-            </span>
-          </div>
+          <h5 class="card-title mb-2">{{ event.name }}</h5>
           <p class="card-text small text-muted mb-2">
-            {{ event.starts_at|date:"H:i - d/m/Y" }}<br>
-            {{ event.location }}
+            🗓 {{ event.starts_at|date:"H:i · d/m/Y" }}<br>
+            📍 {{ event.location }}
           </p>
-          <p class="card-text small">{{ event.description|truncatechars:100 }}</p>
+          <p class="card-text small text-body-secondary">
+            {{ event.description|truncatechars:100 }}
+          </p>
 
           {% if event.total_quota %}
-            <p class="small mb-0">
-              Còn <strong>{{ event.seats_left }}</strong>/{{ event.total_quota }} chỗ
-            </p>
+            <div class="mt-3">
+              <div class="d-flex justify-content-between small mb-1">
+                {% if event.seats_left %}
+                  <span class="text-muted">Chỗ còn lại</span>
+                  <span class="fw-semibold">{{ event.seats_left }}/{{ event.total_quota }}</span>
+                {% else %}
+                  <span class="text-danger fw-semibold">Đã hết chỗ</span>
+                  <span class="text-muted">{{ event.total_quota }} vé</span>
+                {% endif %}
+              </div>
+              {% comment %} Thanh thể hiện tỉ lệ ĐÃ đăng ký = 100% - phần còn lại. {% endcomment %}
+              <div class="progress seats" role="progressbar"
+                   aria-label="Tỉ lệ đã đăng ký">
+                <div class="progress-bar {% if not event.seats_left %}bg-danger{% endif %}"
+                     style="width: calc(100% - {% widthratio event.seats_left event.total_quota 100 %}%)"></div>
+              </div>
+            </div>
           {% endif %}
         </div>
-        <div class="card-footer bg-white border-0">
+
+        <div class="card-footer bg-transparent border-0 pt-0">
           <a href="{% url 'events:detail' event.pk %}"
-             class="btn btn-sm btn-outline-primary w-100">Xem chi tiết</a>
+             class="btn btn-sm btn-primary w-100">Xem chi tiết</a>
         </div>
       </div>
     </div>
   {% empty %}
     <div class="col-12">
-      <div class="alert alert-light text-center">Chưa có sự kiện nào.</div>
+      <div class="card card-body text-center text-muted py-5">
+        <div class="display-6 mb-2">🗓</div>
+        <p class="mb-0">Chưa có sự kiện nào phù hợp.</p>
+      </div>
     </div>
   {% endfor %}
 </div>

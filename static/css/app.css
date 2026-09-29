@@ -1,136 +1,345 @@
-/* Style bổ sung cho Bootstrap. Giữ tối thiểu, ưu tiên dùng class có sẵn. */
+/* =========================================================================
+   LỚP DESIGN SYSTEM — theme tùy biến trên nền Bootstrap 5.3 (self-hosted)
+   -------------------------------------------------------------------------
+   Nguyên tắc:
+     - KHÔNG thêm thư viện, KHÔNG CDN. Chỉ dựa trên biến CSS của Bootstrap 5.3
+       và một ít token riêng, nên rớt mạng giữa lúc demo vẫn còn nguyên giao diện.
+     - Dark mode dùng cơ chế có sẵn của Bootstrap 5.3: đặt data-bs-theme="dark"
+       lên thẻ <html>. Ở đây chỉ tinh chỉnh lại token cho hợp tông.
+     - Mọi component tùy biến (chat, check-in, hero...) đều dùng biến theme để
+       tự đổi màu theo sáng/tối, không hard-code màu nữa.
+   ========================================================================= */
 
+/* ---- 1. TOKENS ---------------------------------------------------------- */
+:root {
+  /* Màu thương hiệu — Xanh đậm & Vàng kim (Premium) */
+  --brand:        #2563eb;
+  --brand-strong: #1d4ed8;
+  --brand-rgb:    37, 99, 235;
+  --accent:       #f59e0b;
+  
+  --bs-primary:          var(--brand);
+  --bs-primary-rgb:      var(--brand-rgb);
+  --bs-link-color:       var(--brand);
+  --bs-link-hover-color: var(--brand-strong);
+
+  --bs-border-radius:     0.75rem;
+  --bs-border-radius-sm:  0.5rem;
+  --bs-border-radius-lg:  1rem;
+  --bs-border-radius-xl:  1.5rem;
+  
+  --app-shadow-sm:        0 2px 5px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --app-shadow:           0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --app-shadow-lg:        0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --app-shadow-hover:     0 25px 35px -5px rgba(37, 99, 235, 0.15), 0 10px 15px -6px rgba(37, 99, 235, 0.1);
+
+  --bs-body-bg:          #f8fafc;
+  --bs-body-color:       #1e293b;
+  --bs-body-font-size:   0.98rem;
+  --bs-body-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --app-heading-font:    'Outfit', 'Inter', system-ui, sans-serif;
+
+  /* Token riêng của app */
+  --app-surface:   #ffffff;
+  --app-surface-2: #f1f5f9;
+  --app-border:    #e2e8f0;
+  
+  /* Glassmorphism navbar */
+  --app-header-bg: rgba(15, 23, 42, 0.85);
+  --app-header-blur: blur(12px);
+}
+
+[data-bs-theme="dark"] {
+  --bs-body-bg:      #0f172a;
+  --bs-body-color:   #f8fafc;
+  --bs-border-color: #334155;
+  --app-surface:     #1e293b;
+  --app-surface-2:   #334155;
+  --app-border:      #334155;
+  
+  --app-header-bg:   rgba(15, 23, 42, 0.85);
+  
+  --app-shadow-sm:   0 2px 5px rgba(0, 0, 0, 0.4);
+  --app-shadow:      0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --app-shadow-lg:   0 20px 25px -5px rgba(0, 0, 0, 0.6);
+  --app-shadow-hover:0 25px 35px -5px rgba(37, 99, 235, 0.25);
+}
+
+/* ---- 2. NỀN CHUNG ------------------------------------------------------- */
+body {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1, h2, h3, h4, h5, h6, .navbar-brand { 
+  font-family: var(--app-heading-font);
+  font-weight: 700;
+  letter-spacing: -0.02em; 
+}
+
+main.container { max-width: 1140px; }
+
+a { text-underline-offset: .15em; }
+
+/* Ring focus theo màu thương hiệu, thống nhất toàn app */
+.form-control:focus,
+.form-select:focus,
+.btn:focus-visible,
+.page-link:focus {
+  border-color: rgba(var(--brand-rgb), .55);
+  box-shadow: 0 0 0 .2rem rgba(var(--brand-rgb), .18);
+}
+
+/* ---- 3. NÚT ------------------------------------------------------------- */
+.btn { 
+  font-weight: 600; 
+  letter-spacing: 0.01em;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--brand);
+  --bs-btn-border-color: var(--brand);
+  --bs-btn-hover-bg: var(--brand-strong);
+  --bs-btn-hover-border-color: var(--brand-strong);
+  --bs-btn-active-bg: var(--brand-strong);
+  --bs-btn-active-border-color: var(--brand-strong);
+  --bs-btn-disabled-bg: var(--brand);
+  --bs-btn-disabled-border-color: var(--brand);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--brand);
+  --bs-btn-border-color: var(--brand);
+  --bs-btn-hover-bg: var(--brand);
+  --bs-btn-hover-border-color: var(--brand);
+  --bs-btn-active-bg: var(--brand);
+  --bs-btn-active-border-color: var(--brand);
+}
+
+/* ---- 4. THẺ (CARD) ------------------------------------------------------ */
+.card {
+  --bs-card-bg: var(--app-surface);
+  --bs-card-border-color: var(--app-border);
+  --bs-card-border-radius: var(--bs-border-radius-lg);
+  --bs-card-cap-bg: transparent;
+  border-width: 1px;
+  box-shadow: var(--app-shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Thẻ sự kiện: hiệu ứng nâng nhẹ khi rê chuột */
 .card-event {
-    transition: box-shadow .15s ease-in-out;
+  overflow: hidden;
+  border: 1px solid transparent; 
 }
-
 .card-event:hover {
-    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .1);
+  transform: translateY(-5px) scale(1.01);
+  box-shadow: var(--app-shadow-hover);
+  border-color: rgba(var(--brand-rgb), 0.3);
 }
 
-/* Task quá hạn tô đỏ - F3.3 */
-.task-overdue {
-    border-left: 4px solid var(--bs-danger);
+/* ---- 5. THANH ĐIỀU HƯỚNG (NAVBAR) -------------------------------------- */
+.app-nav {
+  background: var(--app-header-bg) !important;
+  backdrop-filter: var(--app-header-blur);
+  -webkit-backdrop-filter: var(--app-header-blur);
+  box-shadow: var(--app-shadow);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.8rem 0;
+  transition: all 0.3s ease;
+}
+.app-nav .navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.app-nav .navbar-brand img {
+  box-shadow: 0 0 12px rgba(255,255,255,0.15);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.app-nav .navbar-brand:hover img {
+  transform: rotate(8deg) scale(1.15);
+}
+.app-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-grid;
+  place-items: center;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), #7aa8ff);
+  box-shadow: 0 4px 10px rgba(var(--brand-rgb), .4);
+}
+.app-nav .nav-link {
+  font-family: var(--app-heading-font);
+  border-radius: 8px;
+  padding: 0.6rem 1rem !important;
+  margin: 0 0.15rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.25s ease;
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+.app-nav .nav-link.active { 
+  background: rgba(255, 255, 255, 0.15); 
+  color: #fff !important; 
+}
+.app-nav .nav-link:hover { 
+  background: rgba(255, 255, 255, 0.1); 
+  color: #fff !important;
+  transform: translateY(-1px);
 }
 
-.task-done {
-    border-left: 4px solid var(--bs-success);
+/* Nút đổi sáng/tối: chỉ hiện icon đúng theo theme của trang (thẻ <html>) */
+.nav-theme-toggle {
+  color: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 8px;
+  line-height: 1;
+  padding: .28rem .5rem;
+}
+.nav-theme-toggle:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+html[data-bs-theme="dark"] .theme-icon-light { display: none; }
+html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
+
+/* ---- 6. HERO (dải mở đầu trang) ---------------------------------------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--bs-border-radius-xl);
+  padding: 4rem 3rem;
+  color: #fff;
+  background: linear-gradient(135deg, #1e3a8a, var(--brand), #3b82f6);
+  box-shadow: var(--app-shadow-lg);
+  margin-bottom: 2rem;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(255,255,255,0.25), transparent 60%),
+              radial-gradient(circle at bottom left, rgba(0,0,0,0.2), transparent 50%);
+  pointer-events: none;
+}
+.hero h1 { 
+  font-weight: 800; 
+  letter-spacing: -0.025em; 
+  font-size: 2.8rem;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  margin-bottom: 1rem;
+}
+.hero .lead {
+  font-size: 1.2rem;
+  opacity: 0.95;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.hero .hero-stat { font-weight: 800; font-size: 1.75rem; line-height: 1; }
+
+/* Ảnh bìa có chữ đè lên: lớp phủ tối để chữ luôn đọc được */
+.cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, .72) 0%, rgba(0, 0, 0, .15) 55%, transparent 100%);
 }
 
-.task-done .task-title {
-    text-decoration: line-through;
-    opacity: .6;
+/* ---- 7. TRẠNG THÁI, TIẾN ĐỘ -------------------------------------------- */
+/* Pill trạng thái mềm hơn badge đặc — dùng kèm class bg-*-subtle của BS 5.3 */
+.status-pill {
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: .72rem;
+  padding: .3em .7em;
+  border: 1px solid transparent;
 }
 
-/* Kết quả check-in: to và rõ để BTC nhìn nhanh trên điện thoại */
-.checkin-result {
-    font-size: 1.25rem;
-    padding: 1.25rem;
-}
+.progress.seats { height: 7px; background: var(--app-surface-2); border-radius: 999px; }
 
+/* Task quá hạn / đã xong — F3.3 (giữ nguyên ý nghĩa, dùng biến theme) */
+.task-overdue { border-left: 4px solid var(--bs-danger); }
+.task-done    { border-left: 4px solid var(--bs-success); }
+.task-done .task-title { text-decoration: line-through; opacity: .6; }
+
+/* ---- 8. CHECK-IN (màn BTC dùng ở cửa, trên điện thoại) ------------------ */
+.checkin-result { font-size: 1.25rem; padding: 1.25rem; border-radius: var(--bs-border-radius-lg); }
 .checkin-code {
-    font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-    letter-spacing: .12em;
-    font-weight: 600;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  letter-spacing: .12em;
+  font-weight: 600;
 }
-
-/* Ô nhập mã vé to cho dễ bấm trên điện thoại */
 #code-input {
-    font-size: 1.5rem;
-    text-align: center;
-    letter-spacing: .1em;
+  font-size: 1.5rem;
+  text-align: center;
+  letter-spacing: .1em;
 }
 
-.qr-img {
-    width: 160px;
-    height: 160px;
-}
+.qr-img { width: 160px; height: 160px; border-radius: 12px; }
 
-.star-rating {
-    color: #f0a500;
-    letter-spacing: .1em;
-}
+.star-rating { color: var(--accent); letter-spacing: .1em; }
 
-/* --- Trợ lý tra cứu --- */
+/* ---- 9. TRỢ LÝ TRA CỨU (chat) — theme-aware ---------------------------- */
 .chat-log {
-    height: 420px;
-    overflow-y: auto;
-    background: #f8f9fa;
+  height: 420px;
+  overflow-y: auto;
+  background: var(--app-surface-2);
+  border-radius: var(--bs-border-radius-lg);
 }
-
 .chat-msg {
-    max-width: 85%;
-    padding: 10px 14px;
-    border-radius: 14px;
-    margin-bottom: 10px;
-    white-space: pre-line;   /* giữ xuống dòng trong câu trả lời nhiều ý */
-    line-height: 1.5;
-    font-size: .94rem;
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  white-space: pre-line;      /* giữ xuống dòng trong câu trả lời nhiều ý */
+  line-height: 1.5;
+  font-size: .94rem;
 }
-
 .chat-bot {
-    background: #fff;
-    border: 1px solid #e1e0d9;
-    border-bottom-left-radius: 4px;
+  background: var(--app-surface);
+  color: var(--bs-body-color);
+  border: 1px solid var(--app-border);
+  border-bottom-left-radius: 4px;
 }
-
 .chat-user {
-    background: #2a78d6;
-    color: #fff;
-    margin-left: auto;
-    border-bottom-right-radius: 4px;
+  background: var(--brand);
+  color: #fff;
+  margin-left: auto;
+  border-bottom-right-radius: 4px;
 }
+.chat-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 
-.chat-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 10px;
-}
+/* ---- 10. ẢNH BÌA & AVATAR ---------------------------------------------- */
+.event-cover    { aspect-ratio: 16 / 9; object-fit: cover; }
+.event-cover-lg { aspect-ratio: 21 / 9; object-fit: cover; }
 
-/* Ảnh bìa sự kiện: cắt theo tỉ lệ cố định để các thẻ card bằng nhau,
-   ảnh nào kích thước lạ cũng không làm vỡ lưới. */
-.event-cover {
-    aspect-ratio: 16 / 9;
-    object-fit: cover;
-}
-
-.event-cover-lg {
-    aspect-ratio: 21 / 9;
-    object-fit: cover;
-}
-
-/* Avatar: chưa upload ảnh thì hiện chữ cái đầu của tên trên nền tròn. */
 .avatar,
 .avatar-initials {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex: 0 0 auto;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
 }
-
 .avatar-initials {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #2a78d6;
-    color: #fff;
-    font-size: .8rem;
-    font-weight: 600;
-    letter-spacing: .02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .02em;
 }
-
-.avatar-lg,
-.avatar-lg.avatar-initials {
-    width: 96px;
-    height: 96px;
-    font-size: 1.75rem;
-}
-
-.avatar-sm,
-.avatar-sm.avatar-initials {
-    width: 28px;
-    height: 28px;
-    font-size: .68rem;
-}
+.avatar-lg, .avatar-lg.avatar-initials { width: 96px; height: 96px; font-size: 1.75rem; }
+.avatar-sm, .avatar-sm.avatar-initials { width: 28px; height: 28px; font-size: .68rem; }
