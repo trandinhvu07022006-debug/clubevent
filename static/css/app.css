@@ -150,6 +150,9 @@ a { text-underline-offset: .15em; }
 
 /* ---- 5. THANH ĐIỀU HƯỚNG (NAVBAR) -------------------------------------- */
 .app-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
   background: var(--app-header-bg) !important;
   backdrop-filter: var(--app-header-blur);
   -webkit-backdrop-filter: var(--app-header-blur);
@@ -165,6 +168,7 @@ a { text-underline-offset: .15em; }
   font-weight: 800;
   font-size: 1.35rem;
   letter-spacing: -0.02em;
+  color: #ffffff !important;
 }
 .app-nav .navbar-brand img {
   box-shadow: 0 0 12px rgba(255,255,255,0.15);
