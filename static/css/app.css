@@ -103,24 +103,22 @@ input, textarea, select {
 @property --brand-strong { syntax: "<color>"; inherits: true; initial-value: #1d4ed8; }
 @property --accent       { syntax: "<color>"; inherits: true; initial-value: #f59e0b; }
 
-/* Hai lớp ảnh nền phủ toàn màn hình, nằm sau nội dung */
-body::before,
-body::after {
-  content: "";
+/* Container chứa các lớp ảnh nền (được tạo bởi js) */
+.scene-bg-container {
   position: fixed;
   inset: 0;
   z-index: -2;
-  background-size: 110% 110%;
-  background-position: center;
-  opacity: 0;
-  transition: opacity 1.6s ease-in-out;
-  animation: cosmicDrift 180s ease-in-out infinite alternate;  /* giữ hiệu ứng trôi */
   pointer-events: none;
 }
-body::before { background-image: linear-gradient(var(--app-bg-overlay), var(--app-bg-overlay)), url("../img/scene-sunset.jpg"); }
-body::after  { background-image: linear-gradient(var(--app-bg-overlay), var(--app-bg-overlay)), url("../img/scene-dawn.jpg"); }
-body.scene-0::before { opacity: 1; }
-body.scene-1::after  { opacity: 1; }
+.scene-layer {
+  position: absolute;
+  inset: 0;
+  background-size: 110% 110%;
+  background-position: center;
+  transition: opacity 2s ease-in-out;
+  opacity: 0;
+  animation: cosmicDrift 180s ease-in-out infinite alternate;  /* giữ hiệu ứng trôi */
+}
 
 /* 🌅 Cảnh 1 — Hoàng hôn: cam san hô + vàng nắng */
 body.scene-0 {
@@ -135,6 +133,27 @@ body.scene-1 {
   --brand-strong: #375562;
   --brand-rgb:    74, 108, 126;
   --accent:       #d8b978;
+}
+/* 🌌 Cảnh 3 - Đêm sao đại dương */
+body.scene-2 {
+  --brand:        #2b7a5a;
+  --brand-strong: #1e5a42;
+  --brand-rgb:    43, 122, 90;
+  --accent:       #9edbba;
+}
+/* 🏔 Cảnh 4 - Núi hùng vĩ hoàng hôn */
+body.scene-3 {
+  --brand:        #8a3f8a;
+  --brand-strong: #662266;
+  --brand-rgb:    138, 63, 138;
+  --accent:       #e5b3e5;
+}
+/* 🏙 Cảnh 5 - Cyberpunk City / Skyline */
+body.scene-4 {
+  --brand:        #24588e;
+  --brand-strong: #173b61;
+  --brand-rgb:    36, 88, 142;
+  --accent:       #9ecbed;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -4,16 +4,17 @@
 
 {% block content %}
 {% comment %} Dải hero mở đầu — giới thiệu và chỗ đặt nút tạo sự kiện (Trưởng BTC). {% endcomment %}
-<section class="hero mb-4">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+<section class="card shadow border-0 mb-4 bg-transparent overflow-hidden" style="backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.15) !important;">
+  <div class="position-absolute top-0 start-0 w-100 h-100 bg-primary opacity-25"></div>
+  <div class="card-body p-4 p-md-5 d-flex flex-wrap justify-content-between align-items-center gap-3 position-relative z-1">
     <div>
-      <h1 class="h3 mb-1">Sự kiện của CLB</h1>
+      <h1 class="h2 fw-bold mb-2">Sự kiện của CLB</h1>
       <p class="mb-0 opacity-75">
         Khám phá, đăng ký và theo dõi các hoạt động sắp tới của KMG Club.
       </p>
     </div>
     {% if user.is_lead %}
-      <a href="{% url 'events:create' %}" class="btn btn-light fw-semibold">+ Tạo sự kiện</a>
+      <a href="{% url 'events:create' %}" class="btn btn-primary fw-bold shadow-sm px-4">+ Tạo sự kiện</a>
     {% endif %}
   </div>
 </section>
