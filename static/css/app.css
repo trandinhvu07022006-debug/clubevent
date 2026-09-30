@@ -893,3 +893,11 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 .stat-tile .num { font-size: 1.5rem; font-weight: 800; font-family: var(--app-heading-font); line-height: 1.1; }
 .stat-tile .lbl { font-size: .78rem; color: var(--bs-secondary-color); }
 .min-w-0 { min-width: 0; }
+
+/* Tiêu đề bảng: Bootstrap ghi cứng .table-light là nền SÁNG ở cả 2 theme ->
+   ở theme tối ra một dải trắng chói giữa bảng tối. Đổi sang token bề mặt. */
+[data-bs-theme="dark"] .table-light {
+  --bs-table-bg: var(--app-surface-2);
+  --bs-table-color: var(--bs-body-color);
+  --bs-table-border-color: var(--app-border);
+}

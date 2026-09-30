@@ -175,11 +175,11 @@
       <article class="card h-100 card-event ev-card border-0 shadow-sm overflow-hidden">
         <div class="ev-cover">
           {% if event.cover %}
-            <img src="{{ event.cover.url }}" class="card-img-top event-cover"
+            <img src="{{ event.cover.url }}" class="card-img-top event-cover" loading="lazy" decoding="async"
                  alt="Ảnh bìa {{ event.name }}">
           {% else %}
             {% with n=event|default_cover %}
-              <img src="{% static n %}" class="card-img-top event-cover" alt="">
+              <img src="{% static n %}" class="card-img-top event-cover" loading="lazy" decoding="async" alt="">
             {% endwith %}
           {% endif %}
           <span class="ev-scrim"></span>

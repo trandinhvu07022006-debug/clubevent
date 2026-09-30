@@ -2,7 +2,7 @@
 {% block title %}{% if view == 'assigned' %}Việc tôi đã giao{% else %}Việc của tôi{% endif %}{% endblock %}
 
 {% block topbar %}
-<div class="d-flex justify-content-center w-100 my-2 my-lg-0">
+<div class="d-flex justify-content-center w-100 my-2 my-lg-0 min-w-0">
   {% comment %} Segmented control dùng chung (app.css mục 17). Giữ lại ?view khi lọc trạng thái. {% endcomment %}
   <nav class="segmented" aria-label="Lọc theo trạng thái">
     <a href="?view={{ view }}" class="segmented-item {% if not current_status %}active{% endif %}">Tất cả ({{ counts.all }})</a>
