@@ -1,6 +1,6 @@
 """Form cho M1 - Tài khoản."""
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, PasswordResetForm
 
 from .models import Role, User
 
@@ -84,3 +84,11 @@ class RoleForm(forms.ModelForm):
         model = User
         fields = ("role",)
         widgets = {"role": forms.Select(attrs={"class": "form-select"})}
+
+
+class AppPasswordResetForm(PasswordResetForm):
+    def get_users(self, email):
+        # Không gửi link cho tài khoản bị khoá: có đặt lại được mật khẩu thì
+        # vẫn không đăng nhập được (confirm_login_allowed chặn), chỉ gây rối.
+        return (u for u in super().get_users(email) if not u.is_locked)
+

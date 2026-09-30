@@ -8,15 +8,33 @@ from django import template
 register = template.Library()
 
 
+# Ảnh bìa mặc định — TÊN PHẢI KHỚP FILE CÓ THẬT trong static/img/.
+# Trước đây filter trả về số 1..4 và template ghép thành "cover-1.jpg"…
+# nhưng trong static/img/ không hề có file nào tên như vậy, nên mọi sự kiện
+# chưa upload ảnh đều hiện ảnh vỡ.
+DEFAULT_COVERS = (
+    "img/scene-sunset.jpg",
+    "img/scene-dawn.jpg",
+    "img/scene-2.jpg",
+    "img/scene-3.jpg",
+    "img/scene-4.jpg",
+)
+
+
 @register.filter
-def cover_index(event):
+def default_cover(event):
     """
     Chọn ảnh bìa mặc định cho sự kiện chưa upload ảnh.
+
+    Trả về ĐƯỜNG DẪN ĐẦY ĐỦ trong static (vd "img/scene-2.jpg") để template
+    gọi thẳng {% static path %}. Không ghép chuỗi kiểu {% static 'img/' %} +
+    tên file: khi deploy (ManifestStaticFilesStorage) 'img/' không có trong
+    manifest nên sẽ ném ValueError làm sập trang.
 
     Chia lấy dư theo id để mỗi sự kiện có một ảnh cố định, không đổi mỗi
     lần tải trang. Ảnh nằm trong static/ nên không bị mất khi deploy lại.
     """
-    return (event.pk or 0) % 4 + 1
+    return DEFAULT_COVERS[(event.pk or 0) % len(DEFAULT_COVERS)]
 
 
 @register.filter

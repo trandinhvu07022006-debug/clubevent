@@ -3,7 +3,8 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
-from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView
+from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView, PasswordResetView, PasswordResetDoneView, PasswordResetConfirmView, PasswordResetCompleteView
+import time
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -11,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from core.pagination import paginate
 
-from .forms import LoginForm, ProfileForm, RegisterForm, RoleForm
+from .forms import LoginForm, ProfileForm, RegisterForm, RoleForm, AppPasswordResetForm
 from .models import AuditLog, User
 from .permissions import admin_required
 
@@ -75,6 +76,38 @@ class AppPasswordChangeView(PasswordChangeView):
         messages.success(self.request, "Đã đổi mật khẩu thành công.")
         AuditLog.write(self.request.user, "Đổi mật khẩu", self.request.user)
         return super().form_valid(form)
+
+
+class AppPasswordResetView(PasswordResetView):
+    template_name = "accounts/password_reset_form.html"
+    email_template_name = "emails/password_reset.txt"
+    html_email_template_name = "emails/password_reset.html"
+    subject_template_name = "emails/password_reset_subject.txt"
+    form_class = AppPasswordResetForm
+    success_url = reverse_lazy("accounts:password_reset_done")
+
+    def dispatch(self, request, *args, **kwargs):
+        # Chặn spam: tối đa 5 yêu cầu/giờ mỗi session
+        now = time.time()
+        key = "pwd_reset_timestamps"
+        timestamps = request.session.get(key, [])
+        timestamps = [t for t in timestamps if now - t < 3600]
+        if len(timestamps) >= 5:
+            # Vượt ngưỡng vẫn hiện trang "đã gửi" (không lộ thông tin)
+            return redirect(self.success_url)
+        timestamps.append(now)
+        request.session[key] = timestamps
+        return super().dispatch(request, *args, **kwargs)
+
+
+class AppPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = "accounts/password_reset_confirm.html"
+    success_url = reverse_lazy("accounts:password_reset_complete")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        AuditLog.write(self.user, "Đặt lại mật khẩu", self.user.username)
+        return response
 
 
 @admin_required

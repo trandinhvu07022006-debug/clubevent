@@ -17,6 +17,8 @@
   </div>
 </header>
 
+{% include "events/partials/event_tabs.html" %}
+
 <div class="row g-3 mb-3">
   <div class="col-6 col-md-3">
     <div class="card text-center"><div class="card-body py-3">
@@ -125,21 +127,21 @@
       </div>
       <div class="row g-3">
         <div class="col-md-6">
-          <div class="p-3 bg-white bg-opacity-75 rounded-3 h-100 border border-white">
+          <div class="p-3 bg-body rounded-3 h-100 border">
             <h6 class="fw-bold text-success-emphasis mb-2"><i class="bi bi-hand-thumbs-up"></i> Được khen</h6>
-            <p class="mb-0 small text-dark">{{ summary.positive|default:"—" }}</p>
+            <p class="mb-0 small text-body">{{ summary.positive|default:"—" }}</p>
           </div>
         </div>
         <div class="col-md-6">
-          <div class="p-3 bg-white bg-opacity-75 rounded-3 h-100 border border-white">
+          <div class="p-3 bg-body rounded-3 h-100 border">
             <h6 class="fw-bold text-danger-emphasis mb-2"><i class="bi bi-bullseye"></i> Cần cải thiện</h6>
-            <p class="mb-0 small text-dark">{{ summary.negative|default:"—" }}</p>
+            <p class="mb-0 small text-body">{{ summary.negative|default:"—" }}</p>
           </div>
         </div>
         <div class="col-12">
-          <div class="p-3 bg-white rounded-3 shadow-sm border border-primary-subtle">
+          <div class="p-3 bg-body rounded-3 shadow-sm border border-primary-subtle">
             <h6 class="fw-bold text-primary-emphasis mb-2"><i class="bi bi-lightbulb"></i> Đề xuất hành động</h6>
-            <p class="mb-0 text-dark">{{ summary.suggestion|linebreaksbr|default:"—" }}</p>
+            <p class="mb-0 text-body">{{ summary.suggestion|linebreaksbr|default:"—" }}</p>
           </div>
         </div>
       </div>
@@ -164,12 +166,12 @@
               {% endfor %}
             </span>
           </div>
-          <p class="mb-2 text-dark">{{ f.content|default:"(không ghi góp ý)" }}</p>
+          <p class="mb-2 text-body">{{ f.content|default:"(không ghi góp ý)" }}</p>
           <small class="text-muted">{{ f.created_at|date:"H:i d/m/Y" }}</small>
         </li>
       {% empty %}
-        <li class="list-group-item text-center text-muted py-5">
-          Chưa có phản hồi nào.
+        <li class="list-group-item p-0">
+          {% include "partials/empty_state.html" with icon="bi-chat-left-text" title="Chưa có phản hồi nào" desc="Chưa có người tham gia nào để lại đánh giá cho sự kiện này." %}
         </li>
       {% endfor %}
     </ul>

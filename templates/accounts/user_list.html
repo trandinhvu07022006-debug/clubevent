@@ -38,7 +38,7 @@
             </td>
             <td>{{ u.mssv|default:"—" }}</td>
             <td>{{ u.username }}</td>
-            <td><span class="badge bg-info text-dark">{{ u.get_role_display }}</span></td>
+            <td><span class="badge text-bg-info">{{ u.get_role_display }}</span></td>
             <td>
               {% if u.is_locked %}
                 <span class="badge bg-danger">Đã khoá</span>

@@ -65,6 +65,12 @@
     width: 40px; height: 40px; padding: 0;
     display: flex; align-items: center; justify-content: center;
   }
+  /* Thiết bị cảm ứng: nới lên 44px cho đúng chuẩn Apple HIG / WCAG 2.5.5.
+     Ô nhập cũng phải cao thêm để nút tròn không chạm mép. */
+  @media (pointer: coarse) {
+    .chat-send-btn { width: 44px; height: 44px; min-height: 44px; }
+    #chat-input   { padding-right: 3.5rem; }
+  }
   
   .typing-indicator {
     display: none;

@@ -1,0 +1,63 @@
+/* ---- 14. SIDEBAR -------------------------------------------------------- */
+.app-sidebar {
+  width: 260px;
+  background-color: var(--app-surface);
+  border-right: 1px solid var(--app-border);
+  transition: width 0.2s ease;
+}
+@media (max-width: 991.98px) {
+  .app-sidebar.offcanvas-lg {
+    width: 280px;
+  }
+}
+@media (min-width: 992px) {
+  /* Stick sidebar to viewport height */
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .app-sidebar.collapsed {
+    width: 72px;
+  }
+  .app-sidebar.collapsed .sidebar-heading,
+  .app-sidebar.collapsed .sidebar-user-info,
+  .app-sidebar.collapsed .collapse-text,
+  .app-sidebar.collapsed .nav-link .nav-text,
+  .app-sidebar.collapsed .nav-link .badge,
+  .app-sidebar.collapsed .app-brand-text {
+    display: none !important;
+  }
+  .app-sidebar.collapsed .nav-link {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .app-sidebar.collapsed .nav-link i {
+    font-size: 1.2rem;
+    margin: 0 !important;
+  }
+  .app-sidebar.collapsed .app-brand-link {
+    justify-content: center;
+  }
+  .app-sidebar.collapsed .dropdown-toggle::after {
+    display: none;
+  }
+  .app-sidebar.collapsed .dropdown-toggle {
+    justify-content: center;
+  }
+  .app-sidebar.collapsed #sidebarCollapseBtn i::before {
+    content: "\F285"; /* bi-chevron-double-right */
+  }
+}
+.sidebar-scroll {
+  /* Firefox */
+  scrollbar-width: thin;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 100, 100, 0.2);
+  border-radius: 10px;
+}

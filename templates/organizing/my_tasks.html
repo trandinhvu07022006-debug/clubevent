@@ -1,23 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Việc của tôi{% endblock %}
 
+{% block topbar %}
+<div class="d-flex justify-content-center w-100 my-2 my-lg-0">
+  {% comment %} Segmented control dùng chung (app.css mục 17). {% endcomment %}
+  <nav class="segmented" aria-label="Lọc theo trạng thái">
+    <a href="?status=" class="segmented-item {% if not current_status %}active{% endif %}">Tất cả</a>
+    <a href="?status=TODO" class="segmented-item {% if current_status == 'TODO' %}active{% endif %}">Chưa làm</a>
+    <a href="?status=DOING" class="segmented-item {% if current_status == 'DOING' %}active{% endif %}">Đang làm</a>
+    <a href="?status=DONE" class="segmented-item {% if current_status == 'DONE' %}active{% endif %}">Hoàn thành</a>
+  </nav>
+</div>
+{% endblock %}
+
 {% block content %}
 <style>
-  .task-list-card {
-    background: var(--app-surface);
-    border-radius: 1rem;
-    border: 1px solid var(--app-border);
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    transition: transform 0.2s, box-shadow 0.2s;
-    border-left: 4px solid var(--bs-secondary);
-  }
-  .task-list-card:hover {
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  }
-  .task-list-overdue { border-left-color: var(--bs-danger) !important; }
-  .task-list-doing { border-left-color: var(--bs-primary) !important; }
-  .task-list-done { border-left-color: var(--bs-success) !important; opacity: 0.7; }
 </style>
 
 <header class="page-header">
@@ -35,49 +32,47 @@
   </div>
 </header>
 
-<div class="row g-4">
-  <div class="col-12">
+
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
     {% for task in tasks %}
-      <div class="task-list-card shadow-sm {% if task.is_overdue %}task-list-overdue{% elif task.status == 'DONE' %}task-list-done{% elif task.status == 'DOING' %}task-list-doing{% endif %}">
-        <div class="row g-3 align-items-center">
-          <div class="col-md-7">
-            <h5 class="fw-bold mb-2">{{ task.title }}</h5>
-            <div class="small text-muted mb-2 d-flex flex-wrap gap-2 align-items-center">
-              <span class="badge bg-light text-dark border">{{ task.event.name }}</span>
-              {% if task.deadline %}
-                <span class="{% if task.is_overdue %}text-danger fw-bold{% endif %}">
-                  <i class="bi bi-clock"></i> Hạn: {{ task.deadline|date:"H:i d/m" }}
-                  {% if task.is_overdue %}(Quá hạn){% endif %}
-                </span>
-              {% endif %}
-            </div>
-            {% if task.description %}
-              <p class="small text-body-secondary mb-0">{{ task.description|truncatechars:150 }}</p>
-            {% endif %}
+      <div class="icon-list-item px-3 {% if task.is_overdue %}border-start border-4 border-danger{% endif %}">
+        <div class="icon-list-item-icon">
+          {% if task.status == 'DONE' %}
+            <div class="avatar-sm bg-success text-white"><i class="bi bi-check2"></i></div>
+          {% elif task.status == 'DOING' %}
+            <div class="avatar-sm bg-primary text-white"><i class="bi bi-play-fill"></i></div>
+          {% else %}
+            <div class="avatar-sm bg-secondary text-white"><i class="bi bi-clock"></i></div>
+          {% endif %}
+        </div>
+        <div class="icon-list-item-content">
+          <div class="icon-list-item-title {% if task.status == 'DONE' %}text-decoration-line-through opacity-75{% endif %}">{{ task.title }}</div>
+          <div class="icon-list-item-subtitle">
+            {{ task.event.name }}
+            {% if task.deadline %} · Hạn: {{ task.deadline|date:"H:i d/m" }}{% endif %}
+            {% if task.is_overdue %}<strong class="text-danger">(Quá hạn)</strong>{% endif %}
           </div>
-          
-          <div class="col-md-5">
-            <form method="post" action="{% url 'organizing:set_status' task.pk %}" class="bg-light-subtle p-3 rounded border">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{% url 'organizing:my_tasks' %}">
-              <div class="d-flex gap-2 mb-2">
-                <select name="status" class="form-select form-select-sm fw-medium">
-                  <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
-                  <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
-                  <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Hoàn thành</option>
-                </select>
-                <button class="btn btn-sm btn-primary fw-medium px-3">Lưu</button>
-              </div>
-              <input name="note" value="{{ task.note }}" class="form-control form-control-sm border-0 shadow-none bg-body" placeholder="Thêm ghi chú tiến độ...">
-            </form>
-          </div>
+          {% if task.description %}
+            <div class="small text-body-secondary mt-1">{{ task.description|truncatechars:100 }}</div>
+          {% endif %}
+        </div>
+        <div class="icon-list-item-right text-end">
+          <form method="post" action="{% url 'organizing:set_status' task.pk %}" class="d-flex align-items-center gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'organizing:my_tasks' %}">
+            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+              <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
+              <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
+              <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Hoàn thành</option>
+            </select>
+          </form>
         </div>
       </div>
     {% empty %}
-      <div class="card card-body border-0 shadow-sm text-center py-5">
-        <div class="display-1 opacity-25 mb-3"><i class="bi bi-cup-hot"></i></div>
-        <h4 class="fw-bold text-muted">Thảnh thơi</h4>
-        <p class="text-muted mb-0">Bạn hiện không có công việc nào được giao.</p>
+      <div class="p-3">
+        {% include "partials/empty_state.html" with icon="bi-cup-hot" title="Không còn việc nào — tuyệt vời!" desc="Bạn hiện không có công việc nào được giao." %}
       </div>
     {% endfor %}
   </div>

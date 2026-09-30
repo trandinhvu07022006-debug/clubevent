@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "registrations",  # M4 + M5 - Đăng ký vé & Check-in
     "feedback",       # M6 - Phản hồi & thống kê
     "aiassist",       # Tích hợp AI
+    "notifications",  # M7 - Nền tảng thông báo chung
 ]
 
 MIDDLEWARE = [
@@ -85,6 +86,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.user_badges",
             ],
         },
     },
@@ -142,6 +144,24 @@ else:
             },
         }
     }
+
+# --- Email ---
+# Dev/demo: in email ra terminal, KHÔNG cần mạng. Deploy: đổi sang SMTP qua .env.
+EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", "")
+EMAIL_PORT = int(env("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_TIMEOUT = 10          # BẮT BUỘC: SMTP treo sẽ treo luôn request người dùng
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "KMG Club <no-reply@kmgclub.local>")
+
+# Địa chỉ gốc để tạo link TUYỆT ĐỐI trong email. Cần vì lệnh chạy định kỳ
+# (nhắc lịch) không có request để suy ra tên miền.
+SITE_URL = env("SITE_URL", "http://127.0.0.1:8000").rstrip("/")
+
+PASSWORD_RESET_TIMEOUT = 2 * 60 * 60
+
 
 # Nhiều host free cấp sẵn biến DATABASE_URL thay vì từng biến rời.
 # Đọc luôn cho tiện, đỡ phải điền tay 5 biến trên dashboard.

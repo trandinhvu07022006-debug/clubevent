@@ -11,68 +11,110 @@
 
 /* ---- 1. TOKENS ---------------------------------------------------------- */
 :root {
-  /* Màu thương hiệu — INDIGO. Muốn đổi màu chỉ cần sửa 3 dòng dưới đây. */
-  --brand:        #4f46e5;   /* indigo-600 */
-  --brand-strong: #4338ca;   /* indigo-700 (trạng thái hover/active) */
-  --brand-rgb:    79, 70, 229;
-  --accent:       #f59e0b;   /* hổ phách — dùng cho "đang làm", sao đánh giá */
+  /* Màu thương hiệu — XANH MỰC (deep ink blue).
+     Triết lý: poster sự kiện vốn đã nhiều màu, nên giao diện LÙI LẠI làm nền
+     cho chúng thay vì tranh màu. Xanh mực trầm + nền giấy ấm là cặp cổ điển,
+     hoà thuận với mọi tấm poster. Muốn đổi màu chỉ cần sửa 4 dòng dưới đây. */
+  --brand:        #34477d;   /* xanh mực trầm — chữ trắng đè lên đạt 9:1 */
+  --brand-strong: #2f4070;   /* đậm hơn (trạng thái hover/active) */
+  --brand-rgb:    52, 71, 125;
+  --accent:       #a87d26;   /* cát ấm — sao đánh giá, điểm nhấn nhỏ */
+  --accent-rgb:   168, 125, 38;
+
+  /* --brand dùng làm NỀN (nút, pill: chữ trắng đè lên) nên cần đủ ĐẬM.
+     --brand-text dùng làm CHỮ màu thương hiệu (link, kicker) trên nền trang.
+     Ở theme sáng hai màu trùng nhau; ở theme tối chúng tách ra (xem bên dưới),
+     vì nền tối cần chữ SÁNG mới đọc được. */
+  --brand-text:   var(--brand);   /* xanh mực đã đủ đậm: 8.3:1 trên nền giấy */
 
   --bs-primary:          var(--brand);
   --bs-primary-rgb:      var(--brand-rgb);
-  --bs-link-color:       var(--brand);
+  --bs-link-color:       var(--brand-text);
   --bs-link-hover-color: var(--brand-strong);
 
-  --bs-border-radius:     0.75rem;
-  --bs-border-radius-sm:  0.5rem;
-  --bs-border-radius-lg:  1rem;
-  --bs-border-radius-xl:  1.5rem;
+  --bs-border-radius:     0.85rem;
+  --bs-border-radius-sm:  0.55rem;
+  --bs-border-radius-lg:  1.1rem;
+  --bs-border-radius-xl:  1.6rem;
 
-  --app-shadow-sm:    0 2px 5px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --app-shadow:       0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
-  --app-shadow-lg:    0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  --app-shadow-hover: 0 12px 20px -6px rgba(var(--brand-rgb), 0.18), 0 6px 10px -6px rgba(var(--brand-rgb), 0.12);
+  /* Bóng đổ nhuộm nhẹ sắc xanh ngọc để mềm hơn bóng xám trung tính. */
+  --app-shadow-sm:    0 2px 6px rgba(30, 35, 55, 0.06), 0 1px 2px rgba(30, 35, 55, 0.05);
+  --app-shadow:       0 12px 22px -6px rgba(30, 35, 55, 0.10), 0 4px 8px -4px rgba(30, 35, 55, 0.06);
+  --app-shadow-lg:    0 24px 30px -8px rgba(30, 35, 55, 0.14), 0 10px 14px -8px rgba(30, 35, 55, 0.07);
+  --app-shadow-hover: 0 16px 26px -8px rgba(var(--brand-rgb), 0.22), 0 8px 12px -8px rgba(var(--brand-rgb), 0.14);
 
-  --bs-body-bg:          #f8fafc;
-  --bs-body-color:       #1e293b;
+  --bs-body-bg:          #f7f6f3;   /* giấy ấm — trung tính, để poster tự nổi */
+  --bs-body-color:       #23262e;   /* mực than xanh */
   --bs-body-font-size:   0.98rem;
   --bs-body-font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --app-heading-font:    'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 
   /* Token riêng của app — BỀ MẶT ĐẶC (alpha = 1) để tương phản luôn ổn định */
   --app-surface:   #ffffff;
-  --app-surface-2: #f1f5f9;
-  --app-border:    #e2e8f0;
+  --app-surface-2: #f0efeb;   /* giấy đậm hơn một nhịp */
+  --app-border:    #e3e1db;
 
-  /* Navbar: nền tối ĐẶC để chữ trắng luôn rõ. Giữ chút blur — chỗ DUY NHẤT. */
-  --app-header-bg:   rgba(15, 23, 42, 0.9);
+  /* Navbar: MỘT màu xanh mực đặc — phẳng, sạch, không gradient cho đỡ rối. */
+  --app-header-bg:   #1c2440;
   --app-header-blur: blur(10px);
 }
 
 [data-bs-theme="dark"] {
-  --bs-body-bg:      #0f172a;
-  --bs-body-color:   #f8fafc;
-  --bs-border-color: #334155;
-  --app-surface:     #1e293b;   /* đặc */
-  --app-surface-2:   #0f172a;   /* đặc */
-  --app-border:      #334155;
+  /* Đêm xanh mực — trầm, sạch, không ngả xanh lá. */
+  --brand:           #5068c0;   /* sáng hơn để vừa đọc chữ trắng (5.1:1) vừa nổi trên nền đêm */
+  --brand-strong:    #6b80d0;
+  --brand-rgb:       80, 104, 192;
+  --brand-text:      #93a7e0;   /* chữ/link: xanh sáng, đạt 7.6:1 trên nền đêm */
+  --accent:          #d9a441;   /* cát ấm sáng hơn — trên nền tối mới đủ nổi */
+  --accent-rgb:      217, 164, 65;
+  --bs-body-bg:      #14161d;
+  --bs-body-color:   #eceef4;
+  --bs-border-color: #2e323f;
+  --app-surface:     #1d202a;   /* đặc */
+  --app-surface-2:   #181b23;   /* đặc */
+  --app-border:      #2e323f;
 
-  --app-shadow-sm:   0 2px 5px rgba(0, 0, 0, 0.4);
-  --app-shadow:      0 10px 15px -3px rgba(0, 0, 0, 0.5);
-  --app-shadow-lg:   0 20px 25px -5px rgba(0, 0, 0, 0.6);
-  --app-shadow-hover:0 12px 20px -6px rgba(0, 0, 0, 0.55);
+  --app-shadow-sm:   0 2px 6px rgba(0, 0, 0, 0.4);
+  --app-shadow:      0 12px 20px -6px rgba(0, 0, 0, 0.5);
+  --app-shadow-lg:   0 22px 28px -8px rgba(0, 0, 0, 0.6);
+  --app-shadow-hover:0 16px 26px -8px rgba(var(--brand-rgb), 0.28);
 }
 
-/* ---- 2. NỀN CHUNG — TĨNH: không ảnh, không animation, không cross-fade -- */
+/* ---- 2. NỀN CHUNG — ẢNH TĨNH phủ voan, không animation, không cross-fade -- */
 body {
   background-color: var(--bs-body-bg);
-  /* Đúng MỘT lớp gradient on-brand rất nhẹ (alpha .05) ở góc trên, đứng yên. */
-  background-image: radial-gradient(1200px 620px at 100% -8%, rgba(var(--brand-rgb), 0.05), transparent 60%);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
   color: var(--bs-body-color);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color .3s ease, color .3s ease;
+}
+
+/* Nền: ẢNH NÚI SƯƠNG MÙ, HIỆN RÕ.
+   Lần trước hỏng vì chỉ hé đúng DẢI TRÊN CÙNG của ảnh — chỗ có cành cây khô và
+   sườn đồi bạc màu — nên nó đọc như vệt ố. Lần này hiện TRỌN ảnh (cover, căn
+   giữa) với lớp voan MỎNG và ĐỀU, để nó ra dáng một tấm ảnh thật sự.
+   Thẻ card vẫn đặc hoàn toàn nên chữ trong nội dung không bị ảnh làm rối. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(247, 246, 243, 0.58), rgba(247, 246, 243, 0.58)),
+    url("../img/scene-dawn.jpg");
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+/* Dark mode: cùng ảnh, voan tối dày hơn một nhịp cho hợp nền đêm. */
+[data-bs-theme="dark"] body::before {
+  background-image:
+    linear-gradient(rgba(20, 22, 29, 0.72), rgba(20, 22, 29, 0.72)),
+    url("../img/scene-dawn.jpg");
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
 }
 
 /* Tôn trọng người dùng tắt hiệu ứng chuyển động: bỏ mọi transition/animation. */
@@ -87,11 +129,41 @@ h1, h2, h3, h4, h5, h6, .navbar-brand {
   font-family: var(--app-heading-font);
   font-weight: 700;
   letter-spacing: -0.01em;   /* nới nhẹ để dấu tiếng Việt "thở" */
+  line-height: 1.3;          /* tiêu đề thoáng hơn — dấu tiếng Việt không chạm nhau */
 }
+
+/* Nhịp đọc thong thả: dòng thưa hơn một chút cho cảm giác nhẹ nhàng. */
+body { line-height: 1.65; }
 
 main.container { max-width: 1140px; }
 
 a { text-underline-offset: .15em; }
+
+/* ---- 2b. BỐ CỤC CHỮ ---------------------------------------------------- */
+
+/* Tiêu đề: chia đều các dòng, không để RƠI MỘT CHỮ xuống dòng cuối. Tiếng Việt
+   nhiều từ ngắn nên lỗi này rất hay gặp và làm tiêu đề trông lệch. */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 { text-wrap: balance; }
+
+/* Đoạn văn: tránh "chữ mồ côi" đứng trơ trọi ở dòng cuối. */
+p, li { text-wrap: pretty; }
+
+/* ĐỘ DÀI DÒNG. Mắt đọc thoải mái nhất ở khoảng 60-75 ký tự/dòng. Container
+   rộng 1140px là hợp cho LƯỚI THẺ, nhưng một đoạn văn trải hết bề ngang đó thì
+   đọc rất mỏi và hay lạc dòng. Bọc khối chữ dài bằng .prose để ghìm lại. */
+.prose             { max-width: 68ch; }
+.prose p           { margin-bottom: .9rem; }
+.prose p:last-child{ margin-bottom: 0; }
+
+/* Tiêu đề lớn co giãn theo bề ngang màn hình -> trên điện thoại không bị
+   vỡ chữ hay tràn dòng, trên desktop vẫn giữ đúng cỡ cũ. */
+.page-header h1 { font-size: clamp(1.35rem, 1.05rem + 1.2vw, 1.75rem); }
+
+.lead { line-height: 1.6; }
+
+/* Tiêu đề thẻ: dòng sát hơn thân bài một chút cho gọn khối. */
+.card-title { line-height: 1.35; }
 
 /* Ring focus theo màu thương hiệu, thống nhất toàn app */
 .form-control:focus,
@@ -111,10 +183,22 @@ a { text-underline-offset: .15em; }
      </div>
    </header> */
 .page-header {
-  border-top: 3px solid var(--brand);   /* viền accent trên */
+  position: relative;
   padding: 1rem 0;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--app-border);
+}
+/* Thay vạch kẻ ngang cứng bằng MỘT nét chuyển sắc ngắn (tím -> hồng) ở góc trên:
+   nhẹ, có chất nghệ thuật, không chiếm chú ý của tiêu đề. */
+.page-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 76px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), var(--accent));
 }
 .page-header .page-header-row {
   display: flex;
@@ -139,16 +223,30 @@ a { text-underline-offset: .15em; }
   letter-spacing: .16em;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 /* ---- 4. NÚT ------------------------------------------------------------- */
+/* QUY TẮC NÚT (Button Hierarchy):
+   - Bậc 1 (Chính): .btn-primary -> Tối đa 1 nút / màn hình (CTA chính).
+   - Bậc 2 (Phụ): .btn-outline-secondary -> Hành động thay thế/bổ trợ.
+   - Bậc 3 (Phá huỷ): .btn-outline-danger -> Huỷ vé, xoá (luôn kèm xác nhận).
+*/
 .btn {
   font-weight: 600;
   letter-spacing: 0.01em;
   /* CẮT 5: KHÔNG dịch chuyển nút khi hover — chỉ đổi màu/đổ bóng nhẹ. */
   transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+  /* Chiều cao sàn + canh giữa nội dung: nút có icon và nút chỉ có chữ cao bằng
+     nhau, không còn nút bị "lùn" khi chữ ngắn. Xem mục VÙNG CHẠM bên dưới. */
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
 }
+.btn-sm { min-height: 36px; }
+.btn-lg { min-height: 48px; }
 
 .btn-primary {
   --bs-btn-bg: var(--brand);
@@ -162,7 +260,7 @@ a { text-underline-offset: .15em; }
 }
 
 .btn-outline-primary {
-  --bs-btn-color: var(--brand);
+  --bs-btn-color: var(--brand-text);   /* chữ trên nền trang -> dùng bản sáng ở theme tối */
   --bs-btn-border-color: var(--brand);
   --bs-btn-hover-bg: var(--brand);
   --bs-btn-hover-border-color: var(--brand);
@@ -196,7 +294,7 @@ a { text-underline-offset: .15em; }
   position: sticky;
   top: 0;
   z-index: 1030;
-  background: var(--app-header-bg) !important;   /* nền tối ĐẶC (.9) */
+  background: var(--app-surface) !important;   /* nền dịu mát */
   backdrop-filter: var(--app-header-blur);        /* blur — chỗ DUY NHẤT được giữ */
   -webkit-backdrop-filter: var(--app-header-blur);
   box-shadow: var(--app-shadow);
@@ -210,7 +308,7 @@ a { text-underline-offset: .15em; }
   font-weight: 800;
   font-size: 1.35rem;
   letter-spacing: -0.01em;
-  color: #ffffff !important;
+  color: var(--bs-body-color) !important;
 }
 .app-nav .nav-link {
   font-family: var(--app-heading-font);
@@ -220,15 +318,18 @@ a { text-underline-offset: .15em; }
   font-weight: 600;
   letter-spacing: 0.01em;
   transition: background-color .2s ease, color .2s ease;
-  color: rgba(255, 255, 255, 0.75) !important;
+  color: var(--bs-body-color) !important;
+  opacity: 0.75;
 }
 .app-nav .nav-link.active {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff !important;
+  background: rgba(var(--brand-rgb), 0.15);
+  color: var(--brand-text) !important;
+  opacity: 1;
 }
 .app-nav .nav-link:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff !important;
+  background: rgba(var(--brand-rgb), 0.08);
+  color: var(--brand-text) !important;
+  opacity: 1;
 }
 
 /* Nút đổi sáng/tối: chỉ hiện icon đúng theo theme của trang (thẻ <html>) */
@@ -248,9 +349,11 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   position: relative;
   overflow: hidden;
   border-radius: var(--bs-border-radius-xl);
-  padding: 4rem 3rem;
+  /* Đệm co theo bề ngang: màn hẹp thì thu lại để chữ có chỗ thở. */
+  padding: clamp(1.75rem, 1rem + 4vw, 4rem) clamp(1.15rem, .5rem + 3vw, 3rem);
   color: #ffffff;
-  background: #0f172a;              /* ĐẶC — CẮT 3: không còn kính mờ */
+  /* ĐẶC (không kính mờ) — xanh mực trầm, chỉ là nền dự phòng khi chưa có ảnh. */
+  background: linear-gradient(135deg, #1c2440 0%, #26325a 100%);
   border: 1px solid var(--app-border);
   box-shadow: var(--app-shadow);
   margin-bottom: 2rem;
@@ -258,19 +361,28 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 .hero h1 {
   font-weight: 800;
   letter-spacing: -0.01em;
-  font-size: 2.4rem;
+  /* Co giãn theo bề ngang: điện thoại 1.75rem -> desktop 2.4rem (cỡ cũ). */
+  font-size: clamp(1.75rem, 1.15rem + 2.6vw, 2.4rem);
   margin-bottom: 1rem;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);   /* đọc rõ trên ảnh sáng */
 }
 .hero .lead {
-  font-size: 1.15rem;
+  font-size: clamp(1rem, .92rem + .35vw, 1.15rem);
+  max-width: 60ch;   /* ghìm độ dài dòng để câu mô tả không trải hết banner */
 }
 
-/* Ảnh bìa có chữ đè lên: lớp phủ tối để chữ luôn đọc được */
+/* Ảnh bìa có chữ đè lên: lớp phủ tối để chữ luôn đọc được.
+   Dùng ĐEN TRUNG TÍNH, KHÔNG nhuộm màu: phủ màu lên ảnh sẽ trộn ra màu bùn
+   (ảnh hoàng hôn cam + lớp phủ xanh = màu ô liu bẩn). Đen trung tính giữ
+   nguyên màu thật của poster, chỉ làm tối đi để chữ trắng đọc được. */
 .cover-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, .72) 0%, rgba(0, 0, 0, .15) 55%, transparent 100%);
+  /* HAI lớp: tối từ dưới lên (cho chữ ở đáy) + tối từ trái sang (chỗ đặt tiêu đề).
+     Chỉ có lớp dưới-lên thì chữ đè lên vùng ảnh sáng bên trái sẽ bị chìm. */
+  background:
+    linear-gradient(to top,   rgba(0, 0, 0, .74) 0%, rgba(0, 0, 0, .20) 55%, transparent 100%),
+    linear-gradient(to right, rgba(0, 0, 0, .66) 0%, rgba(0, 0, 0, .30) 42%, transparent 72%);
 }
 
 /* ---- 8. TRẠNG THÁI, TIẾN ĐỘ -------------------------------------------- */
@@ -290,8 +402,10 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 
 /* Màu 3 TRẠNG THÁI công việc — CỐ ĐỊNH (mang ý nghĩa nên không đổi).
    Gắn class theo status: task-todo / task-doing / task-done; thêm task-overdue nếu trễ. */
-.task-todo    { border-left: 4px solid #94a3b8; }                     /* Chưa làm — xám */
-.task-doing   { border-left: 4px solid var(--accent); }               /* Đang làm — hổ phách */
+.task-todo    { border-left: 4px solid #9aa0ad; }                     /* Chưa làm — xám xanh */
+/* Giữ HỔ PHÁCH cho "đang làm" (không dùng --accent hồng) để 3 trạng thái +
+   quá hạn (đỏ) luôn phân biệt được bằng màu, kể cả với người khó phân biệt màu. */
+.task-doing   { border-left: 4px solid #e8973a; }                     /* Đang làm — hổ phách */
 .task-done    { border-left: 4px solid var(--bs-success); }           /* Xong — xanh lá */
 .task-overdue { border-left: 4px solid var(--bs-danger) !important; } /* Quá hạn — đỏ (đè) */
 .task-done .task-title { text-decoration: line-through; opacity: .6; }
@@ -344,6 +458,18 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 
 /* ---- 11. ẢNH BÌA & AVATAR ---------------------------------------------- */
 .event-cover    { aspect-ratio: 16 / 9; object-fit: cover; }
+
+/* Logo thương hiệu ở navbar: nguồn VUÔNG (500x500) nên hiện vuông bo góc, KHÔNG
+   ép crop tròn (wordmark KMG CLUB sẽ mất chữ nếu crop). Nền trắng để nổi trên
+   navbar tối. */
+.app-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;    /* bo tròn 4 góc rõ hơn (giữ hình vuông, không crop) */
+  object-fit: cover;      /* nguồn 1:1, khung 1:1 -> không cắt xén */
+  background: #fff;
+  flex: 0 0 auto;
+}
 .event-cover-lg { aspect-ratio: 21 / 9; object-fit: cover; }
 
 .avatar,
@@ -374,3 +500,276 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 .sticky-offset    { top: 5.5rem; }                   /* cột dính, lệch dưới navbar */
 .letter-spacing-1 { letter-spacing: .1em; }
 .tracking-widest  { letter-spacing: .15em; }
+
+/* ---- 13. VÙNG CHẠM (TOUCH TARGET) — chuẩn hoá cho chuột & ngón tay ------
+   Căn cứ:
+     - WCAG 2.2 SC 2.5.8 (Target Size Minimum): tối thiểu 24x24 CSS px.
+     - WCAG 2.1 SC 2.5.5 (Enhanced) & Apple HIG: 44x44.
+     - Material Design: 48x48dp, cách nhau >= 8dp.
+   Nguyên tắc: CHUỘT trỏ chính xác nên desktop không cần nút to (40px là đủ
+   thoáng); NGÓN TAY thì không, nên mọi thiết bị cảm ứng được nới lên 44px.
+   Phân biệt bằng @media (pointer: coarse) thay vì theo bề ngang màn hình —
+   vì laptop cảm ứng màn rộng vẫn cần nút to, còn cửa sổ hẹp trên desktop thì
+   không. Đây là cách đúng, bắt theo THIẾT BỊ NHẬP chứ không theo kích thước. */
+
+/* Nút chỉ có icon: phải vuông và đủ lớn, không để padding quyết định. */
+.nav-theme-toggle {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-pill { min-height: 40px; display: inline-flex; align-items: center; }
+
+@media (pointer: coarse) {
+  /* Thiết bị cảm ứng: nâng MỌI đích chạm lên 44px theo Apple HIG / WCAG 2.5.5 */
+  .btn,
+  .btn-sm,
+  .nav-link,
+  .page-link,
+  .dropdown-item,
+  .filter-pill,
+  .navbar-toggler,
+  .form-control,
+  .form-select {
+    min-height: 44px;
+  }
+
+  .nav-theme-toggle,
+  .navbar-toggler,
+  .btn-close {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Khoảng hở giữa các đích cạnh nhau >= 8px để đỡ bấm nhầm (Material). */
+  .page-header-actions { gap: .75rem; }
+}
+
+/* iOS Safari TỰ PHÓNG TO trang khi chạm vào ô nhập có cỡ chữ < 16px.
+   Đây là hành vi cố định của hệ điều hành, không tắt được bằng viewport.
+   Cách duy nhất là để cỡ chữ >= 16px trên màn nhỏ. Ghi đè cả biến thể -sm. */
+@media (max-width: 575.98px) {
+  .form-control,
+  .form-select,
+  .form-control-sm,
+  .form-select-sm,
+  .input-group-sm > .form-control,
+  .input-group-sm > .form-select {
+    font-size: 1rem;
+  }
+}
+
+/* ---- 14. SIDEBAR -------------------------------------------------------- */
+.app-sidebar {
+  width: 260px;
+  background-color: var(--app-surface);
+  border-right: 1px solid var(--app-border);
+  transition: width 0.2s ease;
+}
+@media (max-width: 991.98px) {
+  .app-sidebar.offcanvas-lg {
+    width: 280px;
+  }
+}
+@media (min-width: 992px) {
+  /* Stick sidebar to viewport height */
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .app-sidebar.collapsed {
+    width: 72px;
+  }
+  .app-sidebar.collapsed .sidebar-heading,
+  .app-sidebar.collapsed .sidebar-user-info,
+  .app-sidebar.collapsed .collapse-text,
+  .app-sidebar.collapsed .nav-link .nav-text,
+  .app-sidebar.collapsed .nav-link .badge,
+  .app-sidebar.collapsed .app-brand-text {
+    display: none !important;
+  }
+  .app-sidebar.collapsed .nav-link {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .app-sidebar.collapsed .nav-link i {
+    font-size: 1.2rem;
+    margin: 0 !important;
+  }
+  .app-sidebar.collapsed .app-brand-link {
+    justify-content: center;
+  }
+  .app-sidebar.collapsed .dropdown-toggle::after {
+    display: none;
+  }
+  .app-sidebar.collapsed .dropdown-toggle {
+    justify-content: center;
+  }
+  .app-sidebar.collapsed #sidebarCollapseBtn i::before {
+    content: "\F285"; /* bi-chevron-double-right */
+  }
+}
+.sidebar-scroll {
+  /* Firefox */
+  scrollbar-width: thin;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 100, 100, 0.2);
+  border-radius: 10px;
+}
+
+/* ---- 15. HÀNG DANH SÁCH CÓ ICON ------------------------------------------ */
+.icon-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--app-border);
+}
+.icon-list-item:last-child {
+  border-bottom: none;
+}
+.icon-list-item-icon {
+  flex: 0 0 auto;
+}
+.icon-list-item-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.icon-list-item-title {
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+  line-height: 1.2;
+}
+.icon-list-item-subtitle {
+  font-size: 0.85rem;
+  color: var(--bs-secondary);
+  margin-bottom: 0;
+}
+.icon-list-item-right {
+  flex: 0 0 auto;
+  text-align: right;
+  margin-left: 0.5rem;
+}
+
+/* ---- 16. CẦU NỐI MÀU BOOTSTRAP ------------------------------------------
+   Bootstrap GHI CỨNG màu xanh mặc định #0d6efd vào nhiều thành phần. Đổi
+   --bs-primary ở mục 1 KHÔNG chạm tới được những chỗ này, nên trang lòi ra
+   "hai màu xanh" (mục menu đang chọn xanh chói, nút thì xanh mực).
+   Quét bootstrap.min.css: 12 nhóm còn ghim #0d6efd — trỏ hết về token ở đây. */
+.nav-pills     { --bs-nav-pills-link-active-bg: var(--brand); }
+.pagination    {
+  --bs-pagination-active-bg: var(--brand);
+  --bs-pagination-active-border-color: var(--brand);
+  --bs-pagination-color: var(--brand-text);
+  --bs-pagination-hover-color: var(--brand-text);
+  --bs-pagination-focus-color: var(--brand-text);
+}
+.dropdown-menu { --bs-dropdown-link-active-bg: var(--brand); }
+.list-group    {
+  --bs-list-group-active-bg: var(--brand);
+  --bs-list-group-active-border-color: var(--brand);
+}
+.progress,
+.progress-stacked { --bs-progress-bar-bg: var(--brand); }
+.form-check-input:checked { background-color: var(--brand); border-color: var(--brand); }
+.form-range::-webkit-slider-thumb { background-color: var(--brand); }
+.form-range::-moz-range-thumb     { background-color: var(--brand); }
+
+/* Sidebar PHẢI có nền đặc. Bootstrap ép .offcanvas-lg thành trong suốt kèm
+   !important trên màn >= 992px, nên nền ở mục 14 bị đè và ảnh núi xuyên qua
+   sau chữ. Chỉ thắng được bằng !important có độ ưu tiên cao hơn. */
+@media (min-width: 992px) {
+  .app-sidebar.offcanvas-lg { background-color: var(--app-surface) !important; }
+}
+
+/* ---- 17. SEGMENTED CONTROL (bộ lọc liền khối) -----------------------------
+   Thay cho btn-group + bg-light: bg-light LUÔN là màu sáng, không đổi theo
+   theme -> ra khối trắng giữa giao diện tối, chữ xanh nhạt trên nền trắng chỉ
+   đạt 2.25:1. Ở đây mọi màu đều lấy từ token nên tự đúng ở cả 2 theme. */
+.segmented {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;              /* màn hẹp: cuộn ngang, không vỡ thành nhiều hàng */
+  scrollbar-width: none;
+  gap: 2px;
+  padding: 3px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  box-shadow: var(--app-shadow-sm);
+  max-width: 100%;
+}
+.segmented::-webkit-scrollbar { display: none; }
+.segmented-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: .9rem;
+  text-decoration: none;
+  color: var(--bs-body-color);
+  opacity: .78;                  /* chưa chọn: lùi lại một nhịp, vẫn đạt tương phản */
+  transition: background-color .15s ease, color .15s ease, opacity .15s ease;
+}
+.segmented-item:hover { opacity: 1; background: var(--app-surface-2); color: var(--bs-body-color); }
+.segmented-item.active,
+.segmented-item.active:hover {
+  opacity: 1;
+  background: var(--brand);
+  color: #fff;
+}
+.segmented-item:focus-visible { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+@media (pointer: coarse) { .segmented-item { min-height: 44px; } }
+
+/* Nút viền xám: Bootstrap ghi cứng #6c757d cho cả 2 theme. Trên nền tối chỉ
+   đạt 3.47:1 (dưới chuẩn 4.5) -> "Đăng nhập", "Xem chi tiết" trông mờ đục.
+   Theme sáng giữ nguyên (4.69:1, đạt). Theme tối nâng chữ lên #b8bdc9 (8.6:1). */
+[data-bs-theme="dark"] .btn-outline-secondary {
+  --bs-btn-color: #b8bdc9;
+  --bs-btn-border-color: #454a58;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: #343946;
+  --bs-btn-hover-border-color: #5a6070;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: #343946;
+  --bs-btn-active-border-color: #5a6070;
+}
+
+/* Thanh trên cùng: bộ lọc + ô tìm kiếm chia chỗ hợp lý.
+   Lưu ý: Bootstrap KHÔNG có class width theo breakpoint (w-lg-auto không tồn
+   tại) — dùng nhầm thì ô tìm kiếm giữ w-100 và nuốt hết hàng, cắt mất bộ lọc.
+   Ô tìm kiếm có trần 340px; bộ lọc hiện đủ, chỉ cuộn ngang khi màn quá hẹp. */
+.topbar-search { width: 100%; }
+@media (min-width: 992px) {
+  .segmented     { flex: 0 1 auto; min-width: 0; }
+  .topbar-search { flex: 0 1 340px; width: auto; min-width: 200px; }
+}
+
+/* Nút đổi giao diện nằm trong SIDEBAR: kiểu gốc ở mục 6 ghi cứng chữ + viền
+   TRẮNG vì được viết cho navbar tối cũ. Ở sidebar theme sáng (nền trắng) nút
+   thành trắng-trên-trắng, biến mất hoàn toàn. Trong sidebar -> dùng token. */
+.app-sidebar .nav-theme-toggle {
+  color: var(--bs-body-color);
+  border-color: var(--app-border);
+  background: transparent;
+}
+.app-sidebar .nav-theme-toggle:hover {
+  color: var(--bs-body-color);
+  background: var(--app-surface-2);
+  border-color: var(--bs-border-color);
+}

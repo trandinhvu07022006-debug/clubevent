@@ -44,6 +44,8 @@ def task_board(request, event_id):
         "event": event,
         "tasks": tasks,
         "overdue_count": sum(1 for t in tasks if t.is_overdue),
+        "done_count": sum(1 for t in tasks if t.status == "DONE"),
+        "total_count": len(tasks),
     })
 
 
@@ -90,14 +92,20 @@ def task_delete(request, pk):
 @staff_required
 def my_tasks(request):
     """F3.3 - Việc của tôi, sắp theo deadline, quá hạn tô đỏ."""
-    tasks = (Task.objects
-             .filter(assignee=request.user)
-             .exclude(event__status="CANCELLED")
-             .select_related("event")
-             .order_by("status", "deadline"))
+    status = request.GET.get("status")
+    tasks_query = (Task.objects
+                   .filter(assignee=request.user)
+                   .exclude(event__status="CANCELLED")
+                   .select_related("event")
+                   .order_by("status", "deadline"))
+                   
+    if status in TaskStatus.values:
+        tasks_query = tasks_query.filter(status=status)
+        
     return render(request, "organizing/my_tasks.html", {
-        "tasks": tasks,
-        "overdue_count": sum(1 for t in tasks if t.is_overdue),
+        "tasks": tasks_query,
+        "overdue_count": sum(1 for t in tasks_query if t.is_overdue),
+        "current_status": status,
     })
 
 

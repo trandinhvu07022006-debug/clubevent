@@ -11,6 +11,8 @@
      class="btn btn-outline-success btn-sm">Xuất CSV</a>
 </div>
 
+{% include "events/partials/event_tabs.html" %}
+
 <form class="row g-2 mb-3">
   <div class="col-md-4">
     <input name="q" value="{{ keyword }}" class="form-control"
@@ -29,40 +31,35 @@
   <div class="col-auto"><button class="btn btn-outline-primary">Lọc</button></div>
 </form>
 
-<div class="card">
-  <div class="table-responsive">
-    <table class="table table-sm table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr><th>Mã vé</th><th>Họ tên</th><th>MSSV</th><th>Loại vé</th>
-            <th>Trạng thái</th><th>Check-in lúc</th></tr>
-      </thead>
-      <tbody>
-        {% for t in tickets %}
-          <tr>
-            <td class="checkin-code small">{{ t.code }}</td>
-            <td>{{ t.user.full_name }}</td>
-            <td>{{ t.user.mssv|default:"—" }}</td>
-            <td>{{ t.ticket_type.name }}</td>
-            <td>
-              <span class="badge
-                {% if t.status == 'CHECKED_IN' %}bg-dark
-                {% elif t.status == 'CONFIRMED' %}bg-success
-                {% elif t.status == 'PENDING' %}bg-warning text-dark
-                {% else %}bg-danger{% endif %}">
-                {{ t.get_status_display }}
-              </span>
-            </td>
-            <td class="small text-muted">
-              {{ t.checked_in_at|date:"H:i d/m"|default:"—" }}
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="6" class="text-center text-muted py-4">
-            Chưa có ai đăng ký.
-          </td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    {% for t in tickets %}
+      <div class="icon-list-item px-3">
+        <div class="icon-list-item-icon">
+          {% include "partials/avatar.html" with user=t.user class="avatar-sm" %}
+        </div>
+        <div class="icon-list-item-content">
+          <div class="icon-list-item-title">{{ t.user.full_name }}</div>
+          <div class="icon-list-item-subtitle">{{ t.code }} · {{ t.user.mssv|default:"—" }} · {{ t.ticket_type.name }}</div>
+        </div>
+        <div class="icon-list-item-right text-end">
+          <span class="badge
+            {% if t.status == 'CHECKED_IN' %}bg-dark
+            {% elif t.status == 'CONFIRMED' %}bg-success
+            {% elif t.status == 'PENDING' %}text-bg-warning
+            {% else %}bg-danger{% endif %} d-block mb-1">
+            {{ t.get_status_display }}
+          </span>
+          <small class="text-muted d-block" style="font-size: 0.75rem;">
+            {{ t.checked_in_at|date:"H:i d/m"|default:"—" }}
+          </small>
+        </div>
+      </div>
+    {% empty %}
+      <div class="p-3">
+        {% include "partials/empty_state.html" with icon="bi-people" title="Chưa có ai đăng ký" desc="Hiện tại danh sách tham gia đang trống." %}
+      </div>
+    {% endfor %}
   </div>
 </div>
 

@@ -66,16 +66,18 @@
       <p class="text-muted">Quản lý và theo dõi tiến độ công việc sự kiện</p>
     </div>
     <div class="page-header-actions">
-      <a href="{% url 'organizing:ai_suggest' event.pk %}" class="btn btn-outline-warning fw-medium shadow-sm"><i class="bi bi-robot"></i> Gợi ý AI</a>
+      <a href="{% url 'organizing:ai_suggest' event.pk %}" class="btn btn-outline-secondary fw-medium shadow-sm"><i class="bi bi-robot"></i> Gợi ý AI</a>
       <a href="{% url 'organizing:create' event.pk %}" class="btn btn-primary fw-bold shadow-sm"><i class="bi bi-plus-lg"></i> Tạo việc mới</a>
     </div>
   </div>
 </header>
 
+{% include "events/partials/event_tabs.html" %}
+
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center small mb-2">
-      <span class="fw-semibold">Tiến độ chuẩn bị chung</span>
+      <span class="fw-semibold">Hoàn thành {{ done_count }}/{{ total_count }} công việc</span>
       <div class="text-end">
         <strong class="fs-5">{{ event.task_progress }}%</strong>
         {% if overdue_count %}
@@ -83,7 +85,7 @@
         {% endif %}
       </div>
     </div>
-    <div class="progress progress-lg rounded-pill bg-dark-subtle">
+    <div class="progress progress-lg rounded-pill bg-dark-subtle" role="progressbar" aria-valuenow="{{ event.task_progress }}" aria-valuemin="0" aria-valuemax="100">
       <div class="progress-bar {% if event.task_progress == 100 %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ event.task_progress }}%"></div>
     </div>
   </div>

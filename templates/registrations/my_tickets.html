@@ -132,7 +132,7 @@
                 <button class="btn btn-sm btn-outline-danger px-4 rounded-pill fw-medium">Huỷ vé</button>
               </form>
             {% endif %}
-            <a href="{% url 'events:detail' ticket.event.pk %}" class="btn btn-sm btn-light px-4 rounded-pill fw-medium text-body-secondary border">Xem sự kiện</a>
+            <a href="{% url 'events:detail' ticket.event.pk %}" class="btn btn-sm btn-outline-secondary px-4 rounded-pill fw-medium">Xem sự kiện</a>
           </div>
         </div>
 
@@ -163,13 +163,9 @@
     </div>
   {% empty %}
     <div class="col-12">
-      <div class="card card-body border-0 shadow-sm text-center py-5">
-        <div class="display-1 opacity-25 mb-3"><i class="bi bi-ticket-perforated"></i></div>
-        <h4 class="fw-bold text-muted">Chưa có vé nào</h4>
-        <p class="text-muted mb-4">Bạn chưa đăng ký tham gia sự kiện nào cả.</p>
-        <div>
-          <a href="{% url 'events:list' %}" class="btn btn-primary px-4 py-2 rounded-pill fw-bold">Khám phá sự kiện ngay</a>
-        </div>
+      <div class="card card-body border-0 shadow-sm p-0">
+        {% url 'events:list' as action_url %}
+        {% include "partials/empty_state.html" with icon="bi-ticket-perforated" title="Bạn chưa có vé nào" desc="Bạn chưa đăng ký tham gia sự kiện nào cả." action_url=action_url action_label="Khám phá sự kiện ngay" %}
       </div>
     </div>
   {% endfor %}

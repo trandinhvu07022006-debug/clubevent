@@ -1,0 +1,14 @@
+<div class="text-center py-5 my-4">
+  <div class="mb-3 text-secondary">
+    <i class="bi {{ icon|default:'bi-inbox' }}" style="font-size: 3rem; opacity: 0.5;"></i>
+  </div>
+  <h5 class="fw-bold mb-2">{{ title }}</h5>
+  {% if desc %}
+    <p class="text-muted mb-4 prose mx-auto">{{ desc }}</p>
+  {% endif %}
+  {% if action_url and action_label %}
+    <a href="{{ action_url }}" class="btn btn-outline-primary btn-sm">
+      {{ action_label }}
+    </a>
+  {% endif %}
+</div>

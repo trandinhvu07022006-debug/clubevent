@@ -1,0 +1,31 @@
+<style>
+  .event-tabs::-webkit-scrollbar { display: none; }
+  .event-tabs { scrollbar-width: none; }
+</style>
+<ul class="nav nav-tabs flex-nowrap overflow-auto event-tabs mb-4">
+  <li class="nav-item">
+    {% if request.resolver_match.url_name == 'detail' %}
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-info" type="button">Thông tin</button>
+    {% else %}
+      <a class="nav-link" href="{% url 'events:detail' event.pk %}">Thông tin</a>
+    {% endif %}
+  </li>
+  <li class="nav-item">
+    {% if request.resolver_match.url_name == 'detail' %}
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tickets" type="button">Loại vé & Đăng ký</button>
+    {% else %}
+      <a class="nav-link" href="{% url 'events:detail' event.pk %}">Loại vé & Đăng ký</a>
+    {% endif %}
+  </li>
+  {% if user.is_lead %}
+  <li class="nav-item">
+    <a class="nav-link {% if request.resolver_match.url_name == 'participants' %}active{% endif %}" href="{% url 'registrations:participants' event.pk %}">Người tham gia</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if request.resolver_match.url_name == 'board' %}active{% endif %}" href="{% url 'organizing:board' event.pk %}">Công việc</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if request.resolver_match.namespace == 'feedback' %}active{% endif %}" href="{% url 'feedback:list' event.pk %}">Phản hồi</a>
+  </li>
+  {% endif %}
+</ul>

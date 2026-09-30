@@ -7,8 +7,8 @@
   {% if event.cover %}
     <img src="{{ event.cover.url }}" class="position-absolute w-100 h-100 object-fit-cover top-0 start-0 z-0" alt="">
   {% else %}
-    {% with n=event|cover_index %}
-      <img src="{% static 'img/' %}cover-{{ n }}.jpg" class="position-absolute w-100 h-100 object-fit-cover top-0 start-0 z-0" alt="">
+    {% with n=event|default_cover %}
+      <img src="{% static n %}" class="position-absolute w-100 h-100 object-fit-cover top-0 start-0 z-0" alt="">
     {% endwith %}
   {% endif %}
   <div class="cover-overlay z-1"></div>
@@ -31,25 +31,27 @@
   </div>
 </div>
 
-<div class="row g-4">
-  <div class="col-lg-7">
+{% include "events/partials/event_tabs.html" %}
+
+<div class="tab-content">
+  <!-- Tab: Thông tin -->
+  <div class="tab-pane fade show active" id="tab-info" role="tabpanel" tabindex="0">
     <div class="card shadow-sm mb-4">
       <div class="card-body">
         <h5 class="card-title fw-bold">Giới thiệu sự kiện</h5>
-        <p class="mb-0">{{ event.description|linebreaksbr|default:"Chưa có mô tả." }}</p>
+        <div class="prose">
+          <p class="mb-0">{{ event.description|linebreaksbr|default:"Chưa có mô tả." }}</p>
+        </div>
         
         {% if user.is_lead %}
           <hr>
           <div class="d-flex flex-wrap gap-2">
             <a href="{% url 'events:update' event.pk %}" class="btn btn-sm btn-outline-secondary">Sửa sự kiện</a>
-            <a href="{% url 'organizing:board' event.pk %}" class="btn btn-sm btn-outline-primary">Công việc BTC ({{ event.task_progress }}%)</a>
-            <a href="{% url 'registrations:participants' event.pk %}" class="btn btn-sm btn-outline-primary">Người tham gia</a>
-            <a href="{% url 'feedback:list' event.pk %}" class="btn btn-sm btn-outline-primary">Phản hồi & thống kê</a>
           </div>
 
           <form method="post" action="{% url 'events:set_status' event.pk %}" class="mt-3">
             {% csrf_token %}
-            <div class="input-group input-group-sm">
+            <div class="input-group input-group-sm" style="max-width: 400px;">
               <select name="status" class="form-select">
                 {% for value, label in event.next_statuses %}
                   <option value="{{ value }}">{{ label }}</option>
@@ -57,35 +59,35 @@
                   <option value="">Không còn trạng thái nào để chuyển</option>
                 {% endfor %}
               </select>
-              <button class="btn btn-outline-dark">Chuyển trạng thái</button>
+              <button class="btn btn-outline-secondary">Chuyển trạng thái</button>
             </div>
           </form>
         {% endif %}
 
         {% if user.is_staff_btc and event.status != 'DRAFT' %}
-          <a href="{% url 'registrations:checkin' event.pk %}" class="btn btn-success mt-3">Mở trang check-in</a>
+          <a href="{% url 'registrations:checkin' event.pk %}" class="btn btn-outline-secondary mt-3">Mở trang check-in</a>
         {% endif %}
       </div>
     </div>
 
     {% if stat %}
-      <div class="card shadow-sm mt-3">
+      <div class="card shadow-sm mt-3 mb-4">
         <div class="card-body">
           <h6 class="card-title fw-bold">Thống kê nhanh</h6>
           <div class="row text-center mt-3">
-            <div class="col">
+            <div class="col-6 col-sm-3 mb-3 mb-sm-0">
               <div class="h4 mb-0">{{ stat.sold }}</div>
               <div class="small text-muted">vé đã đăng ký</div>
             </div>
-            <div class="col">
+            <div class="col-6 col-sm-3 mb-3 mb-sm-0">
               <div class="h4 mb-0">{{ stat.checked_in }}</div>
               <div class="small text-muted">đã check-in</div>
             </div>
-            <div class="col">
+            <div class="col-6 col-sm-3">
               <div class="h4 mb-0">{{ stat.checkin_rate }}%</div>
               <div class="small text-muted">tỉ lệ check-in</div>
             </div>
-            <div class="col">
+            <div class="col-6 col-sm-3">
               <div class="h4 mb-0">{{ stat.revenue|floatformat:0 }}</div>
               <div class="small text-muted">doanh thu (VNĐ)</div>
             </div>
@@ -95,118 +97,129 @@
     {% endif %}
   </div>
 
-  <div class="col-lg-5">
-    <div class="sticky-top sticky-offset">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h6 class="card-title fw-bold mb-3">Đăng ký tham gia</h6>
-
-          {% if event.is_registerable %}
-            {% if user.is_authenticated %}
-              <p class="small text-muted mb-3">
-                Bạn đang có {{ my_ticket_count }} vé cho sự kiện này (tối đa 4).
-              </p>
-              <form method="post" action="{% url 'registrations:book' event.pk %}">
-                {% csrf_token %}
-                <div class="mb-3">
-                  <label class="form-label small fw-bold">Loại vé</label>
-                  <div class="d-flex flex-column gap-2">
-                    {% for tt in event.ticket_types.all %}
-                      <div>
-                        <input type="radio" class="btn-check" name="ticket_type" id="tt-{{ tt.pk }}" value="{{ tt.pk }}" {% if tt.is_sold_out %}disabled{% endif %} required>
-                        <label class="btn btn-outline-primary d-flex justify-content-between align-items-center w-100 text-start" for="tt-{{ tt.pk }}">
-                          <div>
-                            <strong>{{ tt.name }}</strong><br>
-                            <small>{% if tt.is_free %}Miễn phí{% else %}{{ tt.price|floatformat:0 }}đ{% endif %}</small>
-                          </div>
-                          <div class="text-end">
-                            {% if tt.is_sold_out %}
-                              <span class="badge bg-danger">Hết vé</span>
-                            {% else %}
-                              <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Còn {{ tt.remaining }}</span>
-                            {% endif %}
-                          </div>
-                        </label>
-                      </div>
-                    {% empty %}
-                      <div class="text-muted small">Chưa có loại vé nào</div>
-                    {% endfor %}
-                  </div>
-                </div>
-                <div class="mb-3">
-                  <label class="form-label small fw-bold">Số lượng</label>
-                  <input type="number" name="quantity" value="1" min="1" max="4" class="form-control" required>
-                </div>
-                <button class="btn btn-primary w-100" {% if not event.ticket_types.all %}disabled{% endif %}>
-                  Đăng ký ngay
-                </button>
-              </form>
-            {% else %}
-              <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="btn btn-primary w-100">Đăng nhập để đăng ký</a>
-            {% endif %}
-          {% else %}
-            <div class="alert alert-secondary mb-0 small">
-              {% if event.status == 'CANCELLED' %}
-                Sự kiện đã bị huỷ.
-              {% elif event.status == 'DONE' %}
-                Sự kiện đã diễn ra.
-              {% elif event.status == 'DRAFT' %}
-                Sự kiện đang chuẩn bị, chưa mở đăng ký.
-              {% else %}
-                Sự kiện đã đóng đăng ký.
+  <!-- Tab: Loại vé & Đăng ký -->
+  <div class="tab-pane fade" id="tab-tickets" role="tabpanel" tabindex="0">
+    <div class="row g-4">
+      <div class="col-md-7">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="card-title fw-bold mb-0">Các loại vé</h6>
+              {% if user.is_lead %}
+                <a href="{% url 'events:tt_create' event.pk %}" class="btn btn-sm btn-outline-secondary">+ Thêm</a>
               {% endif %}
             </div>
-          {% endif %}
-        </div>
-      </div>
-
-      <div class="card shadow-sm mt-3">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="card-title fw-bold mb-0">Các loại vé</h6>
-            {% if user.is_lead %}
-              <a href="{% url 'events:tt_create' event.pk %}" class="btn btn-sm btn-outline-primary">+ Thêm</a>
-            {% endif %}
-          </div>
-          
-          <ul class="list-group list-group-flush">
-            {% for tt in event.ticket_types.all %}
-              <li class="list-group-item px-0">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                  <span class="fw-medium">
-                    {{ tt.name }} 
-                    <small class="text-muted ms-1">({% if tt.is_free %}Miễn phí{% else %}{{ tt.price|floatformat:0 }}đ{% endif %})</small>
-                  </span>
-                  <span>
-                    <span class="small {% if tt.is_sold_out %}text-danger{% else %}text-success{% endif %} fw-bold">
-                      {{ tt.sold }}/{{ tt.quota }}
+            
+            <div class="list-group list-group-flush">
+              {% for tt in event.ticket_types.all %}
+                <div class="list-group-item px-0 icon-list-item">
+                  <div class="icon-list-item-icon">
+                    <div class="avatar-sm bg-primary-subtle text-primary">
+                      <i class="bi bi-ticket-perforated"></i>
+                    </div>
+                  </div>
+                  <div class="icon-list-item-content">
+                    <div class="icon-list-item-title">{{ tt.name }}</div>
+                    <div class="icon-list-item-subtitle">
+                      {% if tt.is_free %}Miễn phí{% else %}{{ tt.price|floatformat:0 }}đ{% endif %}
+                    </div>
+                    <div class="progress seats mt-2" style="height: 4px;" role="progressbar" aria-valuenow="{{ tt.sold }}" aria-valuemin="0" aria-valuemax="{{ tt.quota }}">
+                      <div class="progress-bar {% if tt.is_sold_out %}bg-danger{% else %}bg-primary{% endif %}" 
+                           style="width: {% widthratio tt.sold tt.quota 100 %}%"></div>
+                    </div>
+                  </div>
+                  <div class="icon-list-item-right text-end">
+                    <span class="small {% if tt.is_sold_out %}text-danger{% else %}text-success{% endif %} fw-bold d-block">
+                      Đã bán {{ tt.sold }}/{{ tt.quota }} vé
                     </span>
                     {% if user.is_lead and tt.sold == 0 %}
                       <form method="post" action="{% url 'events:tt_delete' tt.pk %}" class="d-inline">
                         {% csrf_token %}
-                        <button class="btn btn-sm btn-link text-danger p-0 ms-1 text-decoration-none" title="Xoá"><i class="bi bi-x-lg"></i></button>
+                        <button class="btn btn-sm btn-outline-danger p-0 mt-1" style="width: 28px; height: 28px;" title="Xoá"><i class="bi bi-trash"></i></button>
                       </form>
                     {% endif %}
-                  </span>
+                  </div>
                 </div>
-                <div class="progress seats">
-                  <div class="progress-bar {% if tt.is_sold_out %}bg-danger{% else %}bg-primary{% endif %}" 
-                       style="width: {% widthratio tt.sold tt.quota 100 %}%" 
-                       title="{{ tt.sold }} / {{ tt.quota }}"></div>
+              {% empty %}
+                <div class="list-group-item px-0 text-muted small border-bottom-0">
+                  Chưa có thông tin vé.
                 </div>
-              </li>
-            {% empty %}
-              <li class="list-group-item px-0 text-muted small border-bottom-0">
-                Chưa có thông tin vé.
-              </li>
-            {% endfor %}
-          </ul>
+              {% endfor %}
+            </div>
+          </div>
         </div>
       </div>
+      
+      <div class="col-md-5">
+        <div class="sticky-top sticky-offset">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h6 class="card-title fw-bold mb-3">Đăng ký tham gia</h6>
 
-      {% if event.status == 'DONE' and user.is_authenticated %}
-        <a href="{% url 'feedback:send' event.pk %}" class="btn btn-outline-warning w-100 mt-3 fw-bold">Gửi đánh giá sự kiện</a>
-      {% endif %}
+              {% if event.is_registerable %}
+                {% if user.is_authenticated %}
+                  <p class="small text-muted mb-3">
+                    Bạn đang có {{ my_ticket_count }} vé cho sự kiện này (tối đa 4).
+                  </p>
+                  <form method="post" action="{% url 'registrations:book' event.pk %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                      <label class="form-label small fw-bold">Loại vé</label>
+                      <div class="d-flex flex-column gap-2">
+                        {% for tt in event.ticket_types.all %}
+                          <div>
+                            <input type="radio" class="btn-check" name="ticket_type" id="tt-{{ tt.pk }}" value="{{ tt.pk }}" {% if tt.is_sold_out %}disabled{% endif %} required>
+                            <label class="btn btn-outline-primary d-flex justify-content-between align-items-center w-100 text-start" for="tt-{{ tt.pk }}">
+                              <div>
+                                <strong>{{ tt.name }}</strong><br>
+                                <small>{% if tt.is_free %}Miễn phí{% else %}{{ tt.price|floatformat:0 }}đ{% endif %}</small>
+                              </div>
+                              <div class="text-end">
+                                {% if tt.is_sold_out %}
+                                  <span class="badge bg-danger">Hết vé</span>
+                                {% else %}
+                                  <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Còn {{ tt.remaining }}</span>
+                                {% endif %}
+                              </div>
+                            </label>
+                          </div>
+                        {% empty %}
+                          <div class="text-muted small">Chưa có loại vé nào</div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label small fw-bold">Số lượng</label>
+                      <input type="number" name="quantity" value="1" min="1" max="4" class="form-control" required>
+                    </div>
+                    <button class="btn btn-primary w-100" {% if not event.ticket_types.all %}disabled{% endif %}>
+                      Đăng ký ngay
+                    </button>
+                  </form>
+                {% else %}
+                  <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="btn btn-primary w-100">Đăng nhập để đăng ký</a>
+                {% endif %}
+              {% else %}
+                <div class="alert alert-secondary mb-0 small">
+                  {% if event.status == 'CANCELLED' %}
+                    Sự kiện đã bị huỷ.
+                  {% elif event.status == 'DONE' %}
+                    Sự kiện đã diễn ra.
+                  {% elif event.status == 'DRAFT' %}
+                    Sự kiện đang chuẩn bị, chưa mở đăng ký.
+                  {% else %}
+                    Sự kiện đã đóng đăng ký.
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          
+          {% if event.status == 'DONE' and user.is_authenticated %}
+            <a href="{% url 'feedback:send' event.pk %}" class="btn btn-primary w-100 mt-3 fw-bold">Gửi đánh giá sự kiện</a>
+          {% endif %}
+        </div>
+      </div>
     </div>
   </div>
 </div>

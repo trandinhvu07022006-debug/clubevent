@@ -123,11 +123,32 @@ quota.
 | TCBOT-15 | Gọi API bằng GET | Từ chối 405 (chỉ nhận POST để bắt buộc kiểm CSRF) | `test_api_rejects_get` |
 | TCBOT-16 | Gửi JSON hỏng | Trả 400, không crash | `test_api_handles_broken_json` |
 
+## Nền tảng thông báo (F7.0)
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T7.0.1 | Gọi notify với template | 1 Notification + 1 mail | `test_notify_creates_notification_and_sends_email` |
+| T7.0.2 | User không có email | Có Notification, 0 mail, không lỗi | `test_notify_skips_email_if_user_has_none` |
+| T7.0.3 | Backend email ném lỗi | Không crash, Notification tạo | `test_notify_catches_email_exceptions` |
+| T7.0.4 | transaction bị rollback | 0 Notification, 0 mail | `test_notify_on_commit_respects_transaction` |
+
+## Quên mật khẩu (F1.4)
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T1.4.1 | Email tồn tại | 1 mail, có link /taikhoan/datlai/ | `test_t141_email_exists` |
+| T1.4.2 | Email không tồn tại | 0 mail, cùng trang "đã gửi" | `test_t142_email_not_exists` |
+| T1.4.3 | Email của tài khoản bị khoá | 0 mail, cùng trang "đã gửi" | `test_t143_locked_account` |
+| T1.4.4 | Mở link, đặt mật khẩu mới | Đăng nhập được bằng mật khẩu mới | `test_t144_reset_password` |
+| T1.4.5 | Dùng lại link cũ lần 2 | Báo link không hợp lệ | `test_t145_reuse_token` |
+| T1.4.6 | Gửi 6 yêu cầu trong 1 giờ | Chỉ 5 mail | `test_t146_rate_limit` |
+| T1.4.7 | Email viết hoa | Vẫn nhận mail | `test_t147_case_insensitive_email` |
+
 ---
 
 ## Tổng kết
 
-83 test case, chạy bằng `python manage.py test`. Tất cả đều pass.
+104 test case, chạy bằng `python manage.py test`. Tất cả đều pass.
 
 Khi điền RTM, mỗi dòng nối: **Yêu cầu (F-x.x) → Use case (UC-xx) → Test case
 (TC-xx) → Kết quả**. Cột Test case lấy từ bảng trên, cột Yêu cầu lấy từ tiêu

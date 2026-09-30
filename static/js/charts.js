@@ -11,23 +11,42 @@
  * (screen reader) vẫn tiếp cận được dữ liệu.
  */
 
-// Bảng màu. Dùng MỘT tông xanh với các độ đậm khác nhau, không dùng nhiều màu
-// sặc sỡ: khi so sánh độ lớn thì "đậm hơn = nhiều hơn" dễ đọc và vẫn phân biệt
-// được với người bị mù màu (color blindness).
-const VIZ = {
-    surface: "#ffffff",   // màu nền thẻ card, dùng làm khe hở giữa các đoạn
-    ink: "#0b0b0b",
-    inkSoft: "#52514e",
-    muted: "#898781",     // màu chữ nhãn trục
-    grid: "#e1e0d9",      // đường kẻ mờ
-    axis: "#c3c2b7",
-    blue150: "#b7d3f6",
-    blue250: "#86b6ef",
-    blue350: "#5598e7",
-    blue450: "#2a78d6",
-    blue550: "#1c5cab",
-    blue650: "#104281",
-};
+// Bảng màu. Dùng MỘT tông xanh mực (đồng bộ màu thương hiệu) với các độ đậm
+// khác nhau, không dùng nhiều màu sặc sỡ: khi so sánh độ lớn thì "đậm hơn =
+// nhiều hơn" dễ đọc và vẫn phân biệt được với người bị mù màu (color blindness).
+//
+// Chữ và đường kẻ đổi theo theme sáng/tối của trang: trước đây màu chữ luôn là
+// đen nên ở chế độ tối nhãn trục gần như biến mất trên nền thẻ tối.
+const IS_DARK = document.documentElement.getAttribute("data-bs-theme") === "dark";
+
+const VIZ = Object.assign(
+    {
+        // Thang xanh mực 6 bậc — nhạt tới đậm, dùng chung cho cả 2 theme.
+        tone150: "#ccd5ea",
+        tone250: "#a8b7dc",
+        tone350: "#7e93c9",
+        tone450: "#5a72b5",
+        tone550: "#34477d",
+        tone650: "#25335c",
+    },
+    IS_DARK
+        ? {
+              surface: "#1d202a",   // nền thẻ card (tối), dùng làm khe hở giữa các đoạn
+              ink: "#0d0f15",
+              inkSoft: "#dcdfe9",
+              muted: "#9aa0b2",     // màu chữ nhãn trục
+              grid: "#2e323f",      // đường kẻ mờ
+              axis: "#3f4454",
+          }
+        : {
+              surface: "#ffffff",   // nền thẻ card (sáng)
+              ink: "#1b1e26",
+              inkSoft: "#4c515f",
+              muted: "#828795",
+              grid: "#e5e4de",
+              axis: "#cac8c0",
+          }
+);
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 
@@ -103,7 +122,7 @@ function drawCheckinChart() {
                 {
                     label: "Đã check-in",
                     data: data.checked,
-                    backgroundColor: VIZ.blue450,
+                    backgroundColor: VIZ.tone450,
                     maxBarThickness: BAR_MAX,
                     borderRadius: 4,
                     // Viền cùng màu nền tạo khe hở 2px giữa 2 đoạn, nhìn rõ
@@ -115,7 +134,7 @@ function drawCheckinChart() {
                 {
                     label: "Chưa check-in",
                     data: data.remaining,
-                    backgroundColor: VIZ.blue150,
+                    backgroundColor: VIZ.tone150,
                     maxBarThickness: BAR_MAX,
                     borderRadius: 4,
                     borderSkipped: false,
@@ -172,7 +191,7 @@ function drawEventRatingChart() {
             datasets: [{
                 label: "Điểm trung bình",
                 data: data.values,
-                backgroundColor: VIZ.blue450,
+                backgroundColor: VIZ.tone450,
                 maxBarThickness: BAR_MAX,
                 borderRadius: 4,
                 borderSkipped: false,
@@ -216,7 +235,7 @@ function drawTicketTypeChart() {
             datasets: [{
                 label: "Số vé",
                 data: data.values,
-                backgroundColor: VIZ.blue450,
+                backgroundColor: VIZ.tone450,
                 maxBarThickness: BAR_MAX,
                 borderRadius: 4,
                 borderSkipped: false,
@@ -255,8 +274,8 @@ function drawRatingDistChart() {
                 // Khác với danh mục không có thứ tự (loại vé, tên sự kiện) —
                 // chỗ đó phải dùng một màu duy nhất.
                 data: data.counts,
-                backgroundColor: [VIZ.blue250, VIZ.blue350, VIZ.blue450,
-                                  VIZ.blue550, VIZ.blue650],
+                backgroundColor: [VIZ.tone250, VIZ.tone350, VIZ.tone450,
+                                  VIZ.tone550, VIZ.tone650],
                 maxBarThickness: 56,
                 borderRadius: 4,
                 borderSkipped: false,

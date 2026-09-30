@@ -32,6 +32,13 @@ class User(AbstractUser):
     class Meta:
         verbose_name = "Người dùng"
         verbose_name_plural = "Người dùng"
+        constraints = [
+            models.UniqueConstraint(
+                models.functions.Lower("email"),
+                name="uniq_user_email_ci",
+                condition=~models.Q(email="")
+            )
+        ]
 
     def __str__(self):
         return f"{self.full_name or self.username} ({self.get_role_display()})"
