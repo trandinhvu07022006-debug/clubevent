@@ -7,6 +7,12 @@ import sys
 
 def main():
     """Run administrative tasks."""
+    # Luôn in UTF-8. Trên Windows, khi đầu ra bị chuyển hướng (ghi log, ">nul",
+    # Task Scheduler) Python dùng bảng mã cp1252 và SẬP ngay khi in chữ tiếng
+    # Việt có dấu (vd seed_demo, run_periodic).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure") and (stream.encoding or "").lower() != "utf-8":
+            stream.reconfigure(encoding="utf-8", errors="replace")
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
     try:
         from django.core.management import execute_from_command_line

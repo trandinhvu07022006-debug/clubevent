@@ -10,6 +10,11 @@ Dự án đã sẵn sàng deploy lên host thật — xem `docs/huong-dan-deploy
 
 ---
 
+> **Chỉ muốn tải về dùng thử?** Cài Python 3.10+, tải ZIP dự án, rồi nhấp đúp
+> **`chay-thu.bat`** (Windows) hoặc chạy `bash chay-thu.sh` (macOS/Linux).
+> Xem [HUONG-DAN-CHAY-THU.md](HUONG-DAN-CHAY-THU.md): tài khoản demo, kịch bản
+> test 15 phút, cách báo lỗi.
+
 ## 1. Chạy dự án
 
 ### Cách nhanh nhất (không cần cài MySQL)

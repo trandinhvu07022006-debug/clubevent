@@ -1,0 +1,3 @@
+# Script chạy thử: .bat bắt buộc CRLF (cmd.exe), .sh bắt buộc LF (bash)
+*.bat text eol=crlf
+*.sh  text eol=lf
