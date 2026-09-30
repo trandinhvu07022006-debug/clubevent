@@ -14,15 +14,16 @@
       <div class="card-body p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="text-muted fw-bold small text-uppercase">Tiến độ vào cổng</span>
-          <span class="badge bg-primary rounded-pill fs-6">{{ done }} / {{ total }}</span>
+          <span class="badge bg-primary rounded-pill fs-6" id="progress-text">{{ done }} / {{ total }}</span>
         </div>
         <div class="progress seats progress-lg">
-          <div class="progress-bar bg-primary" style="width:{{ percent }}%"></div>
+          <div class="progress-bar bg-primary" id="progress-bar" style="width:{{ percent }}%"></div>
         </div>
       </div>
     </div>
 
     <!-- Kết quả -->
+    <div id="scan-result">
     {% if result %}
       <div class="card shadow-sm mb-4 border-0 text-center checkin-result bg-{{ css_class }}-subtle text-{{ css_class }}-emphasis">
         <div class="card-body p-4">
@@ -45,14 +46,24 @@
         </div>
       </div>
     {% endif %}
+    </div>
 
-    <!-- Form quét mã -->
+    <!-- Camera / Form -->
     <div class="card shadow border-0 mb-4">
-      <div class="card-body p-4">
+      <div class="card-body p-4 text-center">
+        <input type="hidden" id="event-id" value="{{ event.pk }}">
+        <button type="button" id="btn-camera" class="btn btn-outline-primary mb-3">
+          <i class="bi bi-camera"></i> Mở camera quét QR
+        </button>
+        <div class="mb-3" style="border-radius: 8px; overflow: hidden;">
+          <video id="qr-video" class="w-100" style="display: none; background: #000;"></video>
+        </div>
+        <canvas id="qr-canvas" style="display: none;"></canvas>
+
         <form method="post">
           {% csrf_token %}
-          <label class="form-label fw-bold text-center w-100 mb-3 text-uppercase letter-spacing-1">Quét QR hoặc nhập mã vé</label>
-          <input name="code" id="code-input" class="form-control form-control-lg mb-4 py-3"
+          <label class="form-label fw-bold text-center w-100 mb-2 text-uppercase letter-spacing-1">Hoặc nhập mã vé</label>
+          <input name="code" id="code-input" class="form-control form-control-lg mb-3 py-3 text-center"
                  placeholder="ABC123DEF" autocomplete="off" autofocus required>
           <button class="btn btn-primary btn-lg w-100 py-3 fw-bold fs-5 shadow-sm text-uppercase">
             Xác nhận
@@ -70,11 +81,16 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/jsQR.min.js' %}"></script>
+<script src="{% static 'js/qr-scan.js' %}"></script>
 <script>
   // Tự viết hoa và focus lại sau mỗi lần check-in để BTC quét liên tục
-  const input = document.getElementById('code-input');
-  input?.addEventListener('input', e => e.target.value = e.target.value.toUpperCase());
+  const manualInput = document.getElementById('code-input');
+  manualInput?.addEventListener('input', e => e.target.value = e.target.value.toUpperCase());
   // Delay focus slightly to ensure it works on mobile devices after reload
-  setTimeout(() => input?.focus(), 100);
+  setTimeout(() => manualInput?.focus(), 100);
 </script>
 {% endblock %}

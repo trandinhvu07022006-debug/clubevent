@@ -12,7 +12,8 @@ from events.models import Event
 
 from .models import Ticket, TicketStatus
 from .services import (CHECKIN_OK, CHECKIN_USED, BookingError, book_tickets,
-                       cancel_ticket, check_in, confirm_payment, participants)
+                       cancel_ticket, check_in, confirm_payment, participants,
+                       checkin_progress_data)
 
 
 def qr_data_uri(text):
@@ -120,10 +121,6 @@ def payment_confirm(request, pk):
 def checkin(request, event_id):
     """
     F5.1 + F5.2 - Trang check-in.
-
-    Kết quả trả về 3 loại, hiển thị bằng 3 màu khác nhau để BTC nhìn là
-    biết ngay, không cần đọc chữ:
-      xanh = hợp lệ, vàng = đã dùng rồi, đỏ = không hợp lệ.
     """
     event = get_object_or_404(Event, pk=event_id)
     result = ticket = None
@@ -133,8 +130,7 @@ def checkin(request, event_id):
         code = request.POST.get("code", "")
         result, ticket, note = check_in(request.user, code, event=event)
 
-    total = event.tickets.exclude(status=TicketStatus.CANCELLED).count()
-    done = event.tickets.filter(status=TicketStatus.CHECKED_IN).count()
+    progress = checkin_progress_data(event)
 
     return render(request, "registrations/checkin.html", {
         "event": event,
@@ -143,10 +139,49 @@ def checkin(request, event_id):
         "note": note,
         "css_class": {CHECKIN_OK: "success", CHECKIN_USED: "warning"}.get(
             result, "danger"),
-        "total": total,
-        "done": done,
-        "percent": round(done * 100 / total) if total else 0,
+        **progress,
     })
+
+
+import json
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+
+@staff_required
+@require_POST
+def checkin_scan(request, event_id):
+    """F5.3 - API quét QR bằng camera."""
+    event = get_object_or_404(Event, pk=event_id)
+    try:
+        data = json.loads(request.body)
+        code = data.get("code", "")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Dữ liệu không hợp lệ"}, status=400)
+        
+    result, ticket, note = check_in(request.user, code, event=event)
+    
+    # Render user info
+    ticket_data = None
+    if ticket:
+        ticket_data = {
+            "code": ticket.code,
+            "user_name": ticket.user.full_name,
+            "ticket_type": ticket.ticket_type.name,
+        }
+        
+    return JsonResponse({
+        "result": result,
+        "note": note,
+        "ticket": ticket_data,
+        "css_class": {CHECKIN_OK: "success", CHECKIN_USED: "warning"}.get(result, "danger"),
+    })
+
+
+@staff_required
+def checkin_progress(request, event_id):
+    """F5.4 - API lấy tiến độ điểm danh (cập nhật liên tục)."""
+    event = get_object_or_404(Event, pk=event_id)
+    return JsonResponse(checkin_progress_data(event))
 
 
 @lead_required
@@ -179,6 +214,8 @@ def participant_csv(request, event_id):
     response = HttpResponse(content_type="text/csv; charset=utf-8-sig")
     response["Content-Disposition"] = (
         f'attachment; filename="nguoi-tham-gia-{event.pk}.csv"')
+    
+    response.write('\ufeff')  # BOM for Excel
 
     writer = csv.writer(response)
     writer.writerow(["Mã vé", "Họ tên", "MSSV", "Loại vé", "Giá",

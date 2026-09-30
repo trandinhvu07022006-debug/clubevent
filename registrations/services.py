@@ -240,6 +240,16 @@ def check_in(staff: User, code: str,
     return CHECKIN_OK, ticket, f"Hợp lệ. Mời {ticket.user.full_name} vào."
 
 
+def checkin_progress_data(event: Event) -> dict:
+    """Trả về dữ liệu tiến độ check-in của sự kiện (F5.4)."""
+    total = event.tickets.exclude(status=TicketStatus.CANCELLED).count()
+    done = event.tickets.filter(status=TicketStatus.CHECKED_IN).count()
+    return {
+        "total": total,
+        "done": done,
+        "percent": round(done * 100 / total) if total else 0,
+    }
+
 # ---------------------------------------------------------------------------
 # F4.5 - TỰ HUỶ VÉ QUÁ HẠN THANH TOÁN
 # ---------------------------------------------------------------------------
@@ -254,9 +264,11 @@ def release_expired_tickets() -> int:
     """
     limit_time = timezone.now() - timezone.timedelta(
         hours=settings.PAYMENT_DEADLINE_HOURS)
+    now = timezone.now()
     expired = (Ticket.objects
                .select_for_update()
-               .filter(status=TicketStatus.PENDING, created_at__lt=limit_time))
+               .filter(status=TicketStatus.PENDING)
+               .filter(Q(created_at__lt=limit_time) | Q(event__starts_at__lt=now)))
 
     count = 0
     for ticket in expired:

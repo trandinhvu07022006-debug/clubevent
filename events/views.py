@@ -110,11 +110,8 @@ def event_set_status(request, pk):
 
     # F2.3 - huỷ sự kiện thì huỷ luôn toàn bộ vé
     if new_status == EventStatus.CANCELLED:
-        event.tickets.exclude(status="CANCELLED").update(status="CANCELLED")
-        for ticket_type in event.ticket_types.all():
-            ticket_type.sold = 0
-            ticket_type.save(update_fields=["sold"])
-        AuditLog.write(request.user, "Huỷ sự kiện", event.name)
+        from events.services import cancel_event
+        cancel_event(request.user, event)
 
     old = event.get_status_display()
     event.status = new_status

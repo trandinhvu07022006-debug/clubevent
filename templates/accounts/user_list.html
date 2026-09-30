@@ -23,21 +23,25 @@
     <table class="table table-hover mb-0 align-middle">
       <thead class="table-light">
         <tr>
-          <th>Họ tên</th><th>MSSV</th><th>Tên đăng nhập</th>
-          <th>Vai trò</th><th>Trạng thái</th><th></th>
+          <th class="text-truncate" style="max-width: 150px;">Họ tên</th>
+          <th>MSSV</th>
+          <th class="text-truncate" style="max-width: 120px;">Tên đăng nhập</th>
+          <th>Vai trò</th>
+          <th>Trạng thái</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {% for u in users %}
           <tr>
             <td>
-              <span class="d-flex align-items-center gap-2">
+              <span class="d-flex align-items-center gap-2 text-truncate" style="max-width: 150px;" title="{{ u.full_name|default:'—' }}">
                 {% include "partials/avatar.html" with person=u size="avatar-sm" %}
                 {{ u.full_name|default:"—" }}
               </span>
             </td>
             <td>{{ u.mssv|default:"—" }}</td>
-            <td>{{ u.username }}</td>
+            <td class="text-truncate" style="max-width: 120px;" title="{{ u.username }}">{{ u.username }}</td>
             <td><span class="badge text-bg-info">{{ u.get_role_display }}</span></td>
             <td>
               {% if u.is_locked %}

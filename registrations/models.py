@@ -74,11 +74,13 @@ class Ticket(models.Model):
 
     @property
     def payment_deadline(self):
-        """F4.5 - hạn thanh toán, 24h sau khi đặt."""
+        """F4.5 - hạn thanh toán, 24h sau khi đặt. Không vượt quá giờ diễn ra."""
         if self.status != TicketStatus.PENDING:
             return None
-        return self.created_at + timezone.timedelta(
-            hours=settings.PAYMENT_DEADLINE_HOURS)
+        return min(
+            self.created_at + timezone.timedelta(hours=settings.PAYMENT_DEADLINE_HOURS),
+            self.event.starts_at
+        )
 
     @property
     def is_payment_expired(self):

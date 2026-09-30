@@ -20,20 +20,26 @@
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
-        <tr><th>Mã vé</th><th>Người đăng ký</th><th>Sự kiện</th>
-            <th>Loại vé</th><th class="text-end">Giá</th>
-            <th>Hạn thanh toán</th><th></th></tr>
+        <tr>
+          <th>Mã vé</th>
+          <th class="text-truncate" style="max-width: 150px;">Người đăng ký</th>
+          <th class="text-truncate" style="max-width: 150px;">Sự kiện</th>
+          <th>Loại vé</th>
+          <th class="text-end">Giá</th>
+          <th>Hạn thanh toán</th>
+          <th></th>
+        </tr>
       </thead>
       <tbody>
         {% for t in tickets %}
           <tr>
             <td class="checkin-code">{{ t.code }}</td>
             <td>
-              {{ t.user.full_name }}<br>
+              <div class="text-truncate" style="max-width: 150px;" title="{{ t.user.full_name }}">{{ t.user.full_name }}</div>
               <small class="text-muted">{{ t.user.mssv|default:"—" }}</small>
             </td>
-            <td>{{ t.event.name }}</td>
-            <td>{{ t.ticket_type.name }}</td>
+            <td class="text-truncate" style="max-width: 150px;" title="{{ t.event.name }}">{{ t.event.name }}</td>
+            <td class="text-truncate" style="max-width: 120px;" title="{{ t.ticket_type.name }}">{{ t.ticket_type.name }}</td>
             <td class="text-end">{{ t.price|floatformat:0 }}đ</td>
             <td class="small {% if t.is_payment_expired %}text-danger{% endif %}">
               {{ t.payment_deadline|date:"H:i d/m" }}
