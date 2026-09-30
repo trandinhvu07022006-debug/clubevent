@@ -9,7 +9,7 @@
         <h5 class="card-title">
           {% if task %}Sửa công việc{% else %}Tạo công việc mới{% endif %}
         </h5>
-        <p class="text-muted small">{{ event.name }}</p>
+        <p class="text-muted small">{% if event %}{{ event.name }}{% else %}Việc chung của CLB{% endif %}</p>
         <form method="post">
           {% csrf_token %}
           {% for field in form %}
@@ -22,7 +22,11 @@
             </div>
           {% endfor %}
           <button class="btn btn-primary">Lưu</button>
-          <a href="{% url 'organizing:board' event.pk %}" class="btn btn-link">Huỷ</a>
+          {% if event %}
+            <a href="{% url 'organizing:board' event.pk %}" class="btn btn-link">Huỷ</a>
+          {% else %}
+            <a href="{% url 'organizing:my_tasks' %}?view=assigned" class="btn btn-link">Huỷ</a>
+          {% endif %}
         </form>
       </div>
     </div>

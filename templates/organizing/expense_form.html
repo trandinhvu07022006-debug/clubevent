@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{% if expense %}Sửa khoản chi{% else %}Ghi khoản chi{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1 class="h5 card-title">{% if expense %}Sửa khoản chi{% else %}Ghi khoản chi mới{% endif %}</h1>
+        <p class="text-muted small">{{ event.name }}</p>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          {% for field in form %}
+            <div class="mb-3">
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+              {% if field.errors %}
+                <div class="text-danger small">{{ field.errors|first }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+          <button class="btn btn-primary">Lưu</button>
+          <a href="{% url 'organizing:budget' event.pk %}" class="btn btn-link">Huỷ</a>
+        </form>
+      </div>
+    </div>
+    <p class="small text-muted mt-3"><i class="bi bi-shield-lock"></i> Chỉ Trưởng BTC trở lên xem được trang ngân sách. Tránh tải ảnh có thông tin cá nhân không cần thiết.</p>
+  </div>
+</div>
+{% endblock %}

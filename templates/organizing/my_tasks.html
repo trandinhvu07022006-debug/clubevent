@@ -1,38 +1,43 @@
 {% extends "base.html" %}
-{% block title %}Việc của tôi{% endblock %}
+{% block title %}{% if view == 'assigned' %}Việc tôi đã giao{% else %}Việc của tôi{% endif %}{% endblock %}
 
 {% block topbar %}
 <div class="d-flex justify-content-center w-100 my-2 my-lg-0">
-  {% comment %} Segmented control dùng chung (app.css mục 17). {% endcomment %}
+  {% comment %} Segmented control dùng chung (app.css mục 17). Giữ lại ?view khi lọc trạng thái. {% endcomment %}
   <nav class="segmented" aria-label="Lọc theo trạng thái">
-    <a href="?status=" class="segmented-item {% if not current_status %}active{% endif %}">Tất cả</a>
-    <a href="?status=TODO" class="segmented-item {% if current_status == 'TODO' %}active{% endif %}">Chưa làm</a>
-    <a href="?status=DOING" class="segmented-item {% if current_status == 'DOING' %}active{% endif %}">Đang làm</a>
-    <a href="?status=DONE" class="segmented-item {% if current_status == 'DONE' %}active{% endif %}">Hoàn thành</a>
+    <a href="?view={{ view }}" class="segmented-item {% if not current_status %}active{% endif %}">Tất cả ({{ counts.all }})</a>
+    <a href="?view={{ view }}&status=TODO" class="segmented-item {% if current_status == 'TODO' %}active{% endif %}">Chưa làm ({{ counts.todo }})</a>
+    <a href="?view={{ view }}&status=DOING" class="segmented-item {% if current_status == 'DOING' %}active{% endif %}">Đang làm ({{ counts.doing }})</a>
+    <a href="?view={{ view }}&status=DONE" class="segmented-item {% if current_status == 'DONE' %}active{% endif %}">Hoàn thành ({{ counts.done }})</a>
   </nav>
 </div>
 {% endblock %}
 
 {% block content %}
-<style>
-</style>
-
 <header class="page-header">
-  <span class="kicker">Cá nhân</span>
-  <div class="page-header-row">
+  <span class="kicker">{% if view == 'assigned' %}Ban chủ nhiệm{% else %}Cá nhân{% endif %}</span>
+  <div class="page-header-row d-flex flex-wrap justify-content-between align-items-end gap-3">
     <div>
-      <h1 class="h3 fw-bold">Việc của tôi</h1>
-      <p class="text-muted">Danh sách công việc bạn cần hoàn thành</p>
+      <h1 class="h3 fw-bold">{% if view == 'assigned' %}Việc tôi đã giao{% else %}Việc của tôi{% endif %}</h1>
+      <p class="text-muted mb-0">
+        {% if view == 'assigned' %}Theo dõi tiến độ những việc bạn đã giao cho thành viên BTC và Ban chủ nhiệm.
+        {% else %}Danh sách công việc bạn cần hoàn thành.{% endif %}
+      </p>
     </div>
-    {% if overdue_count %}
-      <div class="page-header-actions">
+    <div class="page-header-actions d-flex flex-wrap align-items-center gap-2">
+      {% if overdue_count %}
         <span class="badge bg-danger px-3 py-2 fs-6 shadow-sm"><i class="bi bi-exclamation-triangle-fill"></i> {{ overdue_count }} việc quá hạn</span>
-      </div>
-    {% endif %}
+      {% endif %}
+      {% if user.is_lead %}
+        <nav class="segmented" aria-label="Chế độ xem">
+          <a href="?view=mine" class="segmented-item {% if view == 'mine' %}active{% endif %}">Việc của tôi</a>
+          <a href="?view=assigned" class="segmented-item {% if view == 'assigned' %}active{% endif %}">Tôi đã giao</a>
+        </nav>
+        <a href="{% url 'organizing:assign' %}" class="btn btn-primary fw-semibold"><i class="bi bi-send"></i> Giao việc</a>
+      {% endif %}
+    </div>
   </div>
 </header>
-
-
 
 <div class="card shadow-sm">
   <div class="card-body p-0">
@@ -40,39 +45,71 @@
       <div class="icon-list-item px-3 {% if task.is_overdue %}border-start border-4 border-danger{% endif %}">
         <div class="icon-list-item-icon">
           {% if task.status == 'DONE' %}
-            <div class="avatar-sm bg-success text-white"><i class="bi bi-check2"></i></div>
+            <div class="avatar-sm bg-success text-white d-flex align-items-center justify-content-center rounded-circle"><i class="bi bi-check2"></i></div>
           {% elif task.status == 'DOING' %}
-            <div class="avatar-sm bg-primary text-white"><i class="bi bi-play-fill"></i></div>
+            <div class="avatar-sm bg-primary text-white d-flex align-items-center justify-content-center rounded-circle"><i class="bi bi-play-fill"></i></div>
           {% else %}
-            <div class="avatar-sm bg-secondary text-white"><i class="bi bi-clock"></i></div>
+            <div class="avatar-sm bg-secondary text-white d-flex align-items-center justify-content-center rounded-circle"><i class="bi bi-clock"></i></div>
           {% endif %}
         </div>
         <div class="icon-list-item-content">
-          <div class="icon-list-item-title {% if task.status == 'DONE' %}text-decoration-line-through opacity-75{% endif %}">{{ task.title }}</div>
+          <div class="icon-list-item-title {% if task.status == 'DONE' %}text-decoration-line-through opacity-75{% endif %}">
+            {{ task.title }}
+            {% if task.priority == 'URGENT' %}<span class="badge bg-danger ms-1">Gấp</span>
+            {% elif task.priority == 'HIGH' %}<span class="badge bg-warning-subtle text-warning-emphasis ms-1">Ưu tiên cao</span>{% endif %}
+          </div>
           <div class="icon-list-item-subtitle">
-            {{ task.event.name }}
+            {% if task.event_id %}
+              <i class="bi bi-calendar-event"></i> {{ task.event.name }}
+            {% else %}
+              <span class="badge bg-primary-subtle text-primary-emphasis"><i class="bi bi-building"></i> Việc chung CLB</span>
+            {% endif %}
             {% if task.deadline %} · Hạn: {{ task.deadline|date:"H:i d/m" }}{% endif %}
             {% if task.is_overdue %}<strong class="text-danger">(Quá hạn)</strong>{% endif %}
           </div>
+          <div class="small text-body-secondary mt-1">
+            {% if view == 'assigned' %}
+              <i class="bi bi-person"></i> Giao cho <strong>{{ task.assignee.full_name|default:task.assignee.username|default:"(chưa giao)" }}</strong>
+            {% elif task.created_by and task.created_by != user %}
+              <i class="bi bi-person-up"></i> Giao bởi {{ task.created_by.full_name|default:task.created_by.username }}
+            {% endif %}
+            {% if task.note %} · <span class="fst-italic">Ghi chú: {{ task.note }}</span>{% endif %}
+          </div>
           {% if task.description %}
-            <div class="small text-body-secondary mt-1">{{ task.description|truncatechars:100 }}</div>
+            <div class="small text-body-secondary mt-1">{{ task.description|truncatechars:120 }}</div>
           {% endif %}
         </div>
         <div class="icon-list-item-right text-end">
-          <form method="post" action="{% url 'organizing:set_status' task.pk %}" class="d-flex align-items-center gap-2">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{% url 'organizing:my_tasks' %}">
-            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
-              <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
-              <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
-              <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Hoàn thành</option>
-            </select>
-          </form>
+          <div class="d-flex align-items-center gap-1 justify-content-end">
+            <form method="post" action="{% url 'organizing:set_status' task.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;" aria-label="Trạng thái công việc">
+                <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>Chưa làm</option>
+                <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Đang làm</option>
+                <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Hoàn thành</option>
+              </select>
+            </form>
+            {% if user.is_lead %}
+              <a href="{% url 'organizing:update' task.pk %}" class="btn btn-sm btn-outline-secondary border-0" title="Sửa / giao lại" aria-label="Sửa"><i class="bi bi-pencil"></i></a>
+              {% if task.status != 'DONE' and view == 'assigned' %}
+                <form method="post" action="{% url 'organizing:delete' task.pk %}" onsubmit="return confirm('Xoá việc này?')">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger border-0" title="Xoá" aria-label="Xoá"><i class="bi bi-trash"></i></button>
+                </form>
+              {% endif %}
+            {% endif %}
+          </div>
         </div>
       </div>
     {% empty %}
       <div class="p-3">
-        {% include "partials/empty_state.html" with icon="bi-cup-hot" title="Không còn việc nào — tuyệt vời!" desc="Bạn hiện không có công việc nào được giao." %}
+        {% if view == 'assigned' %}
+          {% url 'organizing:assign' as action_url %}
+          {% include "partials/empty_state.html" with icon="bi-send" title="Bạn chưa giao việc nào" desc="Giao việc cho thành viên BTC hoặc Ban chủ nhiệm, có thể gắn với sự kiện hoặc là việc chung của CLB." action_url=action_url action_label="Giao việc ngay" %}
+        {% else %}
+          {% include "partials/empty_state.html" with icon="bi-cup-hot" title="Không còn việc nào — tuyệt vời!" desc="Bạn hiện không có công việc nào được giao." %}
+        {% endif %}
       </div>
     {% endfor %}
   </div>

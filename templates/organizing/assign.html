@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Giao việc{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <header class="page-header">
+      <span class="kicker">Ban chủ nhiệm</span>
+      <h1 class="h3 fw-bold mb-1">Giao việc</h1>
+      <p class="text-muted mb-0">Giao việc cho bất kỳ thành viên BTC nào — kể cả Ban chủ nhiệm. Để trống <strong>Sự kiện</strong> nếu là việc chung của CLB. Người nhận sẽ có thông báo và email.</p>
+    </header>
+
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="{{ form.title.id_for_label }}">{{ form.title.label }} <span class="text-danger">*</span></label>
+              {{ form.title }}
+              {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ form.assignee.id_for_label }}">Giao cho <span class="text-danger">*</span></label>
+              {{ form.assignee }}
+              {% if form.assignee.errors %}<div class="text-danger small">{{ form.assignee.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ form.event.id_for_label }}">{{ form.event.label }}</label>
+              {{ form.event }}
+              {% if form.event.errors %}<div class="text-danger small">{{ form.event.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ form.priority.id_for_label }}">{{ form.priority.label }}</label>
+              {{ form.priority }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ form.deadline.id_for_label }}">{{ form.deadline.label }}</label>
+              {{ form.deadline }}
+              {% if form.deadline.errors %}<div class="text-danger small">{{ form.deadline.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+              {{ form.description }}
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <button class="btn btn-primary px-4"><i class="bi bi-send"></i> Giao việc</button>
+            <button class="btn btn-outline-primary" name="again" value="1"><i class="bi bi-plus-lg"></i> Giao và giao tiếp việc khác</button>
+            <a href="{% url 'organizing:my_tasks' %}?view=assigned" class="btn btn-link">Huỷ</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
