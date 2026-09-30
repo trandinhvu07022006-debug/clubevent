@@ -36,7 +36,7 @@
     {% for t in tickets %}
       <div class="icon-list-item px-3">
         <div class="icon-list-item-icon">
-          {% include "partials/avatar.html" with user=t.user class="avatar-sm" %}
+          {% include "partials/avatar.html" with person=t.user size="avatar-sm" %}
         </div>
         <div class="icon-list-item-content">
           <div class="icon-list-item-title">{{ t.user.full_name }}</div>
