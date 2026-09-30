@@ -5,6 +5,7 @@ Mọi thông tin bí mật (SECRET_KEY, mật khẩu DB, API key AI) đọc từ
 môi trường trong file .env — KHÔNG hard-code, KHÔNG commit lên Git.
 """
 import os
+import sys
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -38,6 +39,9 @@ if _env_file.exists():
 SECRET_KEY = env("SECRET_KEY", "dev-only-doi-key-nay-truoc-khi-deploy")
 DEBUG = env_bool("DEBUG", True)
 ALLOWED_HOSTS = [h for h in env("ALLOWED_HOSTS", "*").split(",") if h]
+# Bắt buộc khi truy cập qua HTTPS của tên miền khác (ngrok, host thật), nếu
+# không mọi form POST bị chặn CSRF 403. Ví dụ: https://abc.ngrok-free.app
+CSRF_TRUSTED_ORIGINS = [o for o in env("CSRF_TRUSTED_ORIGINS", "").split(",") if o]
 
 # Deploy thật mà quên đổi SECRET_KEY thì báo lỗi ngay, không chạy với key yếu
 if not DEBUG and SECRET_KEY.startswith("dev-only"):
@@ -104,8 +108,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Cả MySQL và PostgreSQL đều hỗ trợ SELECT ... FOR UPDATE nên phần chống
 # race condition khi đặt vé hoạt động như nhau.
 #
-# CẢNH BÁO: đừng dùng SQLite khi demo. SQLite khoá toàn bộ file DB chứ không
-# khoá theo dòng, nên không thể hiện đúng cơ chế chống race condition.
+# SQLite dùng demo được: nhờ transaction_mode=IMMEDIATE bên dưới, 2 người cùng
+# đặt chỗ cuối vẫn chỉ 1 người thành công, người kia nhận "hết chỗ". Khác biệt
+# khi trình bày: SQLite khoá CẢ FILE DB, còn MySQL/PostgreSQL khoá ĐÚNG DÒNG loại
+# vé (SELECT ... FOR UPDATE) nên nhiều người đặt các sự kiện khác nhau không
+# phải chờ nhau. Quy mô CLB thì SQLite là đủ.
 DB_ENGINE = env("DB_ENGINE", "mysql")
 
 if DB_ENGINE == "sqlite":
@@ -113,6 +120,16 @@ if DB_ENGINE == "sqlite":
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
+            "OPTIONS": {
+                # IMMEDIATE: mỗi transaction giành quyền GHI ngay từ đầu, nên
+                # 2 người cùng đặt chỗ cuối sẽ XẾP HÀNG: người sau chờ người
+                # trước commit rồi mới đọc số chỗ -> nhận đúng thông báo "hết
+                # chỗ". Để mặc định (DEFERRED) thì người sau gặp lỗi
+                # "database is locked" (trang 500) — đã đo: 10/10 lần.
+                "transaction_mode": "IMMEDIATE",
+                # Chờ tối đa 20 giây khi DB đang bận thay vì báo lỗi ngay
+                "timeout": 20,
+            },
         }
     }
 elif DB_ENGINE == "postgres":
@@ -161,6 +178,14 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "KMG Club <no-reply@kmgclub.local
 SITE_URL = env("SITE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 PASSWORD_RESET_TIMEOUT = 2 * 60 * 60
+
+# --- F4.7 - Chuyển khoản VietQR ---
+# Thiếu 1 trong 3 biến BANK_BIN / BANK_ACCOUNT / BANK_ACCOUNT_NAME thì ẩn
+# toàn bộ phần VietQR, trang vé vẫn chạy như cũ.
+BANK_BIN = env("BANK_BIN", "")                   # mã NAPAS 6 số, vd Vietcombank 970436
+BANK_NAME = env("BANK_NAME", "")                 # tên hiển thị, vd "Vietcombank"
+BANK_ACCOUNT = env("BANK_ACCOUNT", "")
+BANK_ACCOUNT_NAME = env("BANK_ACCOUNT_NAME", "") # không dấu, IN HOA
 
 
 # Nhiều host free cấp sẵn biến DATABASE_URL thay vì từng biến rời.
@@ -257,8 +282,19 @@ FEEDBACK_WINDOW_DAYS = 7             # F6.1 - gửi đánh giá trong 7 ngày
 # --- Tích hợp AI ---
 AI_PROVIDER = env("AI_PROVIDER", "gemini")   # gemini | openai | mock
 AI_API_KEY = env("AI_API_KEY", "")           # để trong .env, không commit
-AI_MODEL = env("AI_MODEL", "gemini-2.0-flash")
-AI_TIMEOUT_SECONDS = int(env("AI_TIMEOUT_SECONDS", "20"))
+AI_MODEL = env("AI_MODEL", "gemini-3.6-flash")
+# Model riêng cho trợ lý chat (hỏi nhiều, câu ngắn -> dùng bản lite nhanh hơn).
+# Gói miễn phí giới hạn lượt/ngày THEO TỪNG MODEL, tách ra thì trợ lý không
+# ăn hết lượt của tóm tắt phản hồi. Để trống thì trợ lý dùng AI_MODEL.
+AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL", "")
+AI_TIMEOUT_SECONDS = int(env("AI_TIMEOUT_SECONDS", "40"))
+
+# Chạy test thì KHÔNG BAO GIỜ gọi AI thật: test phải cho cùng một kết quả mỗi
+# lần, chạy được khi mất mạng và không tốn quota. Thiếu dòng này thì khi .env
+# có key thật, mọi test đi qua nhánh AI (vd câu hỏi lạ ở trợ lý) sẽ gọi Google.
+# Test nào cần AI thì tự mock (_ask_ai / _call_gemini) và override_settings key.
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    AI_API_KEY = ""
 
 # --- Logging ---
 # AuditLog chỉ ghi hành động nghiệp vụ vào DB. Phần logging ở đây ghi lỗi

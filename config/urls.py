@@ -12,6 +12,7 @@ urlpatterns = [
     path("ve/", include("registrations.urls")),
     path("phanhoi/", include("feedback.urls")),
     path("troly/", include("aiassist.urls")),
+    path("thongbao/", include("notifications.urls")),
 ]
 
 if settings.DEBUG:

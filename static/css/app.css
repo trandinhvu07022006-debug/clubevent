@@ -773,3 +773,123 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   background: var(--app-surface-2);
   border-color: var(--bs-border-color);
 }
+
+/* Nhãn "Trả lời bởi AI" trong khung chat — nhỏ, lùi lại, không tranh chú ý
+   với nội dung trả lời; dùng --brand-text nên đúng màu ở cả 2 theme. */
+.chat-ai-tag {
+  margin-top: 6px;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--brand-text);
+  opacity: .85;
+  white-space: normal;
+}
+
+/* ---- 18. CHUÔNG THÔNG BÁO (F7.3) ------------------------------------------
+   Nút vuông 40px (44px trên cảm ứng — mục 13), badge đỏ góc trên. Dropdown
+   rộng cố định, cuộn khi dài; mỗi dòng là 1 form POST nhỏ (đánh dấu đã đọc). */
+.btn-bell {
+  width: 40px; height: 40px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-size: 1.15rem;
+  color: var(--bs-body-color); background: transparent;
+  border: 1px solid var(--app-border);
+}
+.btn-bell:hover, .btn-bell[aria-expanded="true"] {
+  background: var(--app-surface-2); color: var(--brand-text);
+}
+@media (pointer: coarse) { .btn-bell { width: 44px; height: 44px; } }
+.bell-badge {
+  position: absolute; top: -6px; right: -6px;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 999px; background: var(--bs-danger); color: #fff;
+  font-size: .68rem; font-weight: 700; line-height: 20px; text-align: center;
+  box-shadow: 0 0 0 2px var(--app-surface);
+}
+.bell-menu { width: min(360px, calc(100vw - 32px)); overflow: hidden; }
+.bell-list { max-height: 60vh; overflow-y: auto; }
+.bell-item {
+  display: flex; gap: .75rem; width: 100%; text-align: left;
+  padding: .7rem 1rem; border: 0; background: transparent;
+  border-bottom: 1px solid var(--app-border); color: inherit;
+  min-height: 44px;
+}
+.bell-item:hover { background: var(--app-surface-2); }
+.bell-item.is-unread { background: rgba(var(--brand-rgb), .07); }
+.bell-item.is-unread .bell-item-title::after {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 6px;
+  border-radius: 50%; background: var(--brand); vertical-align: middle;
+}
+.bell-item-icon { font-size: 1.1rem; color: var(--brand-text); margin-top: 2px; }
+.bell-item-body { display: flex; flex-direction: column; min-width: 0; }
+.bell-item-title { font-weight: 600; font-size: .88rem; line-height: 1.3; }
+.bell-item-msg {
+  font-size: .8rem; color: var(--bs-secondary-color);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.bell-item-time { font-size: .72rem; color: var(--bs-secondary-color); margin-top: 2px; }
+
+/* ---- 19. LỊCH THÁNG ------------------------------------------------------ */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cal-head { text-align: center; font-size: .75rem; font-weight: 700;
+            color: var(--bs-secondary-color); text-transform: uppercase; padding: .25rem 0; }
+.cal-cell {
+  min-height: 104px; padding: .4rem; border-radius: var(--bs-border-radius-sm);
+  background: var(--app-surface); border: 1px solid var(--app-border);
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+.cal-cell.is-empty { background: transparent; border-style: dashed; opacity: .45; }
+.cal-cell.is-today { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.cal-day { font-size: .8rem; font-weight: 700; }
+.cal-cell.is-today .cal-day { color: var(--brand-text); }
+.cal-event {
+  display: block; font-size: .72rem; line-height: 1.25; padding: 2px 6px;
+  border-radius: 6px; text-decoration: none; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+  background: rgba(var(--brand-rgb), .12); color: var(--brand-text);
+}
+.cal-event:hover { background: rgba(var(--brand-rgb), .22); }
+.cal-event.is-cancelled { text-decoration: line-through; opacity: .6; }
+.cal-event.is-done { background: var(--app-surface-2); color: var(--bs-secondary-color); }
+/* Màn hẹp: lưới 7 cột quá chật -> ẩn lưới, dùng danh sách bên dưới */
+@media (max-width: 767.98px) {
+  .cal-grid-wrap { display: none; }
+}
+@media (min-width: 768px) {
+  .cal-list-mobile { display: none; }
+}
+
+/* ---- 20. DANH MỤC, CHIA SẺ, THANH TOÁN ----------------------------------- */
+.chip-row { display: flex; gap: .5rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chip-row::-webkit-scrollbar { display: none; }
+.chip {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: .4rem;
+  min-height: 36px; padding: .3rem .85rem; border-radius: 999px;
+  border: 1px solid var(--app-border); background: var(--app-surface);
+  color: var(--bs-body-color); font-size: .86rem; font-weight: 600; text-decoration: none;
+}
+.chip:hover { border-color: var(--brand); color: var(--brand-text); }
+.chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+@media (pointer: coarse) { .chip { min-height: 44px; } }
+.category-tag {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .75rem; font-weight: 700; color: var(--brand-text);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.pay-box {
+  border: 1px solid var(--app-border); border-radius: var(--bs-border-radius-lg);
+  background: var(--app-surface); overflow: hidden;
+}
+.pay-qr { width: 180px; height: 180px; background: #fff; padding: 8px;
+          border-radius: 12px; object-fit: contain; }
+.pay-row { display: flex; justify-content: space-between; gap: 1rem;
+           padding: .45rem 0; border-bottom: 1px dashed var(--app-border); font-size: .92rem; }
+.pay-row:last-child { border-bottom: 0; }
+.pay-row .value { font-weight: 700; text-align: right; word-break: break-all; }
+.stat-tile {
+  background: var(--app-surface); border: 1px solid var(--app-border);
+  border-radius: var(--bs-border-radius); padding: .9rem 1rem; height: 100%;
+}
+.stat-tile .num { font-size: 1.5rem; font-weight: 800; font-family: var(--app-heading-font); line-height: 1.1; }
+.stat-tile .lbl { font-size: .78rem; color: var(--bs-secondary-color); }
+.min-w-0 { min-width: 0; }

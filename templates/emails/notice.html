@@ -1,0 +1,37 @@
+{% comment %}
+  Email thông báo dùng chung cho mọi nghiệp vụ (F7.1).
+  CSS viết inline vì trình đọc mail bỏ thẻ <style>; không dùng ảnh ngoài.
+{% endcomment %}
+<div style="font-family: Arial, sans-serif; color: #23262e; max-width: 600px; margin: 0 auto; padding: 24px; background: #ffffff;">
+  <div style="font-size: 13px; font-weight: bold; letter-spacing: .08em; color: #34477d; text-transform: uppercase;">KMG Club</div>
+  <h2 style="margin: 8px 0 16px; font-size: 20px; color: #23262e;">{{ title }}</h2>
+  <p style="margin: 0 0 12px;">Chào <strong>{{ user.full_name|default:user.username }}</strong>,</p>
+  <p style="margin: 0 0 16px; line-height: 1.55;">{{ message }}</p>
+
+  {% if details %}
+    <table style="width: 100%; border-collapse: collapse; margin: 0 0 16px; font-size: 14px;">
+      {% for label, value in details %}
+        <tr>
+          <td style="padding: 8px 10px; border: 1px solid #e6e2dc; background: #faf8f5; color: #666; width: 40%;">{{ label }}</td>
+          <td style="padding: 8px 10px; border: 1px solid #e6e2dc; font-weight: bold;">{{ value }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+
+  {% if note %}
+    <p style="margin: 0 0 16px; padding: 10px 12px; background: #fff7ed; border-left: 4px solid #f59e0b; font-size: 14px; line-height: 1.5;">{{ note }}</p>
+  {% endif %}
+
+  {% if cta_url %}
+    <p style="text-align: center; margin: 24px 0;">
+      <a href="{{ site_url }}{{ cta_url }}"
+         style="background-color: #34477d; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        {{ cta_label|default:"Xem chi tiết" }}
+      </a>
+    </p>
+  {% endif %}
+
+  <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0 12px;">
+  <p style="font-size: 12px; color: #888; margin: 0;">Email tự động từ hệ thống KMG Club. Vui lòng không trả lời email này.</p>
+</div>

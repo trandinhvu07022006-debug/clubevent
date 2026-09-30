@@ -1,0 +1,12 @@
+Chào {{ user.full_name|default:user.username }},
+
+{{ message }}
+{% if details %}
+{% for label, value in details %}- {{ label }}: {{ value }}
+{% endfor %}{% endif %}{% if note %}
+{{ note }}
+{% endif %}{% if cta_url %}
+{{ cta_label|default:"Xem chi tiết" }}: {{ site_url }}{{ cta_url }}
+{% endif %}
+Trân trọng,
+Ban tổ chức KMG Club

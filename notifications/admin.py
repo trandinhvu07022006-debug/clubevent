@@ -1,3 +1,10 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import Notification
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "user", "kind", "title", "is_read")
+    list_filter = ("kind", "is_read")
+    search_fields = ("title", "message", "user__username", "user__full_name")

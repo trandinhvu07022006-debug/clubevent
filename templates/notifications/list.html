@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Thông báo{% endblock %}
+
+{% block content %}
+<header class="page-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+  <div>
+    <span class="kicker">Hộp thư</span>
+    <h1 class="h3 fw-bold mb-0">Thông báo</h1>
+  </div>
+  <div class="d-flex flex-wrap gap-2 page-header-actions">
+    <nav class="segmented" aria-label="Lọc thông báo">
+      <a href="{% url 'notifications:list' %}" class="segmented-item {% if not only_unread %}active{% endif %}">Tất cả</a>
+      <a href="?chua-doc=1" class="segmented-item {% if only_unread %}active{% endif %}">Chưa đọc{% if unread_count %} ({{ unread_count }}){% endif %}</a>
+    </nav>
+    {% if unread_count %}
+      <form method="post" action="{% url 'notifications:read_all' %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-check2-all"></i> Đánh dấu đã đọc hết</button>
+      </form>
+    {% endif %}
+  </div>
+</header>
+
+<div class="card shadow-sm overflow-hidden">
+  {% for n in items %}
+    <form method="post" action="{% url 'notifications:open' n.pk %}">
+      {% csrf_token %}
+      <button class="bell-item {% if not n.is_read %}is-unread{% endif %}">
+        <i class="bi {{ n.icon }} bell-item-icon fs-5"></i>
+        <span class="bell-item-body flex-grow-1">
+          <span class="bell-item-title">{{ n.title }}</span>
+          <span class="small text-body-secondary">{{ n.message }}</span>
+          <span class="bell-item-time">{{ n.get_kind_display }} · {{ n.created_at|date:"H:i d/m/Y" }}</span>
+        </span>
+        {% if n.url %}<i class="bi bi-chevron-right text-body-secondary align-self-center"></i>{% endif %}
+      </button>
+    </form>
+  {% empty %}
+    {% if only_unread %}
+      {% include "partials/empty_state.html" with icon="bi-check2-circle" title="Bạn đã đọc hết thông báo" desc="Không còn thông báo nào chưa đọc." %}
+    {% else %}
+      {% include "partials/empty_state.html" with icon="bi-bell" title="Chưa có thông báo" desc="Thông báo về vé, danh sách chờ, nhắc lịch và công việc sẽ xuất hiện ở đây." %}
+    {% endif %}
+  {% endfor %}
+</div>
+
+{% include "partials/pagination.html" with page=page_obj %}
+{% endblock %}

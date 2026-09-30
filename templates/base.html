@@ -1,4 +1,4 @@
-{% load static %}
+{% load static ui %}
 <!doctype html>
 <html lang="vi">
 <head>
@@ -55,9 +55,15 @@
       <h6 class="sidebar-heading mt-4 mb-2 text-body-secondary text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Chung</h6>
       <ul class="nav nav-pills flex-column mb-auto gap-1">
         <li class="nav-item">
-          <a href="{% url 'events:list' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.namespace == 'events' and request.resolver_match.url_name != 'dashboard' %}active{% else %}text-body-emphasis{% endif %}" title="Sự kiện">
+          <a href="{% url 'events:list' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.namespace == 'events' and request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'calendar' %}active{% else %}text-body-emphasis{% endif %}" title="Sự kiện">
             <i class="bi bi-calendar-event"></i>
             <span class="nav-text">Sự kiện</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'events:calendar' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'calendar' %}active{% else %}text-body-emphasis{% endif %}" title="Lịch sự kiện">
+            <i class="bi bi-calendar3"></i>
+            <span class="nav-text">Lịch sự kiện</span>
           </a>
         </li>
         <li class="nav-item">
@@ -66,6 +72,16 @@
             <span class="nav-text">Vé của tôi</span>
           </a>
         </li>
+        {% if user.is_authenticated %}
+        <li class="nav-item">
+          <a href="{% url 'notifications:list' %}" class="nav-link d-flex align-items-center justify-content-between {% if request.resolver_match.namespace == 'notifications' %}active{% else %}text-body-emphasis{% endif %}" title="Thông báo">
+            <span class="d-flex align-items-center gap-2"><i class="bi bi-bell"></i> <span class="nav-text">Thông báo</span></span>
+            {% if unread_count %}
+            <span class="badge rounded-pill" style="background-color: var(--brand);">{% if unread_count > 9 %}9+{% else %}{{ unread_count }}{% endif %}</span>
+            {% endif %}
+          </a>
+        </li>
+        {% endif %}
         <li class="nav-item">
           <a href="{% url 'aiassist:chat' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.namespace == 'aiassist' %}active{% else %}text-body-emphasis{% endif %}" title="Hỗ trợ">
             <i class="bi bi-chat-dots"></i>
@@ -78,13 +94,21 @@
       <h6 class="sidebar-heading mt-4 mb-2 text-body-secondary text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Ban tổ chức</h6>
       <ul class="nav nav-pills flex-column mb-auto gap-1">
         <li class="nav-item">
-          <a href="{% url 'organizing:my_tasks' %}" class="nav-link d-flex align-items-center justify-content-between {% if request.resolver_match.namespace == 'organizing' %}active{% else %}text-body-emphasis{% endif %}" title="Việc của tôi">
+          <a href="{% url 'organizing:my_tasks' %}" class="nav-link d-flex align-items-center justify-content-between {% if request.resolver_match.url_name == 'my_tasks' %}active{% else %}text-body-emphasis{% endif %}" title="Việc của tôi">
             <span class="d-flex align-items-center gap-2"><i class="bi bi-list-task"></i> <span class="nav-text">Việc của tôi</span></span>
             {% if my_tasks_count %}
             <span class="badge rounded-pill" style="background-color: var(--brand);">{{ my_tasks_count }}</span>
             {% endif %}
           </a>
         </li>
+        {% if user.is_lead %}
+        <li class="nav-item">
+          <a href="{% url 'organizing:assign' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'assign' %}active{% else %}text-body-emphasis{% endif %}" title="Giao việc">
+            <i class="bi bi-send"></i>
+            <span class="nav-text">Giao việc</span>
+          </a>
+        </li>
+        {% endif %}
         <li class="nav-item">
           <a href="{% url 'registrations:payment_list' %}" class="nav-link d-flex align-items-center justify-content-between {% if request.resolver_match.url_name == 'payment_list' %}active{% else %}text-body-emphasis{% endif %}" title="Xác nhận TT">
             <span class="d-flex align-items-center gap-2"><i class="bi bi-currency-dollar"></i> <span class="nav-text">Xác nhận TT</span></span>
@@ -130,7 +154,8 @@
             </div>
           </a>
           <ul class="dropdown-menu shadow">
-            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">Trang cá nhân</a></li>
+            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="bi bi-person me-2"></i>Trang cá nhân</a></li>
+            <li><a class="dropdown-item" href="{% url 'registrations:my_tickets' %}"><i class="bi bi-ticket-perforated me-2"></i>Vé của tôi</a></li>
             <li class="d-flex align-items-center px-3 py-1">
               <span class="me-auto text-body-secondary small">Giao diện</span>
               <button class="btn btn-sm btn-outline-secondary py-0 px-2 nav-theme-toggle themeToggleBtn" type="button" title="Đổi giao diện">
@@ -179,6 +204,50 @@
         <div class="flex-grow-1 d-flex justify-content-center">
           {% block topbar %}{% endblock %}
         </div>
+
+        {% if user.is_authenticated %}
+          {% comment %} F7.3 - Chuông thông báo: badge chưa đọc + 5 thông báo mới nhất. {% endcomment %}
+          <div class="dropdown ms-2 flex-shrink-0">
+            <button class="btn btn-bell position-relative" type="button" data-bs-toggle="dropdown"
+                    data-bs-auto-close="outside" aria-expanded="false"
+                    aria-label="Thông báo{% if unread_count %}, {{ unread_count }} chưa đọc{% endif %}">
+              <i class="bi bi-bell{% if unread_count %}-fill{% endif %}"></i>
+              {% if unread_count %}
+                <span class="bell-badge">{% if unread_count > 9 %}9+{% else %}{{ unread_count }}{% endif %}</span>
+              {% endif %}
+            </button>
+            <div class="dropdown-menu dropdown-menu-end shadow bell-menu p-0">
+              <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                <strong>Thông báo</strong>
+                {% if unread_count %}
+                  <form method="post" action="{% url 'notifications:read_all' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="btn btn-link btn-sm p-0 text-decoration-none">Đánh dấu đã đọc hết</button>
+                  </form>
+                {% endif %}
+              </div>
+              <div class="bell-list">
+                {% for n in recent_notifications %}
+                  <form method="post" action="{% url 'notifications:open' n.pk %}">
+                    {% csrf_token %}
+                    <button class="bell-item {% if not n.is_read %}is-unread{% endif %}">
+                      <i class="bi {{ n.icon }} bell-item-icon"></i>
+                      <span class="bell-item-body">
+                        <span class="bell-item-title">{{ n.title }}</span>
+                        <span class="bell-item-msg">{{ n.message }}</span>
+                        <span class="bell-item-time">{{ n.created_at|khoang }} trước</span>
+                      </span>
+                    </button>
+                  </form>
+                {% empty %}
+                  <div class="text-center text-muted small py-4">Chưa có thông báo nào.</div>
+                {% endfor %}
+              </div>
+              <a class="d-block text-center small fw-semibold py-2 border-top text-decoration-none" href="{% url 'notifications:list' %}">Xem tất cả</a>
+            </div>
+          </div>
+        {% endif %}
       </div>
     </header>
 

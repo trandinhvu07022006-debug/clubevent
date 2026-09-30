@@ -8,6 +8,7 @@ class NotificationKind(models.TextChoices):
     EVENT_CANCELLED  = "EVENT_CXL", "Sự kiện bị huỷ"
     EVENT_REMINDER   = "REMINDER", "Nhắc lịch"
     WAITLIST_PROMOTED= "WAIT_OK", "Có vé từ danh sách chờ"
+    WAITLIST_EXPIRED = "WAIT_EXP", "Danh sách chờ kết thúc"
     TASK_ASSIGNED    = "TASK", "Được giao việc"
 
 class Notification(models.Model):
@@ -20,5 +21,24 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = "Thông báo"
+        verbose_name_plural = "Thông báo"
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["user", "is_read", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.user} - {self.title}"
+
+    @property
+    def icon(self):
+        """Icon Bootstrap theo loại thông báo, dùng ở chuông và trang danh sách."""
+        return {
+            NotificationKind.TICKET_CONFIRMED: "bi-check-circle",
+            NotificationKind.TICKET_PENDING: "bi-hourglass-split",
+            NotificationKind.TICKET_EXPIRED: "bi-x-circle",
+            NotificationKind.EVENT_CANCELLED: "bi-calendar-x",
+            NotificationKind.EVENT_REMINDER: "bi-alarm",
+            NotificationKind.WAITLIST_PROMOTED: "bi-stars",
+            NotificationKind.WAITLIST_EXPIRED: "bi-hourglass-bottom",
+            NotificationKind.TASK_ASSIGNED: "bi-list-task",
+        }.get(self.kind, "bi-bell")
