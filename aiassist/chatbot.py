@@ -1,23 +1,32 @@
 """
-Trợ lý tra cứu dựa trên luật (rule-based assistant).
+Trợ lý tra cứu: HỎI ĐÁP THEO Ý ĐỊNH, KẾT HỢP AI CÓ DỮ LIỆU NỀN (hybrid).
 
-QUAN TRỌNG khi viết báo cáo và khi bảo vệ: đây KHÔNG phải AI sinh ngôn ngữ.
-Nó nhận diện ý định người dùng bằng cách so khớp từ khoá, rồi truy vấn cơ sở
-dữ liệu và trả lời theo mẫu câu có sẵn. Gọi đúng tên là "hỏi đáp theo ý định"
-(intent-based QA). Ghi là "tích hợp AI" thì sai và dễ bị hỏi vặn.
+QUAN TRỌNG khi viết báo cáo và khi bảo vệ — mô tả đúng kiến trúc 2 tầng:
 
-Đổi lại, nó có những ưu điểm mà chatbot dùng LLM không có:
-  - Không gọi API ra ngoài, nên chạy được cả trên host chặn kết nối ngoài.
-  - Không tốn quota, không cần API key.
-  - Kết quả xác định, nên viết unit test được cho từng ý định.
-  - Không bao giờ bịa thông tin sai về sự kiện (không bị hallucination).
+TẦNG 1 — LUẬT (lõi, luôn chạy trước):
+  Nhận diện ý định bằng so khớp từ khoá, truy vấn CSDL, trả lời theo mẫu câu.
+  Mọi câu hỏi về sự kiện sắp tới, số chỗ, vé của tôi, việc của tôi, cách đăng
+  ký/check-in/huỷ vé đều đi tầng này. Ưu điểm giữ nguyên:
+    - Kết quả xác định, viết unit test được cho từng ý định.
+    - Không bịa thông tin (không hallucination), không tốn quota.
+    - Dữ liệu cá nhân (vé, công việc) CHỈ đi tầng này, không bao giờ gửi cho AI.
+
+TẦNG 2 — AI (chỉ khi tầng 1 không nhận ra ý định):
+  Gửi câu hỏi cho LLM KÈM dữ liệu công khai lấy từ CSDL (sự kiện, loại vé, quy
+  định) và lệnh chỉ được trả lời theo dữ liệu đó — kỹ thuật "grounding".
+  Câu trả lời được gắn nhãn "AI" trên giao diện. Link do server tạo từ mã sự
+  kiện đã kiểm tra, AI không tự viết URL. Xem aiassist/services.py::ask_assistant.
+
+KHÔNG CÓ AI (chưa cấu hình key, mất mạng, hết lượt, lỗi...) thì hệ thống hoạt
+động y như bản chỉ có luật: câu hỏi lạ nhận lời gợi ý các chủ đề hỗ trợ.
 
 Cách nhận diện ý định:
   1. Chuẩn hoá câu hỏi: hạ chữ thường và BỎ DẤU tiếng Việt, để "còn vé không"
      và "con ve khong" đều khớp — người dùng gõ nhanh hay không bỏ dấu đều được.
   2. Mỗi ý định có một bộ từ khoá. Ý định nào khớp nhiều từ khoá nhất thì thắng.
-  3. Không ý định nào khớp thì trả lời gợi ý các câu hỏi biết trả lời.
+  3. Không ý định nào khớp thì chuyển sang tầng AI (nếu dùng được).
 """
+import re
 import unicodedata
 
 from django.urls import reverse
@@ -122,34 +131,63 @@ def detect_intent(question):
 
     best, best_score = None, 0
     for intent in INTENTS:
-        score = sum(len(kw) for kw in intent["keywords"] if kw in text)
+        score = sum(len(kw.strip()) for kw in intent["keywords"]
+                    if _has_phrase(text, kw))
         if score > best_score:
             best, best_score = intent, score
     return best
 
 
-def answer(question, user=None):
+_PHRASE_CACHE = {}
+
+
+def _has_phrase(text, keyword):
+    """
+    Từ khoá phải xuất hiện như NGUYÊN TỪ, không được khớp vào giữa từ khác.
+
+    Trước đây so khớp kiểu chuỗi con (`kw in text`), nên từ khoá chào hỏi
+    "hi" khớp nhầm vào giữa "phi", "thi", "chi" sau khi bỏ dấu: câu "Phí gửi xe
+    bao nhiêu" bị hiểu là lời chào. Ở đây dùng ranh giới từ (\\b) của regex.
+    """
+    pattern = _PHRASE_CACHE.get(keyword)
+    if pattern is None:
+        pattern = re.compile(r"\b" + re.escape(keyword.strip()) + r"\b")
+        _PHRASE_CACHE[keyword] = pattern
+    return pattern.search(text) is not None
+
+
+UNKNOWN_TEXT = ("Mình chưa hiểu câu hỏi này. Mình trả lời được về: "
+                "sự kiện sắp tới, số chỗ còn lại, vé của bạn, "
+                "công việc được giao, và cách đăng ký hoặc check-in.")
+
+
+def answer(question, user=None, allow_ai=True):
     """
     Trả lời một câu hỏi.
 
-    Trả về dict: {"text": câu trả lời, "intent": mã ý định, "links": [...]}
+    Trả về dict: {"text", "intent", "links": [...], "source": "rules" | "ai"}
     Phần `links` là các đường dẫn gợi ý để người dùng bấm sang trang tương ứng.
+    `source` cho giao diện biết câu trả lời đến từ luật (chính xác) hay từ AI
+    (có thể chưa chính xác) để gắn nhãn tương ứng.
+
+    `allow_ai=False` khi người dùng đã dùng hết lượt AI (view quyết định).
     """
     intent = detect_intent(question)
 
     if intent is None:
-        return {
-            "intent": "unknown",
-            "text": ("Mình chưa hiểu câu hỏi này. Mình trả lời được về: "
-                     "sự kiện sắp tới, số chỗ còn lại, vé của bạn, "
-                     "công việc được giao, và cách đăng ký hoặc check-in."),
-            "links": [],
-        }
+        # Chỉ tới đây mới gọi AI — 8 ý định có sẵn LUÔN đi nhánh luật.
+        if allow_ai and normalize(question):
+            ai_result = _answer_with_ai(question)
+            if ai_result is not None:
+                return ai_result
+        return {"intent": "unknown", "source": "rules",
+                "text": UNKNOWN_TEXT, "links": []}
 
     is_logged_in = bool(user and user.is_authenticated)
     if intent["login_required"] and not is_logged_in:
         return {
             "intent": intent["code"],
+            "source": "rules",
             "text": "Bạn cần đăng nhập thì mình mới tra được thông tin cá nhân.",
             "links": [{"label": "Đăng nhập", "url": reverse("accounts:login")}],
         }
@@ -157,7 +195,29 @@ def answer(question, user=None):
     handler = HANDLERS[intent["code"]]
     result = handler(user)
     result["intent"] = intent["code"]
+    result["source"] = "rules"
     return result
+
+
+def _answer_with_ai(question):
+    """
+    Nhánh AI. Trả về dict trả lời, hoặc None nếu AI không dùng được (chưa có
+    key, lỗi mạng, quá tải...) — khi đó answer() quay về câu "chưa hiểu".
+
+    Link do SERVER tạo từ mã sự kiện đã được kiểm tra, AI không tự viết URL.
+    """
+    from .services import AIError, ask_assistant
+
+    try:
+        data = ask_assistant(question)
+    except AIError:
+        return None
+
+    from events.models import Event
+    names = dict(Event.objects.filter(pk__in=data["event_ids"]).values_list("pk", "name"))
+    links = [{"label": names[pk], "url": reverse("events:detail", args=[pk])}
+             for pk in data["event_ids"] if pk in names]
+    return {"intent": "ai", "source": "ai", "text": data["answer"], "links": links}
 
 
 # --------------------------------------------------------------------------
@@ -259,7 +319,7 @@ def _my_tasks(user):
         if t.is_overdue:
             overdue += 1
             late = " (QUÁ HẠN)"
-        lines.append(f"• {t.title}{when}{late} — {t.event.name}")
+        lines.append(f"• {t.title}{when}{late} — {t.scope_label}")
     if overdue:
         lines.append(f"\nTrong đó {overdue} việc đã quá hạn.")
     return {"text": "\n".join(lines),

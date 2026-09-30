@@ -5,6 +5,8 @@ Unit test cho trợ lý tra cứu.
 kết quả xác định nên test được từng ý định, điền thẳng vào bảng test case.
 Chatbot LLM thì mỗi lần trả lời một khác, gần như không test được.
 """
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -15,6 +17,7 @@ from organizing.models import Task, TaskStatus
 from registrations.models import Ticket, TicketStatus
 
 from .chatbot import answer, detect_intent, normalize
+from .services import AIError, build_assistant_context
 
 
 class NormalizeTests(TestCase):
@@ -50,6 +53,19 @@ class IntentTests(TestCase):
     def test_unknown_question_returns_none(self):
         self.assertIsNone(detect_intent("hôm nay trời mưa không"))
         self.assertIsNone(detect_intent(""))
+
+    def test_keyword_must_be_whole_word(self):
+        """
+        Lỗi cũ: từ khoá chào hỏi "hi" khớp vào giữa "phí", "thi", "chỉ" (sau
+        khi bỏ dấu) nên các câu này bị hiểu nhầm là lời chào.
+        """
+        for q in ["Phí gửi xe bao nhiêu", "Có thi cử gì không",
+                  "Chỉ đường tới quán"]:
+            intent = detect_intent(q)
+            self.assertNotEqual(intent and intent["code"], "greeting", q)
+        # Lời chào thật vẫn phải nhận ra
+        self.assertEqual(detect_intent("hi bạn")["code"], "greeting")
+        self.assertEqual(detect_intent("Xin chào")["code"], "greeting")
 
 
 class AnswerTests(TestCase):
@@ -181,3 +197,127 @@ class ChatApiTests(TestCase):
     def test_chat_page_open_to_guests(self):
         self.assertEqual(
             self.client.get(reverse("aiassist:chat")).status_code, 200)
+
+
+class HybridAITests(TestCase):
+    """
+    Tầng AI của trợ lý (chỉ chạy khi tầng luật không nhận ra ý định).
+
+    Không test NỘI DUNG AI viết (mỗi lần một khác) — chỉ test phần tích hợp:
+    khi nào gọi AI, lỗi thì fallback ra sao, dữ liệu gửi đi có an toàn không,
+    link có bị AI bịa không. AI luôn được mock, không gọi API thật.
+    """
+
+    def setUp(self):
+        now = timezone.now()
+        self.user = User.objects.create_user(
+            username="riengtu", password="x", full_name="Người Bí Mật",
+            mssv="MSSV-BI-MAT-99", email="bimat@example.com", role=Role.MEMBER)
+        self.event = Event.objects.create(
+            name="Đêm nhạc công khai", location="Hội trường A2",
+            starts_at=now + timezone.timedelta(days=7),
+            register_deadline=now + timezone.timedelta(days=5),
+            capacity=100, status=EventStatus.OPEN)
+        TicketType.objects.create(event=self.event, name="Vé thường",
+                                  price=50000, quota=10, sold=7)
+        self.draft = Event.objects.create(
+            name="Sự kiện nháp bí mật", location="Phòng kín",
+            starts_at=now + timezone.timedelta(days=9),
+            register_deadline=now + timezone.timedelta(days=8),
+            capacity=10, status=EventStatus.DRAFT)
+        Ticket.objects.create(event=self.event,
+                              ticket_type=self.event.ticket_types.first(),
+                              user=self.user, status=TicketStatus.CONFIRMED)
+
+    @patch("aiassist.services._ask_ai")
+    def test_unknown_question_goes_to_ai(self, mock_ai):
+        mock_ai.return_value = {"answer": "Đêm nhạc tổ chức ở Hội trường A2.",
+                                "event_ids": [self.event.pk]}
+        result = answer("Đêm nhạc tổ chức ở chỗ nào vậy bạn")
+        self.assertEqual(result["source"], "ai")
+        self.assertEqual(result["intent"], "ai")
+        self.assertIn("Hội trường A2", result["text"])
+        self.assertEqual(result["links"][0]["url"],
+                         reverse("events:detail", args=[self.event.pk]))
+
+    @patch("aiassist.services._ask_ai")
+    def test_known_intent_never_calls_ai(self, mock_ai):
+        """8 ý định có sẵn LUÔN đi tầng luật — chính xác, không tốn quota."""
+        result = answer("Còn vé không?")
+        self.assertEqual(result["source"], "rules")
+        mock_ai.assert_not_called()
+
+    @patch("aiassist.services._ask_ai", side_effect=AIError("Quá tải"))
+    def test_ai_error_falls_back_to_rules_message(self, mock_ai):
+        result = answer("bạn tên gì")
+        self.assertEqual(result["intent"], "unknown")
+        self.assertIn("chưa hiểu", result["text"].lower())
+
+    @patch("aiassist.services._ask_ai")
+    def test_allow_ai_false_skips_ai(self, mock_ai):
+        """Hết lượt AI (view truyền allow_ai=False) thì không gọi AI."""
+        result = answer("bạn tên gì", allow_ai=False)
+        self.assertEqual(result["intent"], "unknown")
+        mock_ai.assert_not_called()
+
+    def test_without_api_key_behaves_like_before(self):
+        """Không có key (như khi chạy test): y như bản chỉ có luật."""
+        result = answer("bạn tên gì")
+        self.assertEqual(result["intent"], "unknown")
+
+    @patch("aiassist.services._ask_ai")
+    def test_fake_or_hidden_event_ids_get_no_link(self, mock_ai):
+        """AI trả mã không tồn tại, mã bản nháp, hay rác -> không tạo link."""
+        mock_ai.return_value = {
+            "answer": "Có vài sự kiện.",
+            "event_ids": [99999, self.draft.pk, "abc", None, self.event.pk,
+                          self.event.pk]}
+        result = answer("kể cho mình vài sự kiện hay ho đi")
+        urls = [l["url"] for l in result["links"]]
+        self.assertEqual(urls, [reverse("events:detail", args=[self.event.pk])])
+
+    @patch("aiassist.services._ask_ai")
+    def test_ai_bad_structure_falls_back(self, mock_ai):
+        mock_ai.return_value = ["không", "phải", "object"]
+        self.assertEqual(answer("bạn tên gì")["intent"], "unknown")
+        mock_ai.return_value = {"answer": "   ", "event_ids": []}
+        self.assertEqual(answer("bạn tên gì")["intent"], "unknown")
+
+    @patch("aiassist.services._ask_ai")
+    def test_prompt_contains_no_personal_data_and_no_drafts(self, mock_ai):
+        """Chỉ dữ liệu CÔNG KHAI được gửi sang AI."""
+        mock_ai.return_value = {"answer": "ok", "event_ids": []}
+        question = "chỗ gửi xe ở đâu"
+        # Câu hỏi phải KHÔNG khớp ý định nào, nếu không nó đi tầng luật và
+        # test này không kiểm tra được gì (chứa chữ "sự kiện" là khớp ngay).
+        self.assertIsNone(detect_intent(question))
+        answer(question, user=self.user)
+        prompt = mock_ai.call_args[0][0]
+        self.assertIn("Đêm nhạc công khai", prompt)
+        for secret in ["Người Bí Mật", "MSSV-BI-MAT-99", "bimat@example.com",
+                       "Sự kiện nháp bí mật", "Phòng kín"]:
+            self.assertNotIn(secret, prompt)
+
+    def test_context_lists_price_and_seats(self):
+        text, ids = build_assistant_context()
+        self.assertIn("50.000đ", text)
+        self.assertIn("còn 3/10 chỗ", text)
+        self.assertEqual(ids, {self.event.pk})
+
+    @patch("aiassist.services._ask_ai")
+    def test_long_answer_is_trimmed(self, mock_ai):
+        mock_ai.return_value = {"answer": "chữ " * 1000, "event_ids": []}
+        self.assertLessEqual(len(answer("bạn tên gì")["text"]), 801)
+
+    @patch("aiassist.services._ask_ai")
+    def test_api_ai_budget_per_session(self, mock_ai):
+        """Tối đa AI_LIMIT câu trả lời AI mỗi cửa sổ — hết lượt thì về luật."""
+        from .views import AI_LIMIT
+        mock_ai.return_value = {"answer": "trả lời AI", "event_ids": []}
+        url = reverse("aiassist:chat_api")
+        body = '{"question": "bạn tên gì"}'
+        sources = [self.client.post(url, data=body, content_type="application/json")
+                   .json()["source"] for _ in range(AI_LIMIT + 1)]
+        self.assertEqual(sources[:AI_LIMIT], ["ai"] * AI_LIMIT)
+        self.assertEqual(sources[-1], "rules")
+        self.assertEqual(mock_ai.call_count, AI_LIMIT)

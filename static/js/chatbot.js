@@ -13,12 +13,22 @@
     const csrf = form.querySelector("[name=csrfmiddlewaretoken]").value;
 
     /** Thêm một bong bóng chat vào khung hội thoại. */
-    function addMessage(text, who, links) {
+    function addMessage(text, who, links, source) {
         const div = document.createElement("div");
         div.className = "chat-msg chat-" + who;
         // Dùng textContent chứ KHÔNG dùng innerHTML: nếu người dùng gõ thẻ
         // HTML thì nó hiện ra dạng chữ, không chạy được mã độc (chống XSS).
+        // Câu trả lời của AI cũng đi đường này nên AI có trả về HTML cũng vô hại.
         div.textContent = text;
+
+        // Câu trả lời từ AI: gắn nhãn để người dùng biết nó có thể chưa chính
+        // xác (khác với câu trả lời tra thẳng từ CSDL).
+        if (source === "ai") {
+            const tag = document.createElement("div");
+            tag.className = "chat-ai-tag";
+            tag.textContent = "✨ Trả lời bởi AI · có thể chưa chính xác";
+            div.appendChild(tag);
+        }
 
         if (links && links.length) {
             const box = document.createElement("div");
@@ -52,7 +62,10 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 waiting.remove();
-                addMessage(data.text || "Không có kết quả.", "bot", data.links);
+                // data.error: server từ chối (gửi quá nhanh, dữ liệu lỗi) —
+                // hiện đúng lý do thay vì "Không có kết quả." chung chung.
+                addMessage(data.text || data.error || "Không có kết quả.", "bot",
+                           data.links, data.source);
             })
             .catch(function () {
                 waiting.remove();

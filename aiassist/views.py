@@ -13,6 +13,12 @@ from .chatbot import SUGGESTIONS, answer
 RATE_LIMIT = 30
 RATE_WINDOW = 60  # giây
 
+# Giới hạn RIÊNG cho nhánh AI (tốn quota, chậm): tối đa 10 câu trả lời AI mỗi
+# 10 phút mỗi session. Hết lượt thì trợ lý vẫn trả lời bằng luật như bình
+# thường, chỉ là câu hỏi lạ nhận lời gợi ý thay vì câu trả lời AI.
+AI_LIMIT = 10
+AI_WINDOW = 600   # giây
+
 
 def chat_page(request):
     """Trang chat đầy đủ, ai cũng vào được."""
@@ -38,6 +44,24 @@ def _is_rate_limited(request):
     return False
 
 
+def _ai_timestamps(request):
+    """Các lần dùng AI còn nằm trong cửa sổ thời gian của session này."""
+    now = time.time()
+    return [t for t in request.session.get("chat_ai_timestamps", [])
+            if now - t < AI_WINDOW]
+
+
+def _ai_allowed(request):
+    return len(_ai_timestamps(request)) < AI_LIMIT
+
+
+def _record_ai_use(request):
+    """Chỉ tính lượt khi AI THẬT SỰ trả lời — câu hỏi đi nhánh luật không tốn lượt."""
+    stamps = _ai_timestamps(request)
+    stamps.append(time.time())
+    request.session["chat_ai_timestamps"] = stamps
+
+
 @require_POST
 def chat_api(request):
     """
@@ -59,4 +83,7 @@ def chat_api(request):
         return JsonResponse({"error": "Dữ liệu gửi lên không hợp lệ."},
                             status=400)
 
-    return JsonResponse(answer(question, user=request.user))
+    result = answer(question, user=request.user, allow_ai=_ai_allowed(request))
+    if result.get("source") == "ai":
+        _record_ai_use(request)
+    return JsonResponse(result)
