@@ -1,0 +1,75 @@
+{% load static ui %}<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vé {{ ticket.code }} · {{ ticket.event.name }}</title>
+  <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}">
+  <style>
+    :root { --ink: #23262e; --brand: #34477d; --line: #d9d6cf; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Be Vietnam Pro', system-ui, sans-serif; color: var(--ink);
+           background: #f7f6f3; padding: 24px 16px; }
+    .ticket { max-width: 720px; margin: 0 auto; background: #fff; border: 1px solid var(--line);
+              border-radius: 18px; display: flex; overflow: hidden; }
+    .main { flex: 1; padding: 28px; }
+    .stub { width: 240px; padding: 24px; border-left: 2px dashed var(--line);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--brand); }
+    .brand img { width: 32px; height: 32px; border-radius: 8px; }
+    h1 { font-size: 1.5rem; margin: 18px 0 6px; line-height: 1.25; }
+    .meta { color: #555; margin: 0 0 18px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .cell { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+    .cell small { display: block; color: #777; font-size: .75rem; }
+    .cell b { font-size: .95rem; }
+    .qr { width: 180px; height: 180px; }
+    .code { font-family: ui-monospace, Consolas, monospace; font-weight: 700; letter-spacing: .12em; margin-top: 8px; }
+    .note { font-size: .78rem; color: #777; margin-top: 6px; }
+    .void { color: #b42318; font-weight: 700; }
+    .actions { max-width: 720px; margin: 16px auto 0; display: flex; gap: 8px; justify-content: flex-end; }
+    .actions button, .actions a { font: inherit; padding: 10px 18px; border-radius: 10px; border: 1px solid var(--line);
+                                  background: #fff; color: var(--ink); text-decoration: none; cursor: pointer; min-height: 44px; }
+    .actions button { background: var(--brand); color: #fff; border-color: var(--brand); }
+    @media (max-width: 600px) { .ticket { flex-direction: column; } .stub { width: auto; border-left: 0; border-top: 2px dashed var(--line); } }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .actions { display: none; }
+      .ticket { border-color: #999; }
+    }
+  </style>
+</head>
+<body>
+  <article class="ticket">
+    <div class="main">
+      <div class="brand"><img src="{% static 'img/logo.jpg' %}" alt=""> KMG Club</div>
+      <h1>{{ ticket.event.name }}</h1>
+      <p class="meta">{{ ticket.event.starts_at|date:"H:i - l, d/m/Y" }}<br>{{ ticket.event.location }}</p>
+      <div class="grid">
+        <div class="cell"><small>Người tham gia</small><b>{{ ticket.user.full_name|default:ticket.user.username }}</b></div>
+        <div class="cell"><small>MSSV</small><b>{{ ticket.user.mssv|default:"—" }}</b></div>
+        <div class="cell"><small>Loại vé</small><b>{{ ticket.ticket_type.name }}</b></div>
+        <div class="cell"><small>Giá</small><b>{% if ticket.price %}{{ ticket.price|vnd }}đ{% else %}Miễn phí{% endif %}</b></div>
+        <div class="cell"><small>Trạng thái</small><b>{{ ticket.get_status_display }}</b></div>
+        <div class="cell"><small>Mã giao dịch</small><b>{{ ticket.booking_ref|default:"—" }}</b></div>
+      </div>
+    </div>
+    <div class="stub">
+      {% if qr %}
+        <img src="{{ qr }}" alt="Mã QR vé {{ ticket.code }}" class="qr">
+      {% elif not ticket.is_active %}
+        <p class="void">VÉ KHÔNG CÒN HIỆU LỰC</p>
+      {% endif %}
+      <div class="code">{{ ticket.code }}</div>
+      <div class="note">
+        {% if ticket.status == 'PENDING' %}Vé chưa được xác nhận thanh toán.{% else %}Đưa mã này cho BTC tại cửa để check-in.{% endif %}
+      </div>
+    </div>
+  </article>
+  <div class="actions">
+    <a href="{% url 'registrations:my_tickets' %}">Quay lại</a>
+    <button type="button" onclick="window.print()">In / Lưu PDF</button>
+  </div>
+</body>
+</html>

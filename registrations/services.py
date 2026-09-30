@@ -10,17 +10,23 @@ Vì sao tách riêng khỏi view:
 """
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q, Sum
+from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import AuditLog
 from events.models import EventStatus, TicketType
+from notifications.models import NotificationKind
+from notifications.services import notify_on_commit
 
-from .models import Ticket, TicketStatus
+from .models import (Ticket, TicketStatus, WaitlistEntry, WaitlistStatus,
+                     make_booking_ref)
+from .vietqr import payment_info, transfer_content
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -33,9 +39,128 @@ class BookingError(Exception):
     """Lỗi nghiệp vụ khi đặt vé. View bắt lỗi này và hiện thông báo cho user."""
 
 
+ACTIVE_STATUSES = (TicketStatus.PENDING, TicketStatus.CONFIRMED,
+                   TicketStatus.CHECKED_IN)
+
+
+def _active_count(user, event) -> int:
+    """Số vé còn hiệu lực (đang chiếm chỗ) của user ở một sự kiện."""
+    return Ticket.objects.filter(user=user, event=event,
+                                 status__in=ACTIVE_STATUSES).count()
+
+
+def _new_booking_ref() -> str:
+    """
+    F4.7 - Sinh mã giao dịch. 31^8 tổ hợp nên trùng gần như không thể, nhưng
+    vẫn thử lại tối đa 5 lần nếu mã đã có trong các vé đang chờ thanh toán
+    (tránh 2 nhóm vé cùng nội dung chuyển khoản).
+    """
+    ref = make_booking_ref()
+    for _ in range(5):
+        if not Ticket.objects.filter(booking_ref=ref,
+                                     status=TicketStatus.PENDING).exists():
+            break
+        ref = make_booking_ref()
+    return ref
+
+
+def _money(value) -> str:
+    return f"{int(value):,}".replace(",", ".") + "đ"
+
+
+def _local(dt, fmt="%H:%M %d/%m/%Y") -> str:
+    return timezone.localtime(dt).strftime(fmt)
+
+
+# ---------------------------------------------------------------------------
+# F7.1 - THÔNG BÁO THEO NGHIỆP VỤ (luôn chạy SAU KHI commit)
+# ---------------------------------------------------------------------------
+def _notify_issued(user, event, tickets, kind, title, lead):
+    """
+    Báo cho người vừa có vé (đặt vé hoặc được lên từ danh sách chờ).
+    Vé có phí thì kèm đủ thông tin chuyển khoản trong email.
+    """
+    first = tickets[0]
+    my_tickets_url = reverse("registrations:my_tickets")
+    details = [
+        ("Sự kiện", event.name),
+        ("Thời gian", _local(event.starts_at)),
+        ("Địa điểm", event.location),
+        ("Loại vé", first.ticket_type.name),
+        ("Số vé", str(len(tickets))),
+        ("Mã vé", ", ".join(t.code for t in tickets)),
+    ]
+    note = "Mang mã QR trong mục 'Vé của tôi' tới cửa để check-in."
+    if first.status == TicketStatus.PENDING:
+        total = sum(t.price for t in tickets)
+        details += [
+            ("Số tiền", _money(total)),
+            ("Nội dung chuyển khoản", transfer_content(first.booking_ref)),
+            ("Hạn thanh toán", _local(first.payment_deadline)),
+        ]
+        bank = payment_info(first.booking_ref, total)
+        if bank:
+            details += [("Ngân hàng", bank["bank_name"]),
+                        ("Số tài khoản", bank["account"]),
+                        ("Chủ tài khoản", bank["account_name"])]
+        note = ("Ghi đúng nội dung chuyển khoản để BTC đối chiếu. Vé chỉ có hiệu "
+                "lực sau khi BTC xác nhận; quá hạn thanh toán vé sẽ tự huỷ.")
+    notify_on_commit(
+        user, kind, title, lead, url=my_tickets_url, email_template="notice",
+        context={"title": title, "message": lead, "details": details,
+                 "note": note, "cta_url": my_tickets_url,
+                 "cta_label": "Xem vé của tôi"},
+    )
+
+
+def _notify_confirmed(user, event, tickets):
+    title = f"Vé đã được xác nhận: {event.name}"
+    lead = (f"BTC đã xác nhận thanh toán {len(tickets)} vé của bạn. "
+            f"Vé đã có hiệu lực, hãy mang mã QR tới cửa để check-in.")
+    my_tickets_url = reverse("registrations:my_tickets")
+    notify_on_commit(
+        user, NotificationKind.TICKET_CONFIRMED, title, lead,
+        url=my_tickets_url, email_template="notice",
+        context={"title": title, "message": lead,
+                 "details": [("Sự kiện", event.name),
+                             ("Thời gian", _local(event.starts_at)),
+                             ("Địa điểm", event.location),
+                             ("Mã vé", ", ".join(t.code for t in tickets))],
+                 "cta_url": my_tickets_url, "cta_label": "Xem vé của tôi"},
+    )
+
+
 # ---------------------------------------------------------------------------
 # F4.1 - ĐẶT VÉ
 # ---------------------------------------------------------------------------
+def _issue_tickets(user, ticket_type, quantity, booking_ref) -> list[Ticket]:
+    """
+    Trừ sold + tạo vé. Dùng chung cho đặt vé và cấp vé từ danh sách chờ.
+    GIẢ ĐỊNH ticket_type ĐÃ bị select_for_update ở nơi gọi.
+    """
+    ticket_type.sold += quantity
+    ticket_type.save(update_fields=["sold"])
+
+    # Vé miễn phí xác nhận luôn, vé có phí phải chờ BTC xác nhận thanh toán
+    is_free = ticket_type.is_free
+    now = timezone.now()
+    # Tạo TỪNG vé thay vì bulk_create: trên MySQL bulk_create không trả về id,
+    # vé không có id thì không gắn được vào lượt chờ (WaitlistEntry.ticket).
+    # Mỗi lần tối đa MAX_TICKETS_PER_USER_PER_EVENT vé nên không đáng kể.
+    return [
+        Ticket.objects.create(
+            event=ticket_type.event,
+            ticket_type=ticket_type,
+            user=user,
+            price=ticket_type.price,
+            booking_ref=booking_ref,
+            status=TicketStatus.CONFIRMED if is_free else TicketStatus.PENDING,
+            confirmed_at=now if is_free else None,
+        )
+        for _ in range(quantity)
+    ]
+
+
 @transaction.atomic
 def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]:
     """
@@ -82,11 +207,7 @@ def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]
 
     # (3) F4.1 - giới hạn số vé mỗi người mỗi sự kiện
     limit = settings.MAX_TICKETS_PER_USER_PER_EVENT
-    owned = Ticket.objects.filter(
-        user=user, event=event,
-        status__in=[TicketStatus.PENDING, TicketStatus.CONFIRMED,
-                    TicketStatus.CHECKED_IN],
-    ).count()
+    owned = _active_count(user, event)
     if owned + quantity > limit:
         raise BookingError(
             f"Mỗi người chỉ được đăng ký tối đa {limit} vé cho một sự kiện. "
@@ -100,25 +221,20 @@ def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]
             raise BookingError("Loại vé này đã hết chỗ.")
         raise BookingError(f"Chỉ còn {remaining} chỗ cho loại vé này.")
 
-    # (5) Trừ chỗ và tạo vé — vẫn trong cùng transaction
-    ticket_type.sold += quantity
-    ticket_type.save(update_fields=["sold"])
+    # (5) Trừ chỗ và tạo vé — vẫn trong cùng transaction.
+    # Cả lần đặt dùng chung MỘT mã giao dịch (F4.7) để chuyển khoản 1 lần.
+    tickets = _issue_tickets(user, ticket_type, quantity, _new_booking_ref())
 
-    # Vé miễn phí xác nhận luôn, vé có phí phải chờ BTC xác nhận thanh toán
-    is_free = ticket_type.is_free
-    now = timezone.now()
-    tickets = [
-        Ticket(
-            event=event,
-            ticket_type=ticket_type,
-            user=user,
-            price=ticket_type.price,
-            status=TicketStatus.CONFIRMED if is_free else TicketStatus.PENDING,
-            confirmed_at=now if is_free else None,
-        )
-        for _ in range(quantity)
-    ]
-    Ticket.objects.bulk_create(tickets)
+    # (6) F7.1 - báo cho người đặt, chỉ chạy SAU KHI commit
+    if tickets[0].status == TicketStatus.CONFIRMED:
+        _notify_issued(user, event, tickets, NotificationKind.TICKET_CONFIRMED,
+                       f"Đăng ký thành công: {event.name}",
+                       f"Bạn đã đăng ký {len(tickets)} vé cho sự kiện {event.name}.")
+    else:
+        _notify_issued(user, event, tickets, NotificationKind.TICKET_PENDING,
+                       f"Giữ chỗ thành công: {event.name}",
+                       f"Bạn đã giữ {len(tickets)} vé cho sự kiện {event.name}. "
+                       f"Vui lòng chuyển khoản để BTC xác nhận.")
     return tickets
 
 
@@ -140,17 +256,20 @@ def cancel_ticket(user: User, ticket_id: int) -> Ticket:
             f"{settings.CANCEL_BEFORE_HOURS} giờ và khi chưa check-in."
         )
 
-    ticket_type = TicketType.objects.select_for_update().get(pk=ticket.ticket_type_id)
+    ticket_type = (TicketType.objects.select_for_update().select_related("event")
+                   .get(pk=ticket.ticket_type_id))
     ticket.status = TicketStatus.CANCELLED
     ticket.save(update_fields=["status"])
     # max(0, ...) để phòng dữ liệu lệch, tránh sold âm
     ticket_type.sold = max(ticket_type.sold - 1, 0)
     ticket_type.save(update_fields=["sold"])
+    # F4.8 - chỗ vừa trả ra được cấp ngay cho người đầu danh sách chờ
+    promote_from_waitlist(ticket_type)
     return ticket
 
 
 # ---------------------------------------------------------------------------
-# F4.4 - XÁC NHẬN THANH TOÁN
+# F4.4 + F4.7 - XÁC NHẬN THANH TOÁN
 # ---------------------------------------------------------------------------
 @transaction.atomic
 def confirm_payment(staff: User, ticket_id: int) -> Ticket:
@@ -176,7 +295,69 @@ def confirm_payment(staff: User, ticket_id: int) -> Ticket:
     ticket.save(update_fields=["status", "confirmed_at"])
     AuditLog.write(staff, "Xác nhận thanh toán", ticket.code,
                    f"{ticket.user} - {ticket.event.name}")
+    _notify_confirmed(ticket.user, ticket.event, [ticket])
     return ticket
+
+
+@transaction.atomic
+def confirm_booking(staff: User, booking_ref: str) -> list[Ticket]:
+    """
+    F4.7 - Xác nhận cả nhóm vé cùng mã giao dịch (1 lần chuyển khoản).
+    Chỉ xác nhận những vé còn Chờ thanh toán; vé đã huỷ trong nhóm bỏ qua.
+    """
+    booking_ref = (booking_ref or "").strip().upper()
+    tickets = list(Ticket.objects.select_for_update()
+                   .select_related("user", "event")
+                   .filter(booking_ref=booking_ref, status=TicketStatus.PENDING))
+    if not tickets:
+        raise BookingError("Không có vé nào đang chờ thanh toán với mã giao dịch này.")
+    now = timezone.now()
+    for t in tickets:
+        t.status = TicketStatus.CONFIRMED
+        t.confirmed_at = now
+    Ticket.objects.bulk_update(tickets, ["status", "confirmed_at"])
+    first = tickets[0]
+    AuditLog.write(staff, "Xác nhận thanh toán", booking_ref,
+                   f"{len(tickets)} vé - {first.user} - {first.event.name}")
+    _notify_confirmed(first.user, first.event, tickets)
+    return tickets
+
+
+def pending_bookings(keyword: str = "") -> list[dict]:
+    """
+    F4.7 - Vé chờ thanh toán gom theo mã giao dịch, cho trang Xác nhận TT.
+    Tìm được theo mã giao dịch (có hoặc không có tiền tố "KMG"), mã vé,
+    tên hoặc MSSV người đặt.
+    """
+    qs = (Ticket.objects.filter(status=TicketStatus.PENDING)
+          .select_related("event", "ticket_type", "user")
+          .order_by("created_at", "id"))
+    keyword = (keyword or "").strip()
+    if keyword:
+        ref = keyword.upper().removeprefix("KMG").strip()
+        refs = (Ticket.objects.filter(status=TicketStatus.PENDING)
+                .filter(Q(booking_ref=ref)
+                        | Q(code__icontains=keyword)
+                        | Q(user__full_name__icontains=keyword)
+                        | Q(user__mssv__icontains=keyword))
+                .values_list("booking_ref", flat=True))
+        qs = qs.filter(booking_ref__in=list(refs))
+
+    groups = {}
+    for t in qs:
+        g = groups.setdefault(t.booking_ref, {
+            "ref": t.booking_ref, "user": t.user, "event": t.event,
+            "ticket_type": t.ticket_type, "tickets": [], "total": 0,
+            "created_at": t.created_at,
+        })
+        g["tickets"].append(t)
+        g["total"] += t.price
+    for g in groups.values():
+        first = g["tickets"][0]
+        g["deadline"] = first.payment_deadline
+        g["is_expired"] = first.is_payment_expired
+        g["content"] = transfer_content(g["ref"])
+    return list(groups.values())
 
 
 # ---------------------------------------------------------------------------
@@ -241,14 +422,30 @@ def check_in(staff: User, code: str,
 
 
 def checkin_progress_data(event: Event) -> dict:
-    """Trả về dữ liệu tiến độ check-in của sự kiện (F5.4)."""
-    total = event.tickets.exclude(status=TicketStatus.CANCELLED).count()
-    done = event.tickets.filter(status=TicketStatus.CHECKED_IN).count()
+    """
+    F5.4 - Tiến độ check-in, dùng chung cho trang check-in và API polling.
+    Một truy vấn aggregate nhóm theo loại vé + 10 lượt check-in gần nhất.
+    """
+    rows = (event.tickets.exclude(status=TicketStatus.CANCELLED)
+            .values("ticket_type__name")
+            .annotate(total=Count("id"),
+                      done=Count("id", filter=Q(status=TicketStatus.CHECKED_IN)))
+            .order_by("ticket_type__name"))
+    by_type = [{"name": r["ticket_type__name"], "done": r["done"],
+                "total": r["total"]} for r in rows]
+    total = sum(r["total"] for r in by_type)
+    done = sum(r["done"] for r in by_type)
+    recent = (event.tickets.filter(status=TicketStatus.CHECKED_IN)
+              .select_related("user").order_by("-checked_in_at")[:10])
     return {
         "total": total,
         "done": done,
         "percent": round(done * 100 / total) if total else 0,
+        "by_type": by_type,
+        "recent": [{"name": t.user.full_name or t.user.username,
+                    "at": _local(t.checked_in_at, "%H:%M")} for t in recent],
     }
+
 
 # ---------------------------------------------------------------------------
 # F4.5 - TỰ HUỶ VÉ QUÁ HẠN THANH TOÁN
@@ -256,10 +453,13 @@ def checkin_progress_data(event: Event) -> dict:
 @transaction.atomic
 def release_expired_tickets() -> int:
     """
-    Huỷ các vé Chờ thanh toán quá 24h và trả lại chỗ.
+    Huỷ các vé Chờ thanh toán quá hạn và trả lại chỗ.
 
-    Chạy bằng lệnh: python manage.py release_expired
-    Khi deploy thật thì đặt vào cron job hoặc Celery beat.
+    Hạn thanh toán = min(lúc đặt + 24h, giờ diễn ra) — xem Ticket.payment_deadline.
+    Chỗ trả ra được cấp ngay cho người đầu danh sách chờ (F4.8).
+    Một người bị huỷ nhiều vé cùng sự kiện chỉ nhận MỘT thông báo.
+
+    Chạy bằng lệnh: python manage.py release_expired (hoặc run_periodic).
     Trả về số vé đã huỷ.
     """
     limit_time = timezone.now() - timezone.timedelta(
@@ -267,10 +467,13 @@ def release_expired_tickets() -> int:
     now = timezone.now()
     expired = (Ticket.objects
                .select_for_update()
+               .select_related("user", "event")
                .filter(status=TicketStatus.PENDING)
                .filter(Q(created_at__lt=limit_time) | Q(event__starts_at__lt=now)))
 
     count = 0
+    per_user = defaultdict(list)          # (user, event) -> [vé bị huỷ]
+    freed_types = set()
     for ticket in expired:
         ticket_type = TicketType.objects.select_for_update().get(
             pk=ticket.ticket_type_id)
@@ -278,8 +481,189 @@ def release_expired_tickets() -> int:
         ticket.save(update_fields=["status"])
         ticket_type.sold = max(ticket_type.sold - 1, 0)
         ticket_type.save(update_fields=["sold"])
+        per_user[(ticket.user, ticket.event)].append(ticket)
+        freed_types.add(ticket.ticket_type_id)
         count += 1
+
+    # Gom theo loại vé rồi mới đẩy danh sách chờ, mỗi loại 1 lần
+    for tt_id in freed_types:
+        promote_from_waitlist(TicketType.objects.select_for_update()
+                              .select_related("event").get(pk=tt_id))
+
+    for (user, event), tickets in per_user.items():
+        title = f"Vé đã tự huỷ: {event.name}"
+        lead = (f"{len(tickets)} vé của bạn cho sự kiện {event.name} đã bị huỷ "
+                f"vì quá hạn thanh toán. Chỗ đã được nhường cho người khác.")
+        notify_on_commit(
+            user, NotificationKind.TICKET_EXPIRED, title, lead,
+            url=event.get_absolute_url(), email_template="notice",
+            context={"title": title, "message": lead,
+                     "details": [("Mã vé", ", ".join(t.code for t in tickets))],
+                     "cta_url": event.get_absolute_url(),
+                     "cta_label": "Xem sự kiện"},
+        )
     return count
+
+
+# ---------------------------------------------------------------------------
+# F4.8 - DANH SÁCH CHỜ
+# ---------------------------------------------------------------------------
+def _waiting_count(user, event) -> int:
+    return WaitlistEntry.objects.filter(
+        user=user, ticket_type__event=event,
+        status=WaitlistStatus.WAITING).count()
+
+
+@transaction.atomic
+def join_waitlist(user: User, ticket_type_id: int) -> WaitlistEntry:
+    """
+    Vào danh sách chờ của một loại vé đã hết chỗ. Mỗi lượt chờ = 1 vé.
+
+    Mọi join cho cùng loại vé phải xếp hàng chờ khoá dòng TicketType, nên
+    kiểm tra "đã chờ chưa" rồi mới tạo là an toàn trên cả MySQL.
+    """
+    try:
+        tt = (TicketType.objects.select_for_update().select_related("event")
+              .get(pk=ticket_type_id))
+    except TicketType.DoesNotExist:
+        raise BookingError("Loại vé không tồn tại.")
+    ev = tt.event
+    if ev.status != EventStatus.OPEN or timezone.now() > ev.register_deadline:
+        raise BookingError("Sự kiện không còn nhận đăng ký.")
+    if tt.remaining > 0:
+        raise BookingError("Loại vé này vẫn còn chỗ, bạn có thể đặt vé ngay.")
+    if WaitlistEntry.objects.filter(ticket_type=tt, user=user,
+                                    status=WaitlistStatus.WAITING).exists():
+        raise BookingError("Bạn đã ở trong danh sách chờ của loại vé này.")
+    owned = _active_count(user, ev)
+    waiting = _waiting_count(user, ev)
+    if owned + waiting + 1 > settings.MAX_TICKETS_PER_USER_PER_EVENT:
+        raise BookingError(
+            "Bạn đã đạt giới hạn vé cho sự kiện này (tính cả lượt chờ).")
+    return WaitlistEntry.objects.create(ticket_type=tt, user=user)
+
+
+def leave_waitlist(user: User, entry_id: int) -> WaitlistEntry:
+    """Rời danh sách chờ. Chỉ chủ lượt chờ, chỉ khi đang chờ."""
+    updated = WaitlistEntry.objects.filter(
+        pk=entry_id, user=user, status=WaitlistStatus.WAITING,
+    ).update(status=WaitlistStatus.CANCELLED, resolved_at=timezone.now())
+    if not updated:
+        raise BookingError("Không tìm thấy lượt chờ của bạn.")
+    return WaitlistEntry.objects.select_related("ticket_type__event").get(pk=entry_id)
+
+
+def _resolve(entry, status, note=""):
+    entry.status = status
+    entry.note = note[:255]
+    entry.resolved_at = timezone.now()
+    entry.save(update_fields=["status", "note", "resolved_at", "ticket"])
+
+
+def promote_from_waitlist(ticket_type: TicketType) -> list[WaitlistEntry]:
+    """
+    GỌI BÊN TRONG transaction, KHI ticket_type ĐÃ bị select_for_update.
+    Lặp: còn chỗ và còn người chờ -> cấp vé cho người đầu hàng.
+
+    Tự động cấp, KHÔNG có bước "mời rồi chờ đồng ý": vé có phí được cấp ở
+    trạng thái Chờ thanh toán và đi qua đúng luồng thanh toán + tự huỷ quá
+    hạn. Không trả tiền thì vé hết hạn -> chỗ lại chuyển cho người kế tiếp.
+
+    Hai người cùng huỷ vé đồng thời không gây cấp trùng: cả hai giao dịch
+    đều phải khoá dòng TicketType trước, giao dịch sau đọc được kết quả
+    của giao dịch trước.
+
+    TODO: nếu sau này có chức năng tăng quota loại vé, gọi hàm này sau khi tăng.
+    """
+    ev = ticket_type.event
+    if ev.status != EventStatus.OPEN or timezone.now() > ev.register_deadline:
+        return []                                   # hết hạn đăng ký: không cấp nữa
+    promoted = []
+    while ticket_type.remaining > 0:
+        entry = (WaitlistEntry.objects.select_for_update()
+                 .filter(ticket_type=ticket_type, status=WaitlistStatus.WAITING)
+                 .select_related("user").order_by("created_at", "id").first())
+        if entry is None:
+            break
+        u = entry.user
+        if u.is_locked:
+            _resolve(entry, WaitlistStatus.SKIPPED, "Tài khoản bị khoá")
+            continue
+        if _active_count(u, ev) + 1 > settings.MAX_TICKETS_PER_USER_PER_EVENT:
+            _resolve(entry, WaitlistStatus.SKIPPED, "Đã đủ số vé tối đa")
+            continue
+        [ticket] = _issue_tickets(u, ticket_type, 1, _new_booking_ref())
+        entry.ticket = ticket
+        _resolve(entry, WaitlistStatus.PROMOTED)
+        promoted.append(entry)
+        lead = (f"Đã có chỗ trống cho sự kiện {ev.name} và bạn là người tiếp "
+                f"theo trong danh sách chờ. Hệ thống đã cấp 1 vé cho bạn.")
+        if ticket.status == TicketStatus.PENDING:
+            lead += " Vui lòng chuyển khoản trước hạn để giữ vé."
+        _notify_issued(u, ev, [ticket], NotificationKind.WAITLIST_PROMOTED,
+                       f"Bạn đã có vé: {ev.name}", lead)
+    return promoted
+
+
+@transaction.atomic
+def expire_waitlists() -> int:
+    """
+    Dọn lượt chờ không còn cơ hội: sự kiện đã xong/huỷ/đóng hoặc quá hạn
+    đăng ký. Báo "rất tiếc" cho mỗi người một lần mỗi sự kiện.
+    """
+    now = timezone.now()
+    entries = list(WaitlistEntry.objects.select_for_update()
+                   .select_related("user", "ticket_type__event")
+                   .filter(status=WaitlistStatus.WAITING)
+                   .filter(Q(ticket_type__event__status__in=[
+                               EventStatus.DONE, EventStatus.CANCELLED,
+                               EventStatus.CLOSED])
+                           | Q(ticket_type__event__register_deadline__lt=now)))
+    notified = set()
+    for e in entries:
+        e.status = WaitlistStatus.EXPIRED
+        e.resolved_at = now
+        ev = e.ticket_type.event
+        if (e.user_id, ev.pk) not in notified:
+            notified.add((e.user_id, ev.pk))
+            notify_on_commit(
+                e.user, NotificationKind.WAITLIST_EXPIRED,
+                f"Danh sách chờ đã đóng: {ev.name}",
+                f"Rất tiếc, đã không có chỗ trống cho bạn ở sự kiện {ev.name}.",
+                url=ev.get_absolute_url())
+    WaitlistEntry.objects.bulk_update(entries, ["status", "resolved_at"])
+    return len(entries)
+
+
+def event_waitlist(event: Event) -> QuerySet[WaitlistEntry]:
+    """Danh sách chờ của sự kiện cho trang BTC."""
+    return (WaitlistEntry.objects.filter(ticket_type__event=event)
+            .select_related("user", "ticket_type", "ticket")
+            .order_by("created_at", "id"))
+
+
+# ---------------------------------------------------------------------------
+# F8.1 - LỊCH SỬ THAM GIA
+# ---------------------------------------------------------------------------
+def attended_events(user: User):
+    """Các sự kiện user đã check-in, mới nhất trước, mỗi sự kiện 1 dòng."""
+    from events.models import Event as EventModel
+    return (EventModel.objects
+            .filter(tickets__user=user, tickets__status=TicketStatus.CHECKED_IN)
+            .distinct().order_by("-starts_at"))
+
+
+def user_stats(user: User) -> dict:
+    """Số liệu nhỏ cho trang hồ sơ."""
+    agg = Ticket.objects.filter(user=user).aggregate(
+        booked=Count("id", filter=Q(status__in=ACTIVE_STATUSES)),
+        attended=Count("event", filter=Q(status=TicketStatus.CHECKED_IN),
+                       distinct=True),
+        spent=Sum("price", filter=Q(status__in=[TicketStatus.CONFIRMED,
+                                               TicketStatus.CHECKED_IN])),
+    )
+    agg["spent"] = agg["spent"] or 0
+    return agg
 
 
 # ---------------------------------------------------------------------------

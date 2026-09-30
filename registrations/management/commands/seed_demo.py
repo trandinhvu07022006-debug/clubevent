@@ -8,6 +8,9 @@ Dữ liệu được thiết kế để demo đúng kịch bản trong báo cáo
   - Sự kiện A: đang mở bán, còn nhiều chỗ -> demo đặt vé bình thường
   - Sự kiện B: CHỈ CÒN 1 CHỖ -> demo hết chỗ và race condition
   - Sự kiện C: đã diễn ra, có vé + check-in + phản hồi -> demo thống kê
+             + giấy chứng nhận (tài khoản thanhvien đã check-in)
+  - Sự kiện D: HẾT VÉ, có sẵn danh sách chờ -> demo F4.8
+Kèm: khoản chi (ngân sách), thông báo mẫu, mã giao dịch nhóm.
 """
 import random
 
@@ -16,10 +19,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Role, User
-from events.models import Event, EventStatus, TicketType
+from events.models import Event, EventCategory, EventStatus, TicketType
 from feedback.models import Feedback
-from organizing.models import Task, TaskStatus
-from registrations.models import Ticket, TicketStatus
+from notifications.models import Notification, NotificationKind
+from organizing.models import Expense, Task, TaskStatus
+from registrations.models import (Ticket, TicketStatus, WaitlistEntry,
+                                  make_booking_ref)
 
 PASSWORD = "demo1234"
 
@@ -59,6 +64,9 @@ class Command(BaseCommand):
         if options["reset"]:
             self.stdout.write("Đang xoá dữ liệu cũ...")
             Feedback.objects.all().delete()
+            WaitlistEntry.objects.all().delete()
+            Notification.objects.all().delete()
+            Expense.objects.all().delete()
             Ticket.objects.all().delete()
             Task.objects.all().delete()
             TicketType.objects.all().delete()
@@ -77,7 +85,13 @@ class Command(BaseCommand):
         event_b = self._event_one_seat_left(lead, pool)
         event_c = self._event_done_with_stats(lead, pool)
 
+        event_d = self._event_sold_out_with_waitlist(lead, pool, users)
+
         self._create_tasks(event_a, users)
+        self._create_club_tasks(users)
+        self._demo_member_tickets(users, event_a, event_c)
+        self._create_expenses(event_a, event_c, users)
+        self._create_notifications(users, event_a, event_c)
 
         self.stdout.write(self.style.SUCCESS("\nDa nap xong du lieu demo.\n"))
         self.stdout.write(f"  Mật khẩu chung cho mọi tài khoản: {PASSWORD}\n")
@@ -86,7 +100,8 @@ class Command(BaseCommand):
         self.stdout.write("\nSự kiện:")
         self.stdout.write(f"  A. {event_a.name} — mở bán, còn nhiều chỗ")
         self.stdout.write(f"  B. {event_b.name} — CHỈ CÒN 1 CHỖ (demo race condition)")
-        self.stdout.write(f"  C. {event_c.name} — đã diễn ra, có thống kê\n")
+        self.stdout.write(f"  C. {event_c.name} — đã diễn ra, có thống kê + chứng nhận")
+        self.stdout.write(f"  D. {event_d.name} — HẾT VÉ, có danh sách chờ\n")
 
     # ------------------------------------------------------------------
     def _create_users(self):
@@ -132,6 +147,7 @@ class Command(BaseCommand):
         for user in users:
             made.append(Ticket.objects.create(
                 event=event, ticket_type=ticket_type, user=user,
+                booking_ref=make_booking_ref(),
                 price=ticket_type.price, status=status,
                 confirmed_at=None if status == TicketStatus.PENDING else now,
                 checked_in_at=event.starts_at
@@ -154,9 +170,12 @@ class Command(BaseCommand):
                                "mục do thành viên biểu diễn. Có giao lưu và "
                                "hướng dẫn chơi guitar cơ bản cho người mới.",
                 "location": "Hội trường A2, Học viện",
+                "category": EventCategory.MUSIC,
                 "starts_at": now + timezone.timedelta(days=14),
+                "ends_at": now + timezone.timedelta(days=14, hours=3),
                 "register_deadline": now + timezone.timedelta(days=12),
                 "capacity": 150,
+                "budget": 5_000_000,
                 "status": EventStatus.OPEN,
                 "created_by": lead,
             },
@@ -194,6 +213,7 @@ class Command(BaseCommand):
                 "description": "Buổi workshop nhỏ, giới hạn số lượng để mỗi "
                                "người đều được hướng dẫn trực tiếp.",
                 "location": "Phòng B301",
+                "category": EventCategory.ACADEMIC,
                 "starts_at": now + timezone.timedelta(days=7),
                 "register_deadline": now + timezone.timedelta(days=5),
                 "capacity": 20,
@@ -219,7 +239,10 @@ class Command(BaseCommand):
                 "description": "Minishow kỷ niệm của CLB tại quán cà phê, "
                                "không gian ấm cúng.",
                 "location": "An Hội An Cà Phê, Hà Đông",
+                "category": EventCategory.MUSIC,
+                "budget": 2_000_000,
                 "starts_at": now - timezone.timedelta(days=3),
+                "ends_at": now - timezone.timedelta(days=3) + timezone.timedelta(hours=3),
                 "register_deadline": now - timezone.timedelta(days=5),
                 "capacity": 60,
                 "status": EventStatus.DONE,
@@ -281,3 +304,101 @@ class Command(BaseCommand):
                 done_at=deadline - timezone.timedelta(hours=6)
                         if status == TaskStatus.DONE else None,
             )
+
+
+    # ------------------------------------------------------------------
+    # Dữ liệu cho các chức năng Sprint 3-5
+    # ------------------------------------------------------------------
+    def _event_sold_out_with_waitlist(self, lead, pool, users):
+        """Sự kiện D — hết vé, đã có 3 người chờ. Tài khoản thanhvien vào chờ để demo."""
+        now = timezone.now()
+        event, created = Event.objects.get_or_create(
+            name="Giao lưu Guitar liên CLB (đã hết vé)",
+            defaults={
+                "description": "Buổi giao lưu với CLB Guitar các trường bạn. "
+                               "Vé đã hết — hãy vào danh sách chờ, có người huỷ "
+                               "hệ thống sẽ tự cấp vé cho bạn.",
+                "location": "Sân khấu ngoài trời, Khu B",
+                "category": EventCategory.SOCIAL,
+                "starts_at": now + timezone.timedelta(days=10),
+                "ends_at": now + timezone.timedelta(days=10, hours=2),
+                "register_deadline": now + timezone.timedelta(days=9),
+                "capacity": 10,
+                "status": EventStatus.OPEN,
+                "created_by": lead,
+            },
+        )
+        if not created:
+            return event
+        ticket_type = TicketType.objects.create(
+            event=event, name="Vé giao lưu", price=0, quota=10)
+        self._issue_tickets(event, ticket_type, pool[:10], TicketStatus.CONFIRMED)
+        for user in [users["thanhvien2"], pool[20], pool[21]]:
+            WaitlistEntry.objects.create(ticket_type=ticket_type, user=user)
+        return event
+
+    def _demo_member_tickets(self, users, event_a, event_c):
+        """thanhvien: có vé sắp tới (sự kiện A) và đã check-in sự kiện C (chứng nhận)."""
+        member = users["thanhvien"]
+        if not Ticket.objects.filter(user=member, event=event_a).exists():
+            tt = event_a.ticket_types.get(price=0)
+            self._issue_tickets(event_a, tt, [member], TicketStatus.CONFIRMED)
+        if not Ticket.objects.filter(user=member, event=event_c).exists():
+            tt = event_c.ticket_types.first()
+            self._issue_tickets(event_c, tt, [member], TicketStatus.CHECKED_IN,
+                                checked_by=users["btc1"])
+
+    def _create_expenses(self, event_a, event_c, users):
+        if Expense.objects.exists():
+            return
+        rows = [
+            (event_c, "Thuê quán cà phê", "VENUE", 800000, "truongbtc", 6),
+            (event_c, "In poster, standee", "PRINT", 350000, "btc2", 8),
+            (event_c, "Nước uống cho BTC", "FOOD", 240000, "btc1", 3),
+            (event_c, "Thuê loa, micro", "EQUIP", 600000, "btc1", 3),
+            (event_a, "Đặt cọc âm thanh ánh sáng", "EQUIP", 1500000, "truongbtc", -2),
+            (event_a, "In vé mời và poster", "PRINT", 420000, "btc2", -1),
+        ]
+        today = timezone.localdate()
+        for event, title, cat, amount, who, days_ago in rows:
+            Expense.objects.create(
+                event=event, title=title, category=cat, amount=amount,
+                paid_by=users[who], created_by=users["truongbtc"],
+                spent_on=today - timezone.timedelta(days=max(days_ago, 0)))
+
+    def _create_notifications(self, users, event_a, event_c):
+        member = users["thanhvien"]
+        if member.notifications.exists():
+            return
+        Notification.objects.bulk_create([
+            Notification(user=member, kind=NotificationKind.TICKET_CONFIRMED,
+                         title=f"Đăng ký thành công: {event_a.name}",
+                         message="Bạn đã đăng ký 1 vé. Mang mã QR tới cửa để check-in.",
+                         url="/ve/cua-toi/"),
+            Notification(user=member, kind=NotificationKind.EVENT_REMINDER,
+                         title=f"Cảm ơn bạn đã tham gia: {event_c.name}",
+                         message="Giấy chứng nhận tham gia đã sẵn sàng trong trang hồ sơ.",
+                         url="/taikhoan/hoso/", is_read=True),
+        ])
+        Notification.objects.create(
+            user=users["btc1"], kind=NotificationKind.TASK_ASSIGNED,
+            title="Việc mới: Kiểm tra âm thanh hội trường",
+            message=f"Trưởng BTC giao cho bạn việc của sự kiện {event_a.name}.",
+            url="/congviec/viec-cua-toi/")
+
+    def _create_club_tasks(self, users):
+        """Việc chung của CLB do Ban chủ nhiệm giao — có việc giao cho chính Ban chủ nhiệm."""
+        if Task.objects.filter(event__isnull=True).exists():
+            return
+        now = timezone.now()
+        rows = [
+            ("Họp Ban chủ nhiệm tháng này", "truongbtc", "admin", "HIGH", 3, TaskStatus.TODO),
+            ("Lên kế hoạch tuyển thành viên khoá mới", "truongbtc", "admin", "NORMAL", 10, TaskStatus.DOING),
+            ("Quyết toán quỹ CLB học kỳ", "admin", "truongbtc", "URGENT", 2, TaskStatus.TODO),
+            ("Cập nhật danh sách thành viên", "btc1", "truongbtc", "NORMAL", 5, TaskStatus.TODO),
+            ("Dọn dẹp phòng tập", "btc2", "truongbtc", "LOW", -1, TaskStatus.TODO),
+        ]
+        for title, to, by, prio, days, status in rows:
+            Task.objects.create(title=title, assignee=users[to], created_by=users[by],
+                                priority=prio, status=status,
+                                deadline=now + timezone.timedelta(days=days))

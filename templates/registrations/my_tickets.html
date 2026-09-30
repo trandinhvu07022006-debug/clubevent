@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}Vé của tôi{% endblock %}
 
 {% block content %}
@@ -70,11 +71,90 @@
   }
 </style>
 
-<header class="page-header">
-  <span class="kicker">Đăng ký của bạn</span>
-  <h1 class="h3 fw-bold">Vé của tôi</h1>
-  <p class="text-muted">Quản lý các sự kiện bạn đã đăng ký tham gia</p>
+<header class="page-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+  <div>
+    <span class="kicker">Đăng ký của bạn</span>
+    <h1 class="h3 fw-bold">Vé của tôi</h1>
+    <p class="text-muted mb-0">Quản lý các sự kiện bạn đã đăng ký tham gia</p>
+  </div>
+  <nav class="segmented" aria-label="Nhóm vé">
+    <a href="?tab=active" class="segmented-item {% if tab != 'history' %}active{% endif %}">Sắp tới ({{ active_count }})</a>
+    <a href="?tab=history" class="segmented-item {% if tab == 'history' %}active{% endif %}">Đã qua / đã huỷ ({{ history_count }})</a>
+  </nav>
 </header>
+
+{% if tab != 'history' and payments %}
+  {% comment %} F4.7 - Cần thanh toán: gom theo mã giao dịch, 1 lần chuyển khoản cho cả nhóm vé. {% endcomment %}
+  <section class="mb-4" aria-labelledby="pay-title">
+    <h2 class="h5 fw-bold mb-3" id="pay-title"><i class="bi bi-credit-card text-warning"></i> Cần thanh toán</h2>
+    <div class="d-flex flex-column gap-3">
+      {% for p in payments %}
+        <div class="pay-box shadow-sm">
+          <div class="row g-0">
+            {% if p.bank and p.bank.qr %}
+              <div class="col-md-auto p-3 d-flex flex-column align-items-center justify-content-center bg-body-tertiary">
+                <img src="{{ p.bank.qr }}" alt="Mã VietQR chuyển khoản {{ p.content }}" class="pay-qr">
+                <div class="small text-muted mt-2 text-center">Quét bằng app ngân hàng</div>
+              </div>
+            {% endif %}
+            <div class="col p-3 p-md-4">
+              <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+                <div>
+                  <div class="fw-bold">{{ p.event.name }}</div>
+                  <div class="small text-muted">{{ p.count }} vé · mã giao dịch <span class="checkin-code">{{ p.ref }}</span></div>
+                </div>
+                <div class="text-end">
+                  <div class="fs-4 fw-bold text-primary">{{ p.total|vnd }}đ</div>
+                  <div class="small text-danger">Hạn: {{ p.deadline|date:"H:i d/m/Y" }}</div>
+                </div>
+              </div>
+              {% if p.bank %}
+                <div class="pay-row"><span>Ngân hàng</span><span class="value">{{ p.bank.bank_name }}</span></div>
+                <div class="pay-row"><span>Số tài khoản</span>
+                  <span class="value">{{ p.bank.account }}
+                    <button type="button" class="btn btn-link btn-sm p-0 ms-1 copy-btn" data-copy="{{ p.bank.account }}" aria-label="Sao chép số tài khoản"><i class="bi bi-copy"></i></button></span></div>
+                <div class="pay-row"><span>Chủ tài khoản</span><span class="value">{{ p.bank.account_name }}</span></div>
+              {% endif %}
+              <div class="pay-row"><span>Số tiền</span>
+                <span class="value">{{ p.total|vnd }}đ
+                  <button type="button" class="btn btn-link btn-sm p-0 ms-1 copy-btn" data-copy="{{ p.total }}" aria-label="Sao chép số tiền"><i class="bi bi-copy"></i></button></span></div>
+              <div class="pay-row"><span>Nội dung chuyển khoản</span>
+                <span class="value checkin-code">{{ p.content }}
+                  <button type="button" class="btn btn-link btn-sm p-0 ms-1 copy-btn" data-copy="{{ p.content }}" aria-label="Sao chép nội dung chuyển khoản"><i class="bi bi-copy"></i></button></span></div>
+              <p class="small text-muted mt-2 mb-0"><i class="bi bi-info-circle"></i>
+                Ghi đúng nội dung để BTC đối chiếu. Vé chỉ có hiệu lực sau khi BTC xác nhận; quá hạn vé sẽ tự huỷ.
+                {% if not p.bank %}Liên hệ BTC để nhận thông tin chuyển khoản.{% endif %}</p>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% if tab != 'history' and waitlist %}
+  {% comment %} F4.8 - Các lượt đang chờ, vị trí tính tại thời điểm xem. {% endcomment %}
+  <section class="card border-0 shadow-sm mb-4" aria-labelledby="wait-title">
+    <div class="card-body">
+      <h2 class="h6 fw-bold mb-3" id="wait-title"><i class="bi bi-hourglass-split text-warning"></i> Đang chờ vé</h2>
+      {% for w in waitlist %}
+        <div class="icon-list-item px-0">
+          <div class="icon-list-item-content">
+            <div class="icon-list-item-title"><a href="{% url 'events:detail' w.ticket_type.event.pk %}" class="text-reset">{{ w.ticket_type.event.name }}</a></div>
+            <div class="icon-list-item-subtitle">{{ w.ticket_type.name }} · vào hàng {{ w.created_at|date:"H:i d/m" }}</div>
+          </div>
+          <div class="icon-list-item-right d-flex align-items-center gap-2">
+            <span class="badge bg-warning-subtle text-warning-emphasis">Vị trí {{ w.position }}</span>
+            <form method="post" action="{% url 'registrations:waitlist_leave' w.pk %}" onsubmit="return confirm('Rời danh sách chờ?')">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-secondary">Rời</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
 
 <div class="row g-4">
   {% for ticket in tickets %}
@@ -106,7 +186,7 @@
             </div>
             <div class="bg-light-subtle rounded px-3 py-2 border">
               <span class="d-block text-muted small mb-1">Giá vé</span>
-              <span class="fw-semibold text-primary">{% if ticket.price %}{{ ticket.price|floatformat:0 }}đ{% else %}Miễn phí{% endif %}</span>
+              <span class="fw-semibold text-primary">{% if ticket.price %}{{ ticket.price|vnd }}đ{% else %}Miễn phí{% endif %}</span>
             </div>
             <div class="bg-light-subtle rounded px-3 py-2 border">
               <span class="d-block text-muted small mb-1">Mã xác nhận</span>
@@ -119,12 +199,12 @@
               <span class="fs-5"><i class="bi bi-hourglass-split"></i></span>
               <div class="small">
                 <strong>Vui lòng thanh toán trước {{ ticket.payment_deadline|date:"H:i d/m" }}</strong><br>
-                Sau đó BTC sẽ xác nhận. Quá hạn vé sẽ tự huỷ.
+                Nội dung chuyển khoản: <span class="checkin-code">KMG {{ ticket.booking_ref }}</span>. Quá hạn vé sẽ tự huỷ.
               </div>
             </div>
           {% endif %}
 
-          <div class="d-flex align-items-center gap-2 mt-auto">
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-auto">
             {% if ticket.can_cancel %}
               <form method="post" action="{% url 'registrations:cancel' ticket.pk %}"
                     onsubmit="return confirm('Bạn có chắc muốn huỷ vé này? Chỗ sẽ được nhường lại cho người khác.')">
@@ -133,6 +213,16 @@
               </form>
             {% endif %}
             <a href="{% url 'events:detail' ticket.event.pk %}" class="btn btn-sm btn-outline-secondary px-4 rounded-pill fw-medium">Xem sự kiện</a>
+            {% if ticket.is_active %}
+              <a href="{% url 'registrations:print' ticket.pk %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" target="_blank" rel="noopener"><i class="bi bi-printer"></i> In vé</a>
+              {% if ticket.status != 'CHECKED_IN' %}
+                <a href="{% url 'events:ics' ticket.event.pk %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium"><i class="bi bi-calendar-plus"></i> Thêm vào lịch</a>
+              {% endif %}
+            {% endif %}
+            {% if ticket.status == 'CHECKED_IN' and ticket.event.status == 'DONE' %}
+              <a href="{% url 'events:certificate' ticket.event.pk %}" class="btn btn-sm btn-warning px-3 rounded-pill fw-medium"><i class="bi bi-award"></i> Chứng nhận</a>
+              <a href="{% url 'feedback:send' ticket.event.pk %}" class="btn btn-sm btn-outline-primary px-3 rounded-pill fw-medium"><i class="bi bi-star"></i> Đánh giá</a>
+            {% endif %}
           </div>
         </div>
 
@@ -165,9 +255,29 @@
     <div class="col-12">
       <div class="card card-body border-0 shadow-sm p-0">
         {% url 'events:list' as action_url %}
-        {% include "partials/empty_state.html" with icon="bi-ticket-perforated" title="Bạn chưa có vé nào" desc="Bạn chưa đăng ký tham gia sự kiện nào cả." action_url=action_url action_label="Khám phá sự kiện ngay" %}
+        {% if tab == 'history' %}
+          {% include "partials/empty_state.html" with icon="bi-clock-history" title="Chưa có vé nào đã qua" desc="Vé của sự kiện đã diễn ra hoặc đã huỷ sẽ nằm ở đây." %}
+        {% else %}
+          {% include "partials/empty_state.html" with icon="bi-ticket-perforated" title="Bạn chưa có vé sắp tới" desc="Hãy khám phá và đăng ký các sự kiện sắp diễn ra." action_url=action_url action_label="Khám phá sự kiện ngay" %}
+        {% endif %}
       </div>
     </div>
   {% endfor %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Nút sao chép số tài khoản / số tiền / nội dung chuyển khoản
+  document.querySelectorAll(".copy-btn").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(b.dataset.copy).then(function () {
+        var i = b.querySelector("i");
+        i.className = "bi bi-check2 text-success";
+        setTimeout(function () { i.className = "bi bi-copy"; }, 1500);
+      });
+    });
+  });
+</script>
 {% endblock %}

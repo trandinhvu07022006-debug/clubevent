@@ -1,61 +1,82 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}Xác nhận thanh toán{% endblock %}
 
 {% block content %}
-<h4 class="mb-1">Xác nhận thanh toán</h4>
-<p class="text-muted small">
-  F4.4 — các vé đang ở trạng thái Chờ thanh toán. Sau khi người đăng ký
-  chuyển khoản, BTC bấm xác nhận để vé có hiệu lực check-in.
-</p>
+<header class="page-header">
+  <span class="kicker">Ban tổ chức</span>
+  <h1 class="h3 fw-bold mb-1">Xác nhận thanh toán</h1>
+  <p class="text-muted small mb-0">
+    Vé chờ thanh toán được gom theo <strong>mã giao dịch</strong> — mỗi lần đặt là 1 lần chuyển khoản.
+    Đối chiếu nội dung chuyển khoản trên sao kê (dạng <span class="checkin-code">KMG XXXXXXXX</span>)
+    rồi bấm xác nhận cả nhóm.
+  </p>
+</header>
 
-<form class="row g-2 mb-3">
-  <div class="col-md-4">
-    <input name="q" value="{{ keyword }}" class="form-control"
-           placeholder="Tìm theo mã vé">
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="stat-tile"><div class="num">{{ groups|length }}</div><div class="lbl">giao dịch chờ</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-tile"><div class="num">{{ ticket_count }}</div><div class="lbl">vé chờ</div></div></div>
+  <div class="col-12 col-md-6"><div class="stat-tile"><div class="num">{{ total_amount|vnd }}đ</div><div class="lbl">tổng tiền cần đối chiếu</div></div></div>
+</div>
+
+<form class="row g-2 mb-3" role="search">
+  <div class="col-md-6">
+    <input name="q" value="{{ keyword }}" class="form-control" aria-label="Tìm giao dịch"
+           placeholder="Dán nội dung CK (KMG ABCD2345), mã vé, tên hoặc MSSV">
   </div>
   <div class="col-auto"><button class="btn btn-outline-primary">Tìm</button></div>
+  {% if keyword %}<div class="col-auto"><a href="{% url 'registrations:payment_list' %}" class="btn btn-link">Bỏ lọc</a></div>{% endif %}
 </form>
 
-<div class="card">
+<div class="card shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
-          <th>Mã vé</th>
-          <th class="text-truncate" style="max-width: 150px;">Người đăng ký</th>
-          <th class="text-truncate" style="max-width: 150px;">Sự kiện</th>
-          <th>Loại vé</th>
-          <th class="text-end">Giá</th>
+          <th>Nội dung CK</th>
+          <th>Người đặt</th>
+          <th>Sự kiện</th>
+          <th class="text-center">Số vé</th>
+          <th class="text-end">Số tiền</th>
           <th>Hạn thanh toán</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        {% for t in tickets %}
+        {% for g in groups %}
           <tr>
-            <td class="checkin-code">{{ t.code }}</td>
             <td>
-              <div class="text-truncate" style="max-width: 150px;" title="{{ t.user.full_name }}">{{ t.user.full_name }}</div>
-              <small class="text-muted">{{ t.user.mssv|default:"—" }}</small>
+              <span class="checkin-code">{{ g.content }}</span>
+              <div class="text-xs text-muted">
+                {% for t in g.tickets %}{{ t.code }}{% if not forloop.last %}, {% endif %}{% endfor %}
+              </div>
             </td>
-            <td class="text-truncate" style="max-width: 150px;" title="{{ t.event.name }}">{{ t.event.name }}</td>
-            <td class="text-truncate" style="max-width: 120px;" title="{{ t.ticket_type.name }}">{{ t.ticket_type.name }}</td>
-            <td class="text-end">{{ t.price|floatformat:0 }}đ</td>
-            <td class="small {% if t.is_payment_expired %}text-danger{% endif %}">
-              {{ t.payment_deadline|date:"H:i d/m" }}
-              {% if t.is_payment_expired %}<br>quá hạn{% endif %}
+            <td>
+              <div class="text-truncate" style="max-width: 170px;" title="{{ g.user.full_name }}">{{ g.user.full_name|default:g.user.username }}</div>
+              <small class="text-muted">{{ g.user.mssv|default:"—" }}</small>
+            </td>
+            <td>
+              <div class="text-truncate" style="max-width: 170px;" title="{{ g.event.name }}">{{ g.event.name }}</div>
+              <small class="text-muted">{{ g.ticket_type.name }}</small>
+            </td>
+            <td class="text-center">{{ g.tickets|length }}</td>
+            <td class="text-end fw-semibold">{{ g.total|vnd }}đ</td>
+            <td class="small {% if g.is_expired %}text-danger{% endif %}">
+              {{ g.deadline|date:"H:i d/m" }}
+              {% if g.is_expired %}<br>quá hạn{% endif %}
             </td>
             <td class="text-end">
-              <form method="post"
-                    action="{% url 'registrations:payment_confirm' t.pk %}">
+              <form method="post" action="{% url 'registrations:payment_confirm_booking' g.ref %}"
+                    onsubmit="return confirm('Xác nhận đã nhận {{ g.total|vnd }}đ cho {{ g.tickets|length }} vé của giao dịch {{ g.ref }}?')">
                 {% csrf_token %}
-                <button class="btn btn-sm btn-success">Đã thanh toán</button>
+                <input type="hidden" name="q" value="{{ keyword }}">
+                <button class="btn btn-sm btn-success text-nowrap"><i class="bi bi-check2"></i> Đã nhận tiền</button>
               </form>
             </td>
           </tr>
         {% empty %}
           <tr><td colspan="7" class="text-center text-muted py-4">
-            Không có vé nào chờ xác nhận.
+            {% if keyword %}Không tìm thấy giao dịch nào khớp "{{ keyword }}".{% else %}Không có giao dịch nào chờ xác nhận.{% endif %}
           </td></tr>
         {% endfor %}
       </tbody>
