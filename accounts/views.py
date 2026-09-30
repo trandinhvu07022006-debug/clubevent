@@ -11,6 +11,7 @@ from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 
 from core.pagination import paginate
+from registrations.services import attended_events, user_stats
 
 from .forms import LoginForm, ProfileForm, RegisterForm, RoleForm, AppPasswordResetForm
 from .models import AuditLog, User
@@ -50,7 +51,13 @@ def profile(request):
         form.save()
         messages.success(request, "Đã cập nhật hồ sơ.")
         return redirect("accounts:profile")
-    return render(request, "accounts/profile.html", {"form": form})
+    # F8.1 - lịch sử tham gia (sự kiện đã check-in) + chứng nhận (F8.2)
+    attended = list(attended_events(request.user))
+    return render(request, "accounts/profile.html", {
+        "form": form,
+        "attended": attended,
+        "stats": user_stats(request.user),
+    })
 
 
 class AppPasswordChangeView(PasswordChangeView):

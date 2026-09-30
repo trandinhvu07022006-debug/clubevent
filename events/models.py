@@ -12,12 +12,42 @@ from django.urls import reverse
 from django.utils import timezone
 
 
+# Sự kiện không ghi giờ kết thúc thì coi như kéo dài 2 tiếng
+DEFAULT_EVENT_HOURS = 2
+
+
 class EventStatus(models.TextChoices):
     DRAFT = "DRAFT", "Đang chuẩn bị"
     OPEN = "OPEN", "Mở đăng ký"
     CLOSED = "CLOSED", "Đóng đăng ký"
     DONE = "DONE", "Đã diễn ra"
     CANCELLED = "CANCELLED", "Đã huỷ"
+
+
+class EventCategory(models.TextChoices):
+    """
+    F2.5 - Danh mục sự kiện.
+
+    Dùng TextChoices thay vì bảng riêng: CLB rất ít khi thêm danh mục, bảng
+    riêng kéo theo CRUD và phân quyền không cần thiết.
+    """
+    MUSIC = "MUSIC", "Âm nhạc"
+    ACADEMIC = "ACADEMIC", "Học thuật"
+    VOLUNTEER = "VOLUNTEER", "Thiện nguyện"
+    SPORT = "SPORT", "Thể thao"
+    SOCIAL = "SOCIAL", "Giao lưu"
+    OTHER = "OTHER", "Khác"
+
+
+# Icon Bootstrap cho từng danh mục, dùng ở bộ lọc và thẻ sự kiện
+CATEGORY_ICONS = {
+    EventCategory.MUSIC: "bi-music-note-beamed",
+    EventCategory.ACADEMIC: "bi-mortarboard",
+    EventCategory.VOLUNTEER: "bi-heart",
+    EventCategory.SPORT: "bi-trophy",
+    EventCategory.SOCIAL: "bi-people",
+    EventCategory.OTHER: "bi-stars",
+}
 
 
 # Bảng chuyển trạng thái hợp lệ. Mọi thay đổi trạng thái đều phải đi qua đây
@@ -37,9 +67,17 @@ class Event(models.Model):
     name = models.CharField("Tên sự kiện", max_length=200)
     description = models.TextField("Mô tả", blank=True)
     location = models.CharField("Địa điểm", max_length=200)
+    category = models.CharField("Danh mục", max_length=10,
+                                choices=EventCategory.choices,
+                                default=EventCategory.OTHER, db_index=True)
     starts_at = models.DateTimeField("Thời gian diễn ra")
+    # B4 - giờ kết thúc, cần cho file lịch .ics và tính "đang diễn ra".
+    # Để trống thì coi như sự kiện kéo dài DEFAULT_EVENT_HOURS giờ.
+    ends_at = models.DateTimeField("Thời gian kết thúc", null=True, blank=True)
     register_deadline = models.DateTimeField("Hạn đăng ký")
     capacity = models.PositiveIntegerField("Sức chứa", default=100)
+    budget = models.PositiveIntegerField("Ngân sách dự kiến (VNĐ)", default=0,
+                                         help_text="Để 0 nếu chưa lập ngân sách.")
     cover = models.ImageField("Ảnh bìa", upload_to="events/", null=True, blank=True)
     status = models.CharField("Trạng thái", max_length=10,
                               choices=EventStatus.choices, default=EventStatus.DRAFT)
@@ -47,6 +85,8 @@ class Event(models.Model):
                                    on_delete=models.SET_NULL, null=True,
                                    related_name="events_created",
                                    verbose_name="Người tạo")
+    # F7.2 - đánh dấu đã gửi nhắc lịch, chặn gửi trùng khi lệnh chạy lại
+    reminder_sent_at = models.DateTimeField("Đã nhắc lịch lúc", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -75,6 +115,23 @@ class Event(models.Model):
         """F4.1 - chỉ đăng ký được khi đang Mở đăng ký và chưa quá hạn."""
         return (self.status == EventStatus.OPEN
                 and timezone.now() <= self.register_deadline)
+
+    @property
+    def category_icon(self):
+        return CATEGORY_ICONS.get(self.category, "bi-stars")
+
+    @property
+    def effective_ends_at(self):
+        """Giờ kết thúc thực tế: ends_at, hoặc mặc định sau giờ bắt đầu 2 tiếng."""
+        return self.ends_at or (self.starts_at + timezone.timedelta(
+            hours=DEFAULT_EVENT_HOURS))
+
+    @property
+    def is_happening(self):
+        """Đang diễn ra: đã tới giờ bắt đầu nhưng chưa tới giờ kết thúc."""
+        now = timezone.now()
+        return (self.status not in (EventStatus.CANCELLED, EventStatus.DRAFT)
+                and self.starts_at <= now < self.effective_ends_at)
 
     @property
     def is_past(self):

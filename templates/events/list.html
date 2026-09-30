@@ -6,12 +6,12 @@
 <div class="d-flex flex-wrap flex-lg-nowrap align-items-center gap-2 gap-lg-3 w-100 justify-content-lg-center my-2 my-lg-0">
   {% comment %} Segmented control (app.css mục 17) — màu lấy từ token, KHÔNG dùng class nền sáng cố định. {% endcomment %}
   <nav class="segmented" aria-label="Lọc theo trạng thái">
-    <a href="?{% if keyword %}q={{ keyword|urlencode }}{% endif %}"
+    <a href="?{% if keyword %}q={{ keyword|urlencode }}&{% endif %}{% if current_category %}category={{ current_category }}&{% endif %}{% if current_when %}when={{ current_when }}{% endif %}"
        class="segmented-item {% if not current_status %}active{% endif %}"
        {% if not current_status %}aria-current="page"{% endif %}>Tất cả</a>
     {% for value, label in statuses %}
       {% if value != 'DRAFT' or user.is_staff_btc %}
-        <a href="?status={{ value }}{% if keyword %}&q={{ keyword|urlencode }}{% endif %}"
+        <a href="?status={{ value }}{% if keyword %}&q={{ keyword|urlencode }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_when %}&when={{ current_when }}{% endif %}"
            class="segmented-item {% if value == current_status %}active{% endif %}"
            {% if value == current_status %}aria-current="page"{% endif %}>{{ label }}</a>
       {% endif %}
@@ -20,11 +20,13 @@
 
   <form role="search" class="topbar-search ms-lg-2">
     {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+    {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
+    {% if current_when %}<input type="hidden" name="when" value="{{ current_when }}">{% endif %}
     <div class="input-group input-group-sm search-box shadow-sm">
       {% comment %} Không gắn class màu sáng cố định: form-control của Bootstrap tự đổi màu theo theme. {% endcomment %}
       <span class="input-group-text border-end-0"><i class="bi bi-search"></i></span>
       <input name="q" value="{{ keyword }}" class="form-control border-start-0 ps-0"
-             placeholder="Tìm theo tên hoặc địa điểm" aria-label="Tìm sự kiện">
+             placeholder="Tìm tên, địa điểm, mô tả" aria-label="Tìm sự kiện">
       <button class="btn btn-primary" type="submit">Tìm</button>
     </div>
   </form>
@@ -98,22 +100,72 @@
     <h1 class="h2 fw-bold text-white mt-1 mb-1">Sự kiện của câu lạc bộ</h1>
     <p class="mb-0">Khám phá, đăng ký và theo dõi các hoạt động sắp tới của KMG Club.</p>
   </div>
-  {% if user.is_lead %}
-    <a href="{% url 'events:create' %}" class="btn btn-light fw-semibold px-4" data-on-dark-image>
-      <i class="bi bi-plus-lg"></i> Tạo sự kiện
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'events:calendar' %}" class="btn btn-outline-light fw-semibold px-3" data-on-dark-image>
+      <i class="bi bi-calendar3"></i> Xem lịch
     </a>
-  {% endif %}
+    {% if user.is_lead %}
+      <a href="{% url 'events:create' %}" class="btn btn-light fw-semibold px-4" data-on-dark-image>
+        <i class="bi bi-plus-lg"></i> Tạo sự kiện
+      </a>
+    {% endif %}
+  </div>
 </header>
 
+{% if upcoming_mine %}
+  {% comment %} Khối nhắc nhanh: sự kiện sắp tới mà người dùng đang giữ vé. {% endcomment %}
+  <section class="card border-0 shadow-sm mb-4" aria-labelledby="upcoming-mine-title">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 fw-bold mb-0" id="upcoming-mine-title"><i class="bi bi-alarm text-primary"></i> Sự kiện sắp tới của bạn</h2>
+        <a href="{% url 'registrations:my_tickets' %}" class="small text-decoration-none">Vé của tôi</a>
+      </div>
+      <div class="row g-2">
+        {% for ev in upcoming_mine %}
+          <div class="col-md-4">
+            <a href="{% url 'events:detail' ev.pk %}" class="d-flex gap-3 align-items-center p-2 rounded-3 text-decoration-none text-reset border h-100">
+              <div class="text-center flex-shrink-0" style="width: 3rem;">
+                <div class="fw-bold fs-4 lh-1">{{ ev.starts_at|date:"d" }}</div>
+                <div class="text-xs text-uppercase text-primary fw-bold">Th{{ ev.starts_at|date:"n" }}</div>
+              </div>
+              <div class="min-w-0">
+                <div class="fw-semibold text-truncate">{{ ev.name }}</div>
+                <div class="small text-secondary">{{ ev.starts_at|date:"H:i" }} · {{ ev.my_count }} vé · còn {{ ev.starts_at|khoang }}</div>
+              </div>
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+{% endif %}
 
+{% comment %} F2.5 - Danh mục + thời gian. Mỗi link giữ lại các bộ lọc còn lại. {% endcomment %}
+<div class="chip-row mb-2" role="navigation" aria-label="Lọc theo danh mục">
+  <a href="?{% if current_status %}status={{ current_status }}&{% endif %}{% if keyword %}q={{ keyword|urlencode }}&{% endif %}{% if current_when %}when={{ current_when }}{% endif %}"
+     class="chip {% if not current_category %}active{% endif %}"><i class="bi bi-grid"></i> Tất cả</a>
+  {% for value, label, icon in categories %}
+    <a href="?category={{ value }}{% if current_status %}&status={{ current_status }}{% endif %}{% if keyword %}&q={{ keyword|urlencode }}{% endif %}{% if current_when %}&when={{ current_when }}{% endif %}"
+       class="chip {% if value == current_category %}active{% endif %}"
+       {% if value == current_category %}aria-current="page"{% endif %}><i class="bi {{ icon }}"></i> {{ label }}</a>
+  {% endfor %}
+</div>
 
-<div class="d-flex justify-content-between align-items-end mb-3">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
   <div class="small text-secondary">
     <strong>{{ page_obj.paginator.count }}</strong> sự kiện
-    {% if current_status or keyword %}
+    {% if current_status or keyword or current_category or current_when %}
       · <a href="{% url 'events:list' %}" class="text-decoration-none">bỏ lọc</a>
     {% endif %}
   </div>
+  <nav class="segmented" aria-label="Lọc theo thời gian">
+    <a href="?{% if current_status %}status={{ current_status }}&{% endif %}{% if keyword %}q={{ keyword|urlencode }}&{% endif %}{% if current_category %}category={{ current_category }}{% endif %}"
+       class="segmented-item {% if not current_when %}active{% endif %}">Mọi lúc</a>
+    <a href="?when=upcoming{% if current_status %}&status={{ current_status }}{% endif %}{% if keyword %}&q={{ keyword|urlencode }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}"
+       class="segmented-item {% if current_when == 'upcoming' %}active{% endif %}">Sắp tới</a>
+    <a href="?when=past{% if current_status %}&status={{ current_status }}{% endif %}{% if keyword %}&q={{ keyword|urlencode }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}"
+       class="segmented-item {% if current_when == 'past' %}active{% endif %}">Đã qua</a>
+  </nav>
 </div>
 
 {% comment %} 3. LƯỚI SỰ KIỆN {% endcomment %}
@@ -156,6 +208,7 @@
         </div>
 
         <div class="card-body d-flex flex-column">
+          <span class="category-tag mb-1"><i class="bi {{ event.category_icon }}"></i> {{ event.get_category_display }}</span>
           <h2 class="h5 card-title mb-1 text-clamp-2">{{ event.name }}</h2>
           <p class="small text-secondary mb-3">
             <i class="bi bi-clock"></i> {{ event.starts_at|date:"H:i · D, d/m/Y" }}<br>
@@ -199,7 +252,7 @@
       <div class="card border-0 shadow-sm text-center text-secondary py-5">
         <div class="display-6 mb-2"><i class="bi bi-calendar-x"></i></div>
         <p class="mb-1 fw-semibold">Không tìm thấy sự kiện nào</p>
-        {% if current_status or keyword %}
+        {% if current_status or keyword or current_category or current_when %}
           <p class="small mb-0">Thử <a href="{% url 'events:list' %}">bỏ bộ lọc</a> để xem tất cả.</p>
         {% endif %}
       </div>

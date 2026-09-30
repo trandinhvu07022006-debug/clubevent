@@ -11,8 +11,8 @@ class TicketTypeInline(admin.TabularInline):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ("name", "status", "starts_at", "capacity", "created_by")
-    list_filter = ("status",)
+    list_display = ("name", "category", "status", "starts_at", "capacity", "created_by")
+    list_filter = ("status", "category")
     search_fields = ("name", "location")
     date_hierarchy = "starts_at"
     inlines = [TicketTypeInline]

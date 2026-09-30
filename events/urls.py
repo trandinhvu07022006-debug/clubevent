@@ -12,5 +12,10 @@ urlpatterns = [
     path("sukien/<int:pk>/trangthai/", views.event_set_status, name="set_status"),
     path("sukien/<int:pk>/loaive/them/", views.ticket_type_create, name="tt_create"),
     path("loaive/<int:pk>/xoa/", views.ticket_type_delete, name="tt_delete"),
+    path("sukien/<int:pk>/lich.ics", views.event_ics_download, name="ics"),
+    path("lich/", views.event_calendar, name="calendar"),
+    path("chungnhan/<int:pk>/", views.certificate, name="certificate"),
+    path("chungnhan/xacthuc/<str:code>/<str:token>/", views.certificate_verify,
+         name="cert_verify"),
     path("thongke/", views.dashboard, name="dashboard"),
 ]

@@ -1,0 +1,105 @@
+{% load static %}<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Giấy chứng nhận · {{ event.name }}</title>
+  <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
+  {% comment %}
+    F8.2 - Giấy chứng nhận là trang HTML in được, KHÔNG sinh PDF phía server:
+    font Be Vietnam Pro đã self-host hiển thị tiếng Việt chuẩn; người dùng bấm
+    "In / Lưu PDF" để có file PDF. Khổ A4 ngang.
+  {% endcomment %}
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}">
+  <style>
+    @page { size: A4 landscape; margin: 0; }
+    :root { --ink: #1f2330; --brand: #34477d; --gold: #a87d26; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e9e7e2; font-family: 'Be Vietnam Pro', system-ui, sans-serif; color: var(--ink); }
+    .sheet {
+      width: 297mm; height: 210mm; margin: 24px auto; background: #fffdf8;
+      position: relative; padding: 14mm; box-shadow: 0 10px 30px rgba(0,0,0,.15);
+    }
+    .frame {
+      height: 100%; border: 3px solid var(--brand); outline: 1px solid var(--gold); outline-offset: -9px;
+      padding: 12mm 18mm; display: flex; flex-direction: column; align-items: center; text-align: center;
+      position: relative;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--brand); letter-spacing: .08em; }
+    .brand img { width: 44px; height: 44px; border-radius: 10px; }
+    .title { font-size: 34pt; font-weight: 800; color: var(--brand); margin: 8mm 0 2mm; letter-spacing: .06em; }
+    .sub { font-size: 12pt; color: #555; margin: 0; }
+    .name { font-size: 30pt; font-weight: 700; color: var(--gold); margin: 7mm 0 1mm; }
+    .mssv { font-size: 12pt; color: #555; margin: 0 0 6mm; }
+    .body { font-size: 13pt; line-height: 1.6; max-width: 200mm; margin: 0; }
+    .event { font-weight: 800; font-size: 16pt; color: var(--ink); }
+    .footer { margin-top: auto; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; }
+    .verify { display: flex; align-items: flex-end; gap: 10px; text-align: left; font-size: 8.5pt; color: #666; }
+    .verify img { width: 26mm; height: 26mm; }
+    .verify-link { color: #666; font-size: 7.5pt; word-break: break-all; text-decoration: none; }
+    .verify { max-width: 120mm; }
+    .code { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--ink); }
+    .sign { text-align: center; min-width: 70mm; }
+    .sign .date { font-style: italic; color: #555; font-size: 11pt; }
+    .sign .role { font-weight: 700; margin-top: 2mm; }
+    .sign .who { margin-top: 16mm; font-weight: 700; font-size: 13pt; }
+    .actions { text-align: center; margin: 16px; }
+    .actions button, .actions a { font: inherit; padding: 10px 20px; border-radius: 10px; border: 1px solid #bbb;
+                                  background: #fff; color: var(--ink); text-decoration: none; cursor: pointer; margin: 0 4px; min-height: 44px; }
+    .actions button { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .screen-hint { text-align: center; color: #666; font-size: 13px; margin: 0 16px; }
+    /* Màn hình nhỏ: thu nhỏ tờ giấy để xem được cả trang */
+    @media screen and (max-width: 1150px) {
+      .sheet { transform: scale(calc((100vw - 32px) / 1123px)); transform-origin: top left; margin: 16px; }
+      .wrap { height: calc((100vw - 32px) * 0.707 + 32px); overflow: hidden; }
+    }
+    @media print {
+      body { background: #fff; }
+      .sheet { margin: 0; box-shadow: none; transform: none !important; }
+      .wrap { height: auto !important; }
+      .actions, .screen-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <a href="{% url 'events:detail' event.pk %}">Quay lại sự kiện</a>
+    <button type="button" onclick="window.print()">In / Lưu PDF</button>
+  </div>
+  <p class="screen-hint">Mẹo: khi lưu PDF, chọn khổ A4 ngang và tắt "Đầu trang và chân trang".</p>
+
+  <div class="wrap">
+    <div class="sheet">
+      <div class="frame">
+        <div class="brand"><img src="{% static 'img/logo.jpg' %}" alt=""> KMG CLUB</div>
+        <h1 class="title">GIẤY CHỨNG NHẬN</h1>
+        <p class="sub">THAM GIA SỰ KIỆN</p>
+        <p class="sub" style="margin-top: 6mm;">Ban tổ chức trân trọng chứng nhận</p>
+        <div class="name">{{ person.full_name|default:person.username }}</div>
+        <p class="mssv">{% if person.mssv %}MSSV: {{ person.mssv }}{% endif %}</p>
+        <p class="body">
+          đã tham gia sự kiện<br>
+          <span class="event">{{ event.name }}</span><br>
+          diễn ra ngày {{ event.starts_at|date:"d/m/Y" }} tại {{ event.location }}.
+        </p>
+
+        <div class="footer">
+          <div class="verify">
+            {% if verify_qr %}<img src="{{ verify_qr }}" alt="QR xác thực chứng nhận">{% endif %}
+            <div>
+              Mã tra cứu: <span class="code">{{ ticket.code }}</span><br>
+              Quét QR hoặc truy cập đường dẫn để xác thực:<br>
+              <a href="{{ verify_url }}" class="verify-link">{{ verify_url }}</a>
+            </div>
+          </div>
+          <div class="sign">
+            <div class="date">Ngày {{ issued_on|date:"d" }} tháng {{ issued_on|date:"m" }} năm {{ issued_on|date:"Y" }}</div>
+            <div class="role">TRƯỞNG BAN TỔ CHỨC</div>
+            <div class="who">{% if event.created_by %}{{ event.created_by.full_name|default:event.created_by.username }}{% endif %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

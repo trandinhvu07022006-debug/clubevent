@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Lịch sự kiện tháng {{ month }}/{{ year }}{% endblock %}
+
+{% block content %}
+<header class="page-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+  <div>
+    <span class="kicker">Lịch sự kiện</span>
+    <h1 class="h3 fw-bold mb-0">Tháng {{ month }}/{{ year }}</h1>
+  </div>
+  <div class="d-flex gap-2 page-header-actions">
+    <a href="?y={{ prev.y }}&m={{ prev.m }}" class="btn btn-outline-secondary btn-sm" aria-label="Tháng trước"><i class="bi bi-chevron-left"></i></a>
+    <a href="{% url 'events:calendar' %}" class="btn btn-outline-secondary btn-sm">Tháng này</a>
+    <a href="?y={{ next.y }}&m={{ next.m }}" class="btn btn-outline-secondary btn-sm" aria-label="Tháng sau"><i class="bi bi-chevron-right"></i></a>
+    <a href="{% url 'events:list' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-grid"></i> Dạng lưới</a>
+  </div>
+</header>
+
+<div class="cal-grid-wrap card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="cal-grid mb-1">
+      {% for wd in weekdays %}<div class="cal-head">{{ wd }}</div>{% endfor %}
+    </div>
+    <div class="cal-grid">
+      {% for week in weeks %}
+        {% for cell in week %}
+          {% if cell.day %}
+            <div class="cal-cell {% if cell.is_today %}is-today{% endif %}">
+              <span class="cal-day">{{ cell.day }}</span>
+              {% for ev in cell.events %}
+                <a href="{% url 'events:detail' ev.pk %}"
+                   class="cal-event {% if ev.status == 'CANCELLED' %}is-cancelled{% elif ev.status == 'DONE' %}is-done{% endif %}"
+                   title="{{ ev.starts_at|date:'H:i' }} · {{ ev.name }} · {{ ev.get_status_display }}">
+                  {{ ev.starts_at|date:"H:i" }} {{ ev.name }}
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="cal-cell is-empty" aria-hidden="true"></div>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% comment %} Màn hẹp: danh sách theo ngày thay cho lưới 7 cột. {% endcomment %}
+<div class="cal-list-mobile card border-0 shadow-sm">
+  {% for ev in month_events %}
+    <a href="{% url 'events:detail' ev.pk %}" class="icon-list-item px-3 text-decoration-none text-reset">
+      <div class="icon-list-item-icon text-center" style="width: 3rem;">
+        <div class="fw-bold fs-4 lh-1">{{ ev.starts_at|date:"d" }}</div>
+        <div class="text-xs text-uppercase text-primary fw-bold">{{ ev.starts_at|date:"D" }}</div>
+      </div>
+      <div class="icon-list-item-content">
+        <div class="icon-list-item-title {% if ev.status == 'CANCELLED' %}text-decoration-line-through{% endif %}">{{ ev.name }}</div>
+        <div class="icon-list-item-subtitle">{{ ev.starts_at|date:"H:i" }} · {{ ev.location }}</div>
+      </div>
+      <div class="icon-list-item-right"><span class="badge bg-secondary-subtle text-secondary-emphasis">{{ ev.get_status_display }}</span></div>
+    </a>
+  {% empty %}
+    {% include "partials/empty_state.html" with icon="bi-calendar-x" title="Tháng này chưa có sự kiện" %}
+  {% endfor %}
+</div>
+
+{% if not month_events %}
+  <p class="text-center text-muted small mt-3 d-none d-md-block">Tháng này chưa có sự kiện nào.</p>
+{% endif %}
+{% endblock %}

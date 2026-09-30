@@ -1,30 +1,39 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}Hồ sơ{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-6">
+<div class="row g-4">
+  <div class="col-lg-5">
     <div class="card shadow-sm">
       <div class="card-body">
         <div class="d-flex align-items-center gap-3 mb-3">
           {% include "partials/avatar.html" with person=user size="avatar-lg" %}
-          <div>
-            <h4 class="mb-1">{{ user.full_name|default:user.username }}</h4>
+          <div class="min-w-0">
+            <h1 class="h4 mb-1 text-truncate">{{ user.full_name|default:user.username }}</h1>
             <p class="text-muted small mb-0">
               {{ user.username }} · MSSV {{ user.mssv|default:"chưa có" }}<br>
               <span class="badge bg-secondary">{{ user.get_role_display }}</span>
+              <span class="text-xs ms-1">Tham gia từ {{ user.created_at|date:"m/Y" }}</span>
             </p>
           </div>
         </div>
-        <div class="mb-3">
-          <a href="{% url 'accounts:password_change' %}"
-             class="btn btn-sm btn-outline-secondary">Đổi mật khẩu</a>
+
+        <div class="row g-2 mb-3 text-center">
+          <div class="col-4"><div class="stat-tile"><div class="num">{{ stats.attended }}</div><div class="lbl">sự kiện đã dự</div></div></div>
+          <div class="col-4"><div class="stat-tile"><div class="num">{{ stats.booked }}</div><div class="lbl">vé còn hiệu lực</div></div></div>
+          <div class="col-4"><div class="stat-tile"><div class="num fs-6 pt-2">{{ stats.spent|vnd }}đ</div><div class="lbl">đã chi cho vé</div></div></div>
+        </div>
+
+        <div class="mb-3 d-flex flex-wrap gap-2">
+          <a href="{% url 'accounts:password_change' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-key"></i> Đổi mật khẩu</a>
+          <a href="{% url 'notifications:list' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-bell"></i> Thông báo</a>
         </div>
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
           {% for field in form %}
             <div class="mb-3">
-              <label class="form-label">{{ field.label }}</label>
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
               {{ field }}
               {% if field.errors %}
                 <div class="text-danger small">{{ field.errors|first }}</div>
@@ -33,6 +42,40 @@
           {% endfor %}
           <button class="btn btn-primary">Lưu thay đổi</button>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    {% comment %} F8.1 - Lịch sử tham gia + F8.2 chứng nhận cho sự kiện đã diễn ra. {% endcomment %}
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h5 fw-bold mb-0"><i class="bi bi-clock-history text-primary"></i> Lịch sử tham gia</h2>
+          <span class="badge bg-primary-subtle text-primary-emphasis">{{ attended|length }} sự kiện</span>
+        </div>
+        {% for ev in attended %}
+          <div class="icon-list-item px-0">
+            <div class="icon-list-item-icon text-center" style="width: 3rem;">
+              <div class="fw-bold fs-5 lh-1">{{ ev.starts_at|date:"d" }}</div>
+              <div class="text-xs text-uppercase text-primary fw-bold">{{ ev.starts_at|date:"m/Y" }}</div>
+            </div>
+            <div class="icon-list-item-content">
+              <div class="icon-list-item-title"><a href="{% url 'events:detail' ev.pk %}" class="text-reset">{{ ev.name }}</a></div>
+              <div class="icon-list-item-subtitle"><i class="bi {{ ev.category_icon }}"></i> {{ ev.get_category_display }} · {{ ev.location }}</div>
+            </div>
+            <div class="icon-list-item-right">
+              {% if ev.status == 'DONE' %}
+                <a href="{% url 'events:certificate' ev.pk %}" class="btn btn-sm btn-outline-warning text-nowrap"><i class="bi bi-award"></i> Chứng nhận</a>
+              {% else %}
+                <span class="small text-muted">Chứng nhận có khi sự kiện kết thúc</span>
+              {% endif %}
+            </div>
+          </div>
+        {% empty %}
+          {% url 'events:list' as action_url %}
+          {% include "partials/empty_state.html" with icon="bi-calendar-heart" title="Chưa tham gia sự kiện nào" desc="Sự kiện bạn đã check-in sẽ hiện ở đây, kèm giấy chứng nhận tham gia." action_url=action_url action_label="Khám phá sự kiện" %}
+        {% endfor %}
       </div>
     </div>
   </div>

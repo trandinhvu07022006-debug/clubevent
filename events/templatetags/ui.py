@@ -61,3 +61,30 @@ def vnd(value):
         return f"{int(value):,}".replace(",", ".")
     except (TypeError, ValueError):
         return value
+
+
+@register.filter
+def khoang(value, now=None):
+    """
+    Khoảng cách từ bây giờ tới `value` (hoặc ngược lại) bằng tiếng Việt, gọn:
+    "5 phút", "3 giờ", "2 ngày", "1 tuần 6 ngày".
+
+    Filter timesince/timeuntil có sẵn của Django dịch tiếng Việt chưa trọn
+    ("1 week, 6 days"), nên tự viết.
+    """
+    from django.utils import timezone
+    if not value:
+        return ""
+    seconds = abs(int((value - (now or timezone.now())).total_seconds()))
+    minutes, hours, days = seconds // 60, seconds // 3600, seconds // 86400
+    if days >= 7:
+        weeks, rest = divmod(days, 7)
+        return f"{weeks} tuần" + (f" {rest} ngày" if rest else "")
+    if days:
+        rest = hours - days * 24
+        return f"{days} ngày" + (f" {rest} giờ" if rest and days < 3 else "")
+    if hours:
+        return f"{hours} giờ"
+    if minutes:
+        return f"{minutes} phút"
+    return "vài giây"

@@ -27,5 +27,8 @@
   <li class="nav-item">
     <a class="nav-link {% if request.resolver_match.namespace == 'feedback' %}active{% endif %}" href="{% url 'feedback:list' event.pk %}">Phản hồi</a>
   </li>
+  <li class="nav-item">
+    <a class="nav-link {% if request.resolver_match.url_name == 'budget' %}active{% endif %}" href="{% url 'organizing:budget' event.pk %}">Ngân sách</a>
+  </li>
   {% endif %}
 </ul>
