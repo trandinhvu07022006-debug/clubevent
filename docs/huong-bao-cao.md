@@ -86,7 +86,7 @@ Khung báo cáo cho môn **Công nghệ phần mềm**. Mỗi chương ghi: nên
 | Loại kiểm thử | Số liệu | Nguồn |
 |---|---|---|
 | Unit + integration test | **233 test, 100% pass** | `python manage.py test` |
-| Độ phủ code | **86%** | `coverage run manage.py test` + `coverage report` |
+| Độ phủ code | **87%** | `coverage run manage.py test` + `coverage report` |
 | Race condition | 2 người đặt chỗ cuối, **10/10 lần đúng** | `RaceConditionTests` + đo trên file SQLite |
 | Kiểm thử theo vai người dùng qua HTTP | **69/69 bước đạt**, 6 vai | kịch bản UAT (Khách, Thành viên, BTC, Trưởng BTC, Admin, Hệ thống) |
 | Kiểm thử bảo mật | Vượt quyền, IDOR, CSRF qua GET, open redirect, XSS | `core/test_quality.py`, `notifications/test_views.py` |

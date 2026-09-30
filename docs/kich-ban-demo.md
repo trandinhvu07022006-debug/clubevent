@@ -39,7 +39,7 @@ Chuẩn bị trước buổi demo, các "khoảnh khắc wow" và cách xử lý
 | 11 | D | Mở sự kiện Minishow Tròn, gửi đánh giá 5 sao | "Chỉ người đã check-in mới được đánh giá" |
 | 12 | B | Vào **Phản hồi & thống kê**, bấm **AI tóm tắt phản hồi** | "AI đọc 9 phản hồi, tách ra điểm khen, điểm chê, đề xuất cải thiện. Không gửi kèm tên hay MSSV" |
 | 13 | D | Mở **Trợ lý**, hỏi "còn vé không" và "việc của tôi có gì" | "Trợ lý này KHÔNG dùng AI sinh ngôn ngữ. Nó nhận diện ý định bằng từ khoá rồi tra thẳng DB, nên không bao giờ bịa thông tin và chạy được cả khi không có mạng ra ngoài" |
-| 14 | A | Mở **Thống kê tổng hợp** xem biểu đồ, rồi mở Git log + bảng test case + RTM (30s) | "233 test tự động, độ phủ 86%, kiểm thử theo vai 69/69 bước; mã test khớp với bảng test case trong báo cáo" |
+| 14 | A | Mở **Thống kê tổng hợp** xem biểu đồ, rồi mở Git log + bảng test case + RTM (30s) | "233 test tự động, độ phủ 87%, kiểm thử theo vai 69/69 bước; mã test khớp với bảng test case trong báo cáo" |
 
 ### Phần mở rộng (chọn nếu còn thời gian)
 

@@ -111,7 +111,7 @@ Khi trình bày hoặc viết báo cáo, **mỗi điểm mạnh đi kèm một b
 |---|---|---|
 | 1 | **Giải quyết đúng vấn đề thật của CLB**: trọn vòng đời sự kiện từ chuẩn bị (giao việc) → bán vé → check-in → phản hồi → thống kê → chứng nhận, thay cho Google Form + Excel + Zalo rời rạc | Phần 1; kịch bản demo đi hết vòng đời trong 10 phút |
 | 2 | **Không bán vượt chỗ khi nhiều người đặt cùng lúc** (race condition) | Demo 2 trình duyệt cùng đặt chỗ cuối; đo 10/10 lần đúng; `RaceConditionTests` |
-| 3 | **Kiểm thử bài bản, có số liệu** | **233 test tự động** (100% pass), **độ phủ code 86%**, kiểm thử theo vai người dùng **69/69 bước**, mã test khớp bảng test case / RTM |
+| 3 | **Kiểm thử bài bản, có số liệu** | **233 test tự động** (100% pass), **độ phủ code 87%**, kiểm thử theo vai người dùng **69/69 bước**, mã test khớp bảng test case / RTM |
 | 4 | **Bảo mật được kiểm chứng**, không chỉ ẩn nút | Test: vượt quyền → 403, xem dữ liệu người khác → 404, thao tác qua link giả → 405, chống XSS, chống chuyển hướng sang trang lạ, tài khoản bị khoá bị đăng xuất ngay |
 | 5 | **Kiến trúc rõ ràng** 3 tầng View – Service – Model, 4 máy trạng thái (sự kiện, vé, lượt chờ, công việc) | `*/services.py`; `ALLOWED_TRANSITIONS` trong `events/models.py` |
 | 6 | **Tự động hoá giảm việc tay cho BTC**: tự huỷ vé quá hạn, tự cấp vé từ danh sách chờ, tự nhắc lịch, xác nhận thanh toán theo nhóm | `run_periodic`; demo danh sách chờ |
@@ -158,7 +158,7 @@ mở rộng). Nguyên tắc:
    cột "Nói gì" trong kịch bản.
 4. **Chủ động cho thấy bảo mật**: gõ thẳng URL trang quản trị bằng tài khoản
    thường → 403.
-5. **Kết thúc bằng số liệu**: màn hình 233 test pass, độ phủ 86%, bảng test
+5. **Kết thúc bằng số liệu**: màn hình 233 test pass, độ phủ 87%, bảng test
    case / RTM, Git log có nhánh + Pull Request.
 6. **Mỗi thành viên thao tác ít nhất 1 lần** để ai cũng trả lời được câu hỏi.
 
@@ -182,6 +182,6 @@ mở rộng). Nguyên tắc:
 | Chứng nhận có làm giả được không? | Mã xác thực là chữ ký HMAC theo khoá bí mật của server; sửa 1 ký tự là trang xác thực báo không hợp lệ |
 | AI lỗi thì sao? Có gửi dữ liệu cá nhân cho AI không? | Có danh sách mặc định; chỉ gửi nội dung đánh giá, không gửi tên/MSSV |
 | Nhóm dùng AI thế nào? | Trả lời thật theo `docs/khai-bao-su-dung-ai.md`: công cụ gì, phần nào, nhóm kiểm tra và hiểu code ra sao |
-| Test được bao nhiêu? | 233 test tự động, độ phủ 86%, kiểm thử theo vai 69/69 bước, mã test khớp RTM |
+| Test được bao nhiêu? | 233 test tự động, độ phủ 87%, kiểm thử theo vai 69/69 bước, mã test khớp RTM |
 
 Chi tiết từng câu và câu hỏi theo module: `docs/giai-thich-code.md`.
