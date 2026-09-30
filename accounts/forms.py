@@ -2,10 +2,14 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, PasswordResetForm
 
+from core.images import shrink_image
+
 from .models import Role, User
 
 # Class CSS Bootstrap gắn chung cho mọi input
 CTRL = {"class": "form-control"}
+
+AVATAR_MAX_BYTES = 2 * 1024 * 1024
 
 
 class RegisterForm(UserCreationForm):
@@ -29,8 +33,9 @@ class RegisterForm(UserCreationForm):
             self.fields[name].widget.attrs.update(CTRL)
 
     def clean_mssv(self):
-        mssv = self.cleaned_data["mssv"].strip()
-        if User.objects.filter(mssv=mssv).exists():
+        # Chuẩn hoá chữ hoa: "at190001" và "AT190001" là cùng một sinh viên
+        mssv = self.cleaned_data["mssv"].strip().upper()
+        if User.objects.filter(mssv__iexact=mssv).exists():
             raise forms.ValidationError("MSSV này đã được đăng ký.")
         return mssv
 
@@ -73,8 +78,16 @@ class ProfileForm(forms.ModelForm):
         widgets = {
             "full_name": forms.TextInput(attrs=CTRL),
             "phone": forms.TextInput(attrs=CTRL),
-            "avatar": forms.ClearableFileInput(attrs={"class": "form-control"}),
+            "avatar": forms.ClearableFileInput(attrs={"class": "form-control",
+                                                      "accept": "image/*"}),
         }
+
+    def clean_avatar(self):
+        """Giới hạn ảnh đại diện 2 MB — host miễn phí có dung lượng rất hạn chế."""
+        avatar = self.cleaned_data.get("avatar")
+        if avatar and getattr(avatar, "size", 0) > AVATAR_MAX_BYTES:
+            raise forms.ValidationError("Ảnh đại diện tối đa 2 MB.")
+        return shrink_image(avatar, 400)
 
 
 class RoleForm(forms.ModelForm):

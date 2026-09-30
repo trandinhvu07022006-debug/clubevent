@@ -136,6 +136,10 @@ def user_list(request):
 def user_set_role(request, pk):
     """F1.4 - Admin gán role. Ghi audit log vì đây là thao tác quan trọng."""
     target = get_object_or_404(User, pk=pk)
+    # Tự hạ quyền của chính mình có thể làm hệ thống không còn Admin nào
+    if target == request.user:
+        messages.error(request, "Không thể tự đổi vai trò của chính mình.")
+        return redirect("accounts:user_list")
     form = RoleForm(request.POST or None, instance=target)
     if request.method == "POST" and form.is_valid():
         old_role = target.get_role_display()

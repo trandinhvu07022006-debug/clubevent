@@ -2,6 +2,8 @@
 from django import forms
 from django.utils import timezone
 
+from core.images import shrink_image
+
 from .models import Event, TicketType
 
 CTRL = {"class": "form-control"}
@@ -28,6 +30,12 @@ class EventForm(forms.ModelForm):
             "cover": forms.ClearableFileInput(attrs={"class": "form-control"}),
         }
 
+    def clean_cover(self):
+        cover = self.cleaned_data.get("cover")
+        if cover and getattr(cover, "size", 0) > 5 * 1024 * 1024:
+            raise forms.ValidationError("Ảnh bìa tối đa 5 MB.")
+        return shrink_image(cover, 1600)
+
     def clean(self):
         """Ràng buộc: hạn đăng ký phải trước giờ diễn ra."""
         data = super().clean()
@@ -35,6 +43,14 @@ class EventForm(forms.ModelForm):
         if starts_at and deadline and deadline > starts_at:
             self.add_error("register_deadline",
                            "Hạn đăng ký phải trước thời gian diễn ra sự kiện.")
+        # Sức chứa không được nhỏ hơn tổng số vé các loại đã mở
+        capacity = data.get("capacity")
+        if capacity and self.instance.pk:
+            total_quota = sum(t.quota for t in self.instance.ticket_types.all())
+            if capacity < total_quota:
+                self.add_error("capacity",
+                               f"Các loại vé đang chiếm {total_quota} chỗ, sức chứa "
+                               f"không được nhỏ hơn số này.")
         # B4 - giờ kết thúc phải sau giờ bắt đầu
         ends_at = data.get("ends_at")
         if starts_at and ends_at and ends_at <= starts_at:

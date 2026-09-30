@@ -160,6 +160,7 @@ def waitlist_leave(request, pk):
     return redirect("registrations:my_tickets")
 
 
+@require_POST
 @login_required
 def cancel(request, pk):
     """F4.3 - Huỷ vé, trả lại chỗ cho người khác."""
@@ -203,6 +204,7 @@ def payment_confirm_booking(request, ref):
     return redirect(f"{url}?{urlencode({'q': keyword})}" if keyword else url)
 
 
+@require_POST
 @staff_required
 def payment_confirm(request, pk):
     """F4.4 - Xác nhận một vé đã thanh toán."""

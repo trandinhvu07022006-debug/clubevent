@@ -54,7 +54,7 @@ quả giống nhau) và **giá trị biên** (thử ở ranh giới, nơi lỗi 
 | TC01-3 | TV BTC gõ URL tạo sự kiện | 403 Forbidden | `test_staff_cannot_open_lead_pages` |
 | TC01-4 | TV BTC vào trang xác nhận thanh toán | 200 OK | `test_staff_can_open_payment_page` |
 | TC01-5 | Trưởng BTC vào trang quản lý tài khoản | 403 (chỉ Admin) | `test_only_admin_can_manage_accounts` |
-| TC01-6 | Tài khoản bị khoá, đúng role | 403 Forbidden | `test_locked_account_is_blocked` |
+| TC01-6 | Tài khoản bị khoá khi đang đăng nhập | Bị đăng xuất ngay, về trang đăng nhập | `test_locked_account_is_blocked` |
 | TC01-7 | Kiểm tra mật khẩu trong DB | Đã băm, không phải chuỗi thô | `test_password_is_hashed` |
 
 ## M2 - Máy trạng thái sự kiện (F2.4)
@@ -246,6 +246,22 @@ quota.
 | NS.1 | Thu/chi/lãi lỗ | Thu = vé đã xác nhận + check-in | `test_summary` |
 | NS.2 | Thành viên vào trang ngân sách | 403 | `test_member_forbidden` |
 | NS.3 | Trưởng BTC thêm/xoá khoản chi, xuất CSV | Chạy đúng | `test_lead_crud_and_csv` |
+
+## Rà soát chất lượng — lỗi hồi quy (`core/test_quality.py`)
+
+| Mã | Lỗi đã sửa | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| QA-1 | Thống kê tổng hợp nhân số liệu khi JOIN vé × phản hồi × công việc (code cũ báo 36 thay vì 3) | Số vé, doanh thu, số phản hồi đúng | `test_counts_not_multiplied_by_feedback_and_tasks` |
+| QA-2 | Thống kê tổng hợp lệch thống kê từng sự kiện | Hai nơi ra cùng con số | `test_dashboard_matches_event_statistics` |
+| QA-3 | Tài khoản bị khoá vẫn dùng được phiên đang mở | Bị đăng xuất, không đặt vé được | `test_locked_member_is_logged_out_on_next_request` |
+| QA-4 | Huỷ vé bằng GET (CSRF qua đường link) | 405, vé không đổi | `test_cancel_ticket_get_405` |
+| QA-5 | Xác nhận TT, đổi trạng thái việc, AI tóm tắt, xoá loại vé bằng GET | 405 | `test_other_mutations_get_405` |
+| QA-6 | Admin tự đổi vai trò của mình | Bị chặn | `test_admin_cannot_change_own_role` |
+| QA-7 | MSSV trùng khác hoa/thường | Bị chặn | `test_mssv_duplicate_case_insensitive` |
+| QA-8 | Ảnh đại diện không giới hạn dung lượng | > 2 MB bị từ chối | `test_avatar_over_2mb_rejected` |
+| QA-9 | Sức chứa nhỏ hơn tổng số vé | Form báo lỗi | `test_capacity_below_ticket_quota_rejected` |
+| QA-10 | Thêm loại vé cho sự kiện đã diễn ra (chỉ ẩn nút) | Server chặn | `test_cannot_add_ticket_type_to_done_event` |
+| QA-11 | API trợ lý nhận JSON không phải object → 500 | 400 | `test_non_object_json_is_400` |
 
 ---
 

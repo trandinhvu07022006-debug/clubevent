@@ -179,6 +179,10 @@ def event_set_status(request, pk):
 def ticket_type_create(request, pk):
     """F2.2 - Thêm loại vé cho sự kiện."""
     event = get_object_or_404(Event, pk=pk)
+    # Chặn ở server, không chỉ ẩn nút trên giao diện
+    if event.status in (EventStatus.CANCELLED, EventStatus.DONE):
+        messages.error(request, "Không thêm loại vé cho sự kiện đã huỷ hoặc đã diễn ra.")
+        return redirect("events:detail", pk=pk)
     form = TicketTypeForm(request.POST or None, event=event)
     if request.method == "POST" and form.is_valid():
         ticket_type = form.save(commit=False)
@@ -190,9 +194,10 @@ def ticket_type_create(request, pk):
                   {"form": form, "event": event})
 
 
+@require_POST
 @lead_required
 def ticket_type_delete(request, pk):
-    """Xoá loại vé. Không xoá được nếu đã có người đặt."""
+    """Xoá loại vé. Không xoá được nếu đã có người đặt. Bắt buộc POST (chống CSRF qua link)."""
     from .models import TicketType
 
     ticket_type = get_object_or_404(TicketType, pk=pk)

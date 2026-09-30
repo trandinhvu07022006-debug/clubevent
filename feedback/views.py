@@ -2,6 +2,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from accounts.permissions import lead_required
 from aiassist.services import summarize_feedback
@@ -58,6 +59,7 @@ def feedback_list(request, event_id):
     })
 
 
+@require_POST
 @lead_required
 def ai_summarize(request, event_id):
     """

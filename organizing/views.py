@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from accounts.models import Role, User
 from accounts.permissions import lead_required, staff_required
 from aiassist.services import suggest_tasks
+from core.images import shrink_image
 from events.models import Event, EventStatus
 from events.services import budget_summary
 
@@ -102,6 +103,13 @@ class ExpenseForm(forms.ModelForm):
         self.fields["paid_by"].queryset = User.objects.filter(
             role__in=[Role.STAFF, Role.LEAD, Role.ADMIN])
         self.fields["paid_by"].required = False
+
+    def clean_receipt(self):
+        receipt = self.cleaned_data.get("receipt")
+        if receipt and getattr(receipt, "size", 0) > 5 * 1024 * 1024:
+            raise forms.ValidationError("Ảnh hoá đơn tối đa 5 MB.")
+        # Hoá đơn cần đọc được chữ nên giữ độ phân giải cao hơn
+        return shrink_image(receipt, 2000, quality=85)
 
 
 @lead_required
@@ -237,6 +245,7 @@ def my_tasks(request):
     })
 
 
+@require_POST
 @staff_required
 def task_set_status(request, pk):
     """F3.4 - Cập nhật tiến độ. Chỉ người phụ trách hoặc Trưởng BTC được đổi."""

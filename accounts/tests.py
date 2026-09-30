@@ -91,13 +91,20 @@ class UrlPermissionTests(TestCase):
             self.client.get(reverse("accounts:user_list")).status_code, 200)
 
     def test_locked_account_is_blocked(self):
-        """Tài khoản bị khoá -> không vào được dù đúng role."""
+        """
+        Tài khoản bị khoá -> không vào được dù đúng role.
+
+        LockedUserMiddleware đăng xuất ngay và chuyển về trang đăng nhập (chặt
+        hơn 403: phiên bị huỷ nên mọi trang khác cũng không dùng được nữa).
+        """
         self.lead.is_locked = True
         self.lead.save()
 
-        self.client.login(username="truong", password="matkhau123")
+        self.client.force_login(self.lead)
         response = self.client.get(reverse("events:create"))
-        self.assertEqual(response.status_code, 403)
+        self.assertRedirects(response, reverse("accounts:login"),
+                             fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
 
 
 class PasswordHashTests(TestCase):

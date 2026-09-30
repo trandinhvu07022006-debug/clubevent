@@ -78,6 +78,10 @@ def chat_api(request):
 
     try:
         payload = json.loads(request.body.decode("utf-8"))
+        # Body là JSON hợp lệ nhưng không phải object (vd "[1,2]") thì
+        # payload.get sẽ ném AttributeError -> lỗi 500. Chặn ở đây.
+        if not isinstance(payload, dict):
+            raise ValueError
         question = str(payload.get("question", ""))[:500]
     except (ValueError, UnicodeDecodeError):
         return JsonResponse({"error": "Dữ liệu gửi lên không hợp lệ."},

@@ -75,6 +75,9 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    # Đăng xuất ngay tài khoản bị khoá. Phải đứng sau Authentication (cần
+    # request.user) và Message (để báo lý do cho người dùng).
+    "accounts.middleware.LockedUserMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -130,6 +133,10 @@ if DB_ENGINE == "sqlite":
                 # Chờ tối đa 20 giây khi DB đang bận thay vì báo lỗi ngay
                 "timeout": 20,
             },
+            # DB test dùng FILE thật thay vì bộ nhớ: SQLite trong bộ nhớ dùng cơ
+            # chế khoá khác ("table is locked"), khi đó test race condition
+            # không kiểm được đúng cấu hình IMMEDIATE ở trên.
+            "TEST": {"NAME": BASE_DIR / "test_db.sqlite3"},
         }
     }
 elif DB_ENGINE == "postgres":
