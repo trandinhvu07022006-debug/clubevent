@@ -30,10 +30,13 @@ python manage.py runserver
 
 Mở http://127.0.0.1:8000
 
-### Chạy với MySQL (dùng khi demo chính thức)
+### Chạy với MySQL (không bắt buộc)
 
-Bắt buộc dùng MySQL khi demo, vì phần chống race condition
-(`SELECT ... FOR UPDATE`) chỉ hoạt động đúng trên MySQL/PostgreSQL.
+SQLite đã đủ để chạy và demo mọi chức năng, **kể cả race condition**: SQLite
+được cấu hình `transaction_mode=IMMEDIATE`, nên 2 người cùng đặt chỗ cuối thì
+chỉ 1 người thành công, người kia nhận "hết chỗ" (đã đo 10/10 lần). Khác biệt
+duy nhất khi trình bày: SQLite khoá cả file DB, còn MySQL khoá đúng dòng loại vé
+bằng `SELECT ... FOR UPDATE`. Muốn demo đúng cơ chế khoá dòng thì dùng MySQL:
 
 ```bash
 # 1. Tạo database trong MySQL
@@ -69,9 +72,23 @@ Mật khẩu chung: **`demo1234`**
 |---|---|---|
 | Acoustic Night #5 | Mở đăng ký, còn nhiều chỗ | Đặt vé, giới hạn 4 vé, công việc BTC |
 | Workshop Guitar | Mở đăng ký, **còn đúng 1 chỗ** | **Race condition** — 2 người cùng đặt chỗ cuối |
-| Minishow Tròn | Đã diễn ra | Thống kê, phản hồi, AI tóm tắt |
+| Minishow Tròn | Đã diễn ra | Thống kê, phản hồi, AI tóm tắt, ngân sách, giấy chứng nhận (`thanhvien` đã check-in) |
+| Giao lưu Guitar liên CLB | Mở đăng ký, **hết vé** | Danh sách chờ (đã có 3 người chờ) |
 
 Nạp lại từ đầu: `python manage.py seed_demo --reset`
+
+---
+
+## Tính năng chính
+
+| Nhóm | Chức năng |
+|---|---|
+| Sự kiện | Máy trạng thái, loại vé, **danh mục** + lọc kết hợp, **lịch tháng**, giờ kết thúc, **tải file lịch `.ics`**, chia sẻ link |
+| Vé | Đặt vé chống race condition, **mã giao dịch nhóm + VietQR** chuyển khoản, **danh sách chờ tự cấp vé**, in vé / lưu PDF, huỷ vé |
+| BTC | Xác nhận thanh toán **theo nhóm** (tìm theo nội dung CK), check-in bằng **camera QR** + bảng điểm danh cập nhật 5 giây, công việc Kanban + AI gợi ý, **ngân sách thu–chi** + CSV |
+| Thông báo | **Chuông trong app** + email: đặt vé, xác nhận, hết hạn, huỷ sự kiện, cấp vé từ danh sách chờ, **nhắc lịch 24h**, giao việc |
+| Thành viên | Hồ sơ + **lịch sử tham gia**, **giấy chứng nhận** in A4 có QR xác thực công khai, gửi đánh giá |
+| Quản trị | Phân quyền 4 vai trò, khoá tài khoản, nhật ký thao tác, thống kê tổng hợp |
 
 ---
 
@@ -83,7 +100,7 @@ Hệ thống chạy bình thường khi không có AI — sẽ dùng danh sách 
 ```
 AI_PROVIDER=gemini
 AI_API_KEY=<key của bạn>
-AI_MODEL=gemini-2.0-flash
+AI_MODEL=gemini-3.6-flash
 ```
 
 Hoặc dùng OpenAI: `AI_PROVIDER=openai`, `AI_MODEL=gpt-4o-mini`.
@@ -138,7 +155,7 @@ dựng HTTP request.
 ## 4. Kiểm thử
 
 ```bash
-python manage.py test                 # chạy toàn bộ 83 test
+python manage.py test                 # chạy toàn bộ 200 test
 python manage.py test registrations   # chỉ test đặt vé và check-in
 python manage.py test aiassist        # chỉ test AI và trợ lý tra cứu
 ```
@@ -181,16 +198,22 @@ Máy trạng thái:
 ```bash
 python manage.py seed_demo            # nạp dữ liệu demo
 python manage.py seed_demo --reset    # xoá hết rồi nạp lại
-python manage.py release_expired      # huỷ vé quá hạn thanh toán, trả lại chỗ
+python manage.py run_periodic         # tác vụ định kỳ: huỷ vé quá hạn, dọn danh sách chờ,
+                                      # nhắc lịch 24h, xoá thông báo cũ (chạy mỗi 15 phút)
+python manage.py release_expired      # chỉ huỷ vé quá hạn thanh toán, trả lại chỗ
+python manage.py send_reminders       # chỉ gửi nhắc lịch
 python manage.py createsuperuser      # tạo tài khoản vào /admin/
 python manage.py collectstatic        # gom file static, chỉ cần khi deploy
 ```
 
-Khi deploy thật, đưa `release_expired` vào cron chạy mỗi giờ:
+Khi deploy thật, đưa `run_periodic` vào cron chạy mỗi 15 phút:
 
 ```
-0 * * * * cd /duong/dan/du-an && python manage.py release_expired
+*/15 * * * * cd /duong/dan/du-an && python manage.py run_periodic
 ```
+
+> **Cảnh báo:** đổi `SECRET_KEY` sẽ làm **mọi giấy chứng nhận đã cấp mất hiệu
+> lực xác thực** (mã xác thực là chữ ký theo khoá này). Không đổi khoá tuỳ tiện.
 
 ---
 

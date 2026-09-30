@@ -144,11 +144,114 @@ quota.
 | T1.4.6 | Gửi 6 yêu cầu trong 1 giờ | Chỉ 5 mail | `test_t146_rate_limit` |
 | T1.4.7 | Email viết hoa | Vẫn nhận mail | `test_t147_case_insensitive_email` |
 
+## Mã giao dịch nhóm + VietQR (F4.7) — `registrations/test_features.py`
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T4.7.1 | `crc16_ccitt("123456789")` | `"29B1"` | `test_t4_7_1_crc_check_value` |
+| T4.7.2 | `tlv("00","01")` | `"000201"` | `test_t4_7_2_tlv` |
+| T4.7.3 | Đặt 3 vé một lần | Cả 3 cùng `booking_ref` | `test_t4_7_3_same_ref_in_one_booking` |
+| T4.7.4 | Hai lần đặt khác nhau | `booking_ref` khác nhau | `test_t4_7_4_different_bookings_different_refs` |
+| T4.7.5 | `confirm_booking` | Mọi vé PENDING của nhóm → CONFIRMED, 1 AuditLog | `test_t4_7_5_confirm_booking_confirms_group` |
+| T4.7.6 | Nhóm có 1 vé đã huỷ | Chỉ xác nhận vé còn PENDING | `test_t4_7_6_confirm_booking_skips_cancelled` |
+| T4.7.7 | Thiếu `BANK_BIN` | Trang vé render bình thường, không có QR | `test_t4_7_7_my_tickets_renders_without_bank` |
+| T4.7.8 | Data migration | Không còn vé nào `booking_ref == ""` | `test_t4_7_8_data_migration_leaves_no_empty_ref` |
+| Thủ công | Quét VietQR bằng app ngân hàng thật | App hiện đúng STK, tên, số tiền, nội dung | — (phải thử trước khi demo) |
+
+## Thông báo theo nghiệp vụ (F7.1)
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T7.1.1 | Đặt vé miễn phí | 1 thông báo "đã xác nhận" + 1 mail | `test_t7_1_1_free_booking_notifies` |
+| T7.1.2 | Đặt vé có phí | Mail có nội dung CK, số tiền, STK | `test_t7_1_2_paid_booking_email_has_transfer_content` |
+| T7.1.3 | BTC xác nhận | Đúng 1 mail cho người đặt | `test_t7_1_3_confirm_payment_notifies_once` |
+| T7.1.4 | 3 vé cùng người tự huỷ | Gộp thành 1 thông báo, 1 mail | `test_t7_1_4_expired_grouped_per_user` |
+| T7.1.5 | Huỷ sự kiện, 1 người giữ 4 vé | Mỗi người đúng 1 mail | `test_t7_1_5_cancel_event_one_mail_per_user` |
+| T7.1.6 | Được giao việc | Chỉ báo khi người phụ trách đổi, không báo tự giao | `test_notify_only_when_assignee_changes_and_not_self` |
+| T7.1.7 | Đặt vé lỗi (rollback) | 0 thông báo, 0 mail | `test_no_notification_when_booking_rolls_back` |
+
+## Danh sách chờ (F4.8)
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T4.8.1 | Vào chờ khi còn chỗ | Lỗi "vẫn còn chỗ" | `test_t4_8_1_cannot_wait_when_seats_left` |
+| T4.8.2 | Vào chờ 2 lần cùng loại vé | Lần 2 lỗi | `test_t4_8_2_cannot_wait_twice` |
+| T4.8.3 | 3 vé + 1 lượt chờ, xin chờ thêm | Lỗi giới hạn | `test_t4_8_3_limit_counts_waiting` |
+| T4.8.4 | A, B, C chờ; 1 vé bị huỷ | A được vé, B vị trí 1, C vị trí 2 | `test_t4_8_4_first_in_line_gets_ticket` |
+| T4.8.5-6 | Vé có phí cấp cho người chờ rồi hết hạn TT | Vé PENDING có mã GD; hết hạn → B tự được cấp | `test_t4_8_5_and_6_paid_promotion_then_expiry_moves_on` |
+| T4.8.7 | Người đầu hàng bị khoá | SKIPPED, người kế tiếp được vé | `test_t4_8_7_locked_user_skipped` |
+| T4.8.8 | Người đầu hàng đã đủ 4 vé | SKIPPED, người kế tiếp được vé | `test_t4_8_8_user_with_max_tickets_skipped` |
+| T4.8.9 | Huỷ vé sau hạn đăng ký | Không cấp cho ai | `test_t4_8_9_no_promotion_after_deadline` |
+| T4.8.10 | Huỷ sự kiện | Mọi lượt chờ → CANCELLED, có thông báo | `test_t4_8_10_cancel_event_cancels_waitlist` |
+| T4.8.11 | `sold` sau mọi kịch bản | Bằng số vé còn hiệu lực thật | `assert_sold_consistent` (gọi trong các test trên) |
+| T4.8.12 | 2 luồng cùng huỷ vé đồng thời | Chưa tự động hoá — chạy thủ công trên MySQL | — |
+
+## Hạn thanh toán (B2), check-in (F5.3, F5.4)
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| B2.1 | Đặt vé 2 giờ trước giờ diễn ra | Hạn TT không vượt giờ diễn ra | `test_b2_deadline_capped_at_event_start` |
+| B2.2 | Chạy dọn sau giờ diễn ra | Vé PENDING bị huỷ dù chưa đủ 24h | `test_b2_expired_after_event_start_even_if_under_24h` |
+| T5.3.6 | Body không phải JSON object | 400, `result=INVALID` | `test_t5_3_6_scan_non_object_json_is_400` |
+| T5.4.1 | Tiến độ sau check-in | `done/total`, theo loại vé, lượt gần nhất | `test_t5_4_1_progress_by_type_and_recent` |
+| T5.4.2 | Thành viên gọi API tiến độ | 403 | `test_t5_4_2_member_blocked` |
+
+## Nhắc lịch (F7.2) — `events/test_features.py`
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T7.2.1 | Sự kiện sau 20h | Được nhắc | `test_t7_2_1_event_in_20h_is_reminded` |
+| T7.2.2 | Sự kiện sau 30h | Chưa nhắc | `test_t7_2_2_event_in_30h_not_yet` |
+| T7.2.3 | Chạy lệnh 2 lần | Chỉ 1 lượt mail | `test_t7_2_3_run_twice_sends_once` |
+| T7.2.4 | Vé PENDING | Không nhắc | `test_t7_2_4_pending_ticket_not_reminded` |
+| T7.2.5 | Người có 3 vé | 1 mail | `test_t7_2_5_three_tickets_one_mail` |
+
+## Chuông thông báo (F7.3) — `notifications/test_views.py`
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T7.3.1 | 12 thông báo chưa đọc | Badge hiện "9+" | `test_t7_3_1_badge_count` |
+| T7.3.2 | Mở thông báo của người khác | 404 | `test_t7_3_2_open_other_users_notification_404` |
+| T7.3.3 | `url="https://evil.com"` | Không chuyển ra ngoài | `test_t7_3_3_no_open_redirect` |
+| T7.3.4 | Khách vào trang chủ | Không truy vấn bảng thông báo | `test_t7_3_4_guest_home_no_notification_queries` |
+
+## File lịch .ics (F7.4), danh mục (F2.5)
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T7.4.1 | Xuống dòng | CRLF | `test_t7_4_1_crlf` |
+| T7.4.2 | Tên có `,` `;` | Được thoát | `test_t7_4_2_escape_comma_semicolon` |
+| T7.4.3 | Tiếng Việt dài | Không dòng nào > 75 byte, giải mã UTF-8 được | `test_t7_4_3_lines_max_75_bytes_and_utf8` |
+| T7.4.4 | Bản nháp, khách tải | 404 | `test_t7_4_4_draft_hidden_from_guest` |
+| T2.5.1 | Lọc `category` | Đúng sự kiện | `test_filter_category` |
+| T2.5.2 | Kết hợp `category` + `status` + `q` | Đúng giao | `test_combine_three_params` |
+| T2.5.3 | Tham số lạ | Bỏ qua, không lỗi | `test_unknown_params_ignored` |
+| B4 | Giờ kết thúc trước giờ bắt đầu | Form báo lỗi | `test_ends_before_start_rejected` |
+
+## Lịch sử tham gia & chứng nhận (F8.1, F8.2)
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| T8.1.1 | Hồ sơ người có 2 vé check-in cùng sự kiện | Hiện 1 dòng | `test_t8_1_profile_history` |
+| T8.2.1 | Chưa check-in | 404 | `test_t8_2_1_not_checked_in_404` |
+| T8.2.2 | Sự kiện chưa DONE | 404 | `test_t8_2_2_event_not_done_404` |
+| T8.2.3 | Token đúng | Xác thực OK | `test_t8_2_3_valid_token` |
+| T8.2.4 | Sửa 1 ký tự token | "Không xác thực được" | `test_t8_2_4_tampered_token` |
+| T8.2.5 | Trang xác thực | Không có email/SĐT, MSSV đã che | `test_t8_2_5_public_page_minimal_data` |
+
+## Ngân sách sự kiện
+
+| Mã | Tình huống | Kết quả mong đợi | Hàm test |
+|---|---|---|---|
+| NS.1 | Thu/chi/lãi lỗ | Thu = vé đã xác nhận + check-in | `test_summary` |
+| NS.2 | Thành viên vào trang ngân sách | 403 | `test_member_forbidden` |
+| NS.3 | Trưởng BTC thêm/xoá khoản chi, xuất CSV | Chạy đúng | `test_lead_crud_and_csv` |
+
 ---
 
 ## Tổng kết
 
-104 test case, chạy bằng `python manage.py test`. Tất cả đều pass.
+200 test, chạy bằng `python manage.py test`. Tất cả đều pass.
 
 Khi điền RTM, mỗi dòng nối: **Yêu cầu (F-x.x) → Use case (UC-xx) → Test case
 (TC-xx) → Kết quả**. Cột Test case lấy từ bảng trên, cột Yêu cầu lấy từ tiêu

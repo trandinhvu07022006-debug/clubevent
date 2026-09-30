@@ -151,13 +151,45 @@ Bấm **Reload**. Mở `https://<tàikhoản>.pythonanywhere.com` là thấy tra
 WhiteNoise đã lo phần file static nên **không cần** khai báo Static files
 mapping trong tab Web.
 
-### 2.7 Đặt lịch huỷ vé quá hạn
+### 2.7 Đặt lịch chạy tác vụ định kỳ
 
-Tab **Tasks**, thêm một task chạy hằng ngày:
+Lệnh tổng `run_periodic` chạy lần lượt: huỷ vé quá hạn thanh toán → dọn
+danh sách chờ hết hạn → nhắc lịch trước 24h → xoá thông báo đã đọc quá 90
+ngày. Mỗi bước lỗi riêng không chặn bước sau.
+
+Khuyến nghị chạy **mỗi 15 phút** (nhắc lịch và cấp vé từ danh sách chờ mới
+kịp thời). Tab **Tasks** của PythonAnywhere bản miễn phí chỉ cho chạy hằng
+ngày — vẫn dùng được, chỉ là chậm hơn:
 
 ```
-cd ~/clubevent && ./venv/bin/python manage.py release_expired
+cd ~/clubevent && ./venv/bin/python manage.py run_periodic
 ```
+
+Linux / VPS có cron:
+
+```
+*/15 * * * * cd /duong/dan/clubevent && ./venv/bin/python manage.py run_periodic
+```
+
+Windows (máy demo): mở **Task Scheduler** → Create Task → tab Triggers: Daily,
+"Repeat task every 15 minutes"; tab Actions: Program
+`D:\clubevent\clubevent\venv\Scripts\python.exe`, Arguments
+`manage.py run_periodic`, Start in `D:\clubevent\clubevent`.
+
+### 2.8 Cấu hình email và VietQR (không bắt buộc)
+
+Trong `.env` trên server:
+
+- `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend` và các biến
+  `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (Gmail: dùng App
+  Password, không dùng mật khẩu thật). Không cấu hình thì email chỉ in ra log.
+- `SITE_URL=https://ten-mien-that` — link trong email và QR trên giấy chứng
+  nhận dùng địa chỉ này.
+- `BANK_BIN`, `BANK_NAME`, `BANK_ACCOUNT`, `BANK_ACCOUNT_NAME` để hiện mã VietQR
+  trên trang "Vé của tôi". **Quét thử bằng app ngân hàng thật trước khi dùng.**
+
+**Không đổi `SECRET_KEY` sau khi đã cấp giấy chứng nhận** — mã xác thực chứng
+nhận được ký bằng khoá này, đổi khoá là mọi chứng nhận cũ báo "không xác thực được".
 
 ---
 
