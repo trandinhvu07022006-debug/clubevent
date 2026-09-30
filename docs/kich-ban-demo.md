@@ -1,4 +1,7 @@
-# Kịch bản demo (khoảng 8 phút)
+# Kịch bản demo (khoảng 10 phút)
+
+Chuẩn bị trước buổi demo, các "khoảnh khắc wow" và cách xử lý sự cố: xem
+`docs/tong-hop-chuc-nang-va-demo.md` phần 3.
 
 ## Chuẩn bị trước khi vào phòng
 
@@ -27,7 +30,8 @@
 | 3 | E | Đăng nhập `admin`, gán role Thành viên BTC cho tài khoản vừa tạo, mở nhật ký thao tác | "Mọi thao tác quan trọng đều được ghi log để truy vết" |
 | 4 | C | Đăng nhập `truongbtc`, tạo sự kiện mới, thêm 2 loại vé, chuyển sang Mở đăng ký | "Sự kiện có máy trạng thái, không thể nhảy từ Đang chuẩn bị sang Đã diễn ra" |
 | 5 | A | Bấm **AI gợi ý công việc**, tick chọn vài việc, lưu | "AI chỉ gợi ý, Trưởng BTC vẫn quyết định. Nếu AI lỗi, hệ thống dùng danh sách mặc định" |
-| 6 | B | Đăng nhập `btc1`, mở **Việc của tôi**, đánh dấu một việc thành Xong | "Tiến độ sự kiện tự cập nhật, việc quá hạn tô đỏ" |
+| 6 | C | Vẫn `truongbtc`: bấm **Giao việc** → việc chung CLB "Chuẩn bị báo cáo tổng kết", mức **Gấp**, giao cho `admin`. Đăng nhập `admin` (cửa sổ ẩn danh) → bấm **chuông** → mở thông báo | "Ban chủ nhiệm giao được việc chung của CLB, không chỉ việc sự kiện, và giao cho cả Ban chủ nhiệm. Người nhận có thông báo trong app + email; việc có nhãn Gấp màu đỏ, xếp trên các việc thường" |
+| 6b | B | Đăng nhập `btc1`, mở **Việc của tôi**, đổi một việc thành Xong; `truongbtc` mở tab **Tôi đã giao** thấy tiến độ | "Tiến độ tự cập nhật, việc quá hạn tô đỏ, người giao theo dõi được" |
 | 7 | D | `thanhvien` đặt 2 vé sự kiện Acoustic Night. Rồi thử đặt thêm 5 vé | "Bị chặn vì giới hạn 4 vé mỗi người — đây là test giá trị biên TC07-3" |
 | 8 | **C** | **Mở sự kiện Workshop (còn 1 chỗ) trên 2 trình duyệt, cùng bấm Đăng ký** | **"Chỉ 1 người thành công. Vì `SELECT ... FOR UPDATE` khoá dòng loại vé, giao dịch thứ hai phải chờ rồi mới đọc được số chỗ đã cập nhật"** |
 | 9 | B | Đăng nhập `btc1`, vào **Xác nhận thanh toán**, xác nhận vé vừa đặt | "Vé chuyển từ Chờ thanh toán sang Đã xác nhận, giờ mới check-in được" |
@@ -35,13 +39,13 @@
 | 11 | D | Mở sự kiện Minishow Tròn, gửi đánh giá 5 sao | "Chỉ người đã check-in mới được đánh giá" |
 | 12 | B | Vào **Phản hồi & thống kê**, bấm **AI tóm tắt phản hồi** | "AI đọc 9 phản hồi, tách ra điểm khen, điểm chê, đề xuất cải thiện. Không gửi kèm tên hay MSSV" |
 | 13 | D | Mở **Trợ lý**, hỏi "còn vé không" và "việc của tôi có gì" | "Trợ lý này KHÔNG dùng AI sinh ngôn ngữ. Nó nhận diện ý định bằng từ khoá rồi tra thẳng DB, nên không bao giờ bịa thông tin và chạy được cả khi không có mạng ra ngoài" |
-| 14 | A | Mở **Thống kê tổng hợp** xem biểu đồ, rồi mở Git log + bảng test case + RTM (30s) | "200 unit test, mã test khớp với bảng test case trong báo cáo" |
+| 14 | A | Mở **Thống kê tổng hợp** xem biểu đồ, rồi mở Git log + bảng test case + RTM (30s) | "233 test tự động, độ phủ 86%, kiểm thử theo vai 69/69 bước; mã test khớp với bảng test case trong báo cáo" |
 
 ### Phần mở rộng (chọn nếu còn thời gian)
 
 | # | Thao tác | Nói gì |
 |---|---|---|
-| E1 | `thanhvien` mở sự kiện **Giao lưu Guitar liên CLB (đã hết vé)** → **Vào danh sách chờ** (vị trí 4). Đăng nhập `sv00`, huỷ vé của sự kiện đó | "Người đầu hàng được cấp vé tự động ngay trong cùng transaction, có khoá dòng nên 2 người huỷ cùng lúc cũng không cấp trùng" |
+| E1 | `thanhvien` mở sự kiện **Giao lưu Guitar liên CLB (đã hết vé)** → **Vào danh sách chờ** → báo vị trí 4 (dữ liệu demo có sẵn 3 người chờ, đầu hàng là `thanhvien2`). Đăng nhập `sv00` (mật khẩu `demo1234`) → **Vé của tôi** → huỷ vé sự kiện đó. Đăng nhập `thanhvien2` → chuông có "Bạn đã có vé", **Vé của tôi** có vé mới; `thanhvien` giờ ở vị trí 3 | "Người đầu hàng được cấp vé tự động ngay trong cùng transaction, có khoá dòng nên 2 người huỷ cùng lúc cũng không cấp trùng" |
 | E2 | `thanhvien` đặt vé có phí → **Vé của tôi** hiện khối **Cần thanh toán** với VietQR và nội dung `KMG XXXXXXXX` | "Một lần đặt nhiều vé chỉ cần chuyển khoản 1 lần; BTC tìm theo nội dung CK rồi xác nhận cả nhóm" |
 | E3 | Bấm **chuông** ở góc trên: thấy thông báo đặt vé, cấp vé từ danh sách chờ | "Mọi thông báo đi qua một hàm duy nhất, gửi sau khi commit nên không bao giờ báo sai" |
 | E4 | Trang sự kiện → **Thêm vào lịch** (tải `.ics`), mở **Lịch sự kiện** theo tháng | "File lịch tự sinh theo RFC 5545, không dùng thư viện" |
