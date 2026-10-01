@@ -226,11 +226,14 @@ Khi deploy thật, đưa `run_periodic` vào cron chạy mỗi 15 phút:
 
 | Người | Phụ trách |
 |---|---|
-| A (leader) | PM, SRS, review PR, `aiassist/`, deploy |
-| B | Phân tích & thiết kế, sau đó `organizing/` và `feedback/` |
-| C | `accounts/`, `events/`, `registrations/` |
-| D | `templates/`, `static/` |
-| E | Test case, `tests.py`, seed data, tài liệu |
+| Trần Đình Vũ (leader) | PM, SRS, review PR, deploy; `aiassist/` (trợ lý AI); thanh toán VietQR + webhook SePay |
+| Trần Quốc Huy | `accounts/`: tài khoản, phân quyền, quên mật khẩu, nhật ký thao tác; rà soát bảo mật |
+| Trần Xuân Tiến | `events/`: sự kiện, loại vé, danh mục, lịch tháng, file .ics, giấy chứng nhận |
+| Trần Văn Tùng | `registrations/`: đặt vé chống race condition, huỷ vé, danh sách chờ, check-in |
+| Hoàng Mạnh Cường | `organizing/`, `feedback/`, `notifications/`: giao việc, ngân sách, phản hồi, thông báo |
+| Nguyễn Văn Nam | `templates/`, `static/`: giao diện, điện thoại, chế độ tối; bảng test case, seed data |
+
+Mỗi người viết test cho module mình phụ trách.
 
 Quy ước:
 
