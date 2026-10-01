@@ -119,7 +119,7 @@ Khi trình bày hoặc viết báo cáo, **mỗi điểm mạnh đi kèm một b
 | 8 | **Dùng AI có kiểm soát**: AI chỉ gợi ý, con người quyết định; AI lỗi thì hệ thống vẫn chạy; không gửi dữ liệu cá nhân cho AI | Test `SuggestTasksFallbackTests`; demo tắt mạng vẫn chạy |
 | 9 | **Chạy được ở điều kiện khó**: mất mạng ngoài vẫn đủ giao diện; chỉ cần SQLite; cài đặt 1 cú nhấp đúp | `static/vendor/`; `chay-thu.bat` |
 | 10 | **Hiệu năng**: không trang nào bị N+1 query (5–21 truy vấn cố định mỗi trang); ảnh tải lên tự thu nhỏ | Đo bằng `CaptureQueriesContext`; `core/images.py` |
-| 11 | **Minh bạch**: có tài liệu khai báo dùng AI, bảng lỗi đã tìm và sửa, tài liệu giải thích code | `docs/khai-bao-su-dung-ai.md`, `docs/giai-thich-code.md` |
+| 11 | **Minh bạch**: có khai báo dùng AI, bảng lỗi đã tìm và sửa, tài liệu giải thích code | Báo cáo chương 8 (mục Sử dụng AI), `docs/giai-thich-code.md` |
 
 **Nói thật về giới hạn** (giảng viên đánh giá cao điều này):
 - Hệ thống **không tự biết** người dùng đã chuyển khoản — BTC vẫn đối chiếu sao kê.
@@ -181,7 +181,7 @@ mở rộng). Nguyên tắc:
 | Vì sao thông báo gửi "sau khi commit"? | Nếu gửi trước mà giao dịch lỗi thì email "đặt vé thành công" đã đi mà vé không tồn tại |
 | Chứng nhận có làm giả được không? | Mã xác thực là chữ ký HMAC theo khoá bí mật của server; sửa 1 ký tự là trang xác thực báo không hợp lệ |
 | AI lỗi thì sao? Có gửi dữ liệu cá nhân cho AI không? | Có danh sách mặc định; chỉ gửi nội dung đánh giá, không gửi tên/MSSV |
-| Nhóm dùng AI thế nào? | Trả lời thật theo `docs/khai-bao-su-dung-ai.md`: công cụ gì, phần nào, nhóm kiểm tra và hiểu code ra sao |
+| Nhóm dùng AI thế nào? | Trả lời thật theo mục Sử dụng AI ở chương 8 báo cáo: công cụ gì, phần nào, nhóm kiểm tra và hiểu code ra sao |
 | Test được bao nhiêu? | 233 test tự động, độ phủ 87%, kiểm thử theo vai 69/69 bước, mã test khớp RTM |
 
 Chi tiết từng câu và câu hỏi theo module: `docs/giai-thich-code.md`.

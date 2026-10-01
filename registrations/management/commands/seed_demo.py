@@ -14,6 +14,7 @@ Kèm: khoản chi (ngân sách), thông báo mẫu, mã giao dịch nhóm.
 """
 import random
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -268,16 +269,20 @@ class Command(BaseCommand):
                 "starts_at": now - timezone.timedelta(days=3),
                 "ends_at": now - timezone.timedelta(days=3) + timezone.timedelta(hours=3),
                 "register_deadline": now - timezone.timedelta(days=5),
-                "capacity": 60,
+                "capacity": 100,
                 "status": EventStatus.DONE,
                 "created_by": lead,
             },
         )
         if not created:
             return event
+        # Ảnh bìa gốc của minishow; media/ không lên Git nên chỉ gắn khi có file
+        if (settings.MEDIA_ROOT / "events" / "minishow_tron.jpg").exists():
+            event.cover = "events/minishow_tron.jpg"
+            event.save(update_fields=["cover"])
 
         ticket_type = TicketType.objects.create(
-            event=event, name="Vé tham dự", price=40000, quota=60)
+            event=event, name="Vé tham dự", price=59000, quota=100)
 
         # 28/35 người đã check-in, tức tỉ lệ 80% — con số nhìn thật
         attended = pool[:28]
