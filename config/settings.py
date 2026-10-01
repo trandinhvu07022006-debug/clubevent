@@ -193,6 +193,9 @@ BANK_BIN = env("BANK_BIN", "")                   # mã NAPAS 6 số, vd Vietcomb
 BANK_NAME = env("BANK_NAME", "")                 # tên hiển thị, vd "Vietcombank"
 BANK_ACCOUNT = env("BANK_ACCOUNT", "")
 BANK_ACCOUNT_NAME = env("BANK_ACCOUNT_NAME", "") # không dấu, IN HOA
+# Tự xác nhận khi tiền về: SePay gọi webhook /ve/thanhtoan/webhook/sepay/
+# kèm header "Authorization: Apikey <SEPAY_API_KEY>". Để trống thì tắt webhook.
+SEPAY_API_KEY = env("SEPAY_API_KEY", "")
 
 
 # Nhiều host free cấp sẵn biến DATABASE_URL thay vì từng biến rời.

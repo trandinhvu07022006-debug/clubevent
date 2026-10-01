@@ -230,7 +230,14 @@
           <div class="ticket-notch-top"></div>
           <div class="ticket-notch-bottom"></div>
           
-          {% if ticket.is_active %}
+          {% if ticket.status == 'PENDING' %}
+            {% comment %} Chưa thanh toán thì QR check-in chưa dùng được, chỉ gây nhầm với QR chuyển khoản. {% endcomment %}
+            <div class="text-center">
+              <div class="display-5 text-warning mb-2"><i class="bi bi-qr-code-scan"></i></div>
+              <div class="small text-muted mb-2">QR check-in hiện sau khi<br>BTC xác nhận thanh toán</div>
+              <a href="#pay-title" class="btn btn-sm btn-warning rounded-pill fw-medium">Xem QR chuyển khoản</a>
+            </div>
+          {% elif ticket.is_active %}
             {% if ticket.qr %}
               <img src="{{ ticket.qr }}" alt="QR Code" class="qr-code-img mb-2">
             {% else %}

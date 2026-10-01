@@ -10,6 +10,7 @@ Vì sao tách riêng khỏi view:
 """
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -321,6 +322,44 @@ def confirm_booking(staff: User, booking_ref: str) -> list[Ticket]:
                    f"{len(tickets)} vé - {first.user} - {first.event.name}")
     _notify_confirmed(first.user, first.event, tickets)
     return tickets
+
+
+# Nội dung CK bị ngân hàng chèn thêm tiền tố/hậu tố, có khi bỏ dấu cách:
+# "MBVCB.123.KMG 3DUNG4TD.CT tu ..." hoặc "KMG3DUNG4TD". Bảng chữ khớp
+# BOOKING_REF_ALPHABET (không có 0, 1, I, L, O).
+TRANSFER_REF_RE = re.compile(r"KMG\s*([2-9A-HJKMNP-Z]{8})")
+
+
+def auto_confirm_transfer(content: str, amount: int,
+                          account: str = "") -> tuple[bool, str]:
+    """
+    Tự xác nhận nhóm vé khi webhook ngân hàng báo có tiền vào.
+
+    Trả (đã xác nhận?, lý do). Chuyển thiếu tiền thì KHÔNG xác nhận mà ghi
+    nhật ký để BTC xử lý tay; webhook gọi lại nhiều lần cũng an toàn vì
+    confirm_booking chỉ đụng vé còn Chờ thanh toán.
+    """
+    if settings.BANK_ACCOUNT and account and account != settings.BANK_ACCOUNT:
+        return False, "Không phải tài khoản nhận tiền của CLB."
+    match = TRANSFER_REF_RE.search((content or "").upper())
+    if not match:
+        return False, "Nội dung không có mã KMG."
+    ref = match.group(1)
+    with transaction.atomic():
+        total = (Ticket.objects.select_for_update()
+                 .filter(booking_ref=ref, status=TicketStatus.PENDING)
+                 .aggregate(s=Sum("price"))["s"])
+        if total is None:
+            return False, f"Mã {ref} không còn vé chờ thanh toán."
+        if amount < total:
+            AuditLog.write(None, "Chuyển khoản thiếu", ref,
+                           f"Nhận {_money(amount)}đ / cần {_money(total)}đ")
+            return False, f"Mã {ref} chuyển thiếu tiền."
+        try:
+            tickets = confirm_booking(None, ref)
+        except BookingError as e:
+            return False, str(e)
+    return True, f"Đã xác nhận {len(tickets)} vé mã {ref}."
 
 
 def pending_bookings(keyword: str = "") -> list[dict]:

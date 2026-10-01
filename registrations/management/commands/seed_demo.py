@@ -38,6 +38,20 @@ ACCOUNTS = [
     ("thanhvien2", "Đỗ Văn Nam", "AT190002", Role.MEMBER),
 ]
 
+# Tên thật cho 35 thành viên mẫu (username vẫn là sv00..sv34) để các bảng
+# danh sách dễ phân biệt hơn "Sinh viên 01..35".
+MEMBER_NAMES = [
+    "Nguyễn Minh Anh", "Trần Quốc Bảo", "Lê Thu Trang", "Phạm Đức Huy",
+    "Vũ Ngọc Lan", "Đặng Hoàng Long", "Bùi Khánh Linh", "Đỗ Tuấn Kiệt",
+    "Hồ Phương Thảo", "Ngô Gia Hân", "Dương Văn Khoa", "Lý Thanh Tâm",
+    "Mai Anh Tuấn", "Phan Thị Hồng", "Trịnh Công Sơn", "Đinh Bảo Ngọc",
+    "Lương Minh Đức", "Tạ Thu Hà", "Võ Nhật Nam", "Cao Mỹ Duyên",
+    "Hà Quang Vinh", "Chu Thị Yến", "Kiều Đức Thịnh", "Lâm Hải Yến",
+    "Tô Minh Châu", "Quách Gia Bảo", "Thái Hữu Phúc", "Viên Thảo Vy",
+    "Nguyễn Hữu Đạt", "Trần Thị Mơ", "Lê Hoàng Phúc", "Phạm Thanh Bình",
+    "Vũ Hải Đăng", "Đoàn Kim Ngân", "Hoàng Văn Toàn",
+]
+
 FEEDBACK_SAMPLES = [
     (5, "Chương trình rất hay, các tiết mục acoustic nghe rất tình cảm."),
     (5, "Âm thanh tốt, MC dẫn dắt tự nhiên. Mong CLB tổ chức thêm."),
@@ -124,7 +138,7 @@ class Command(BaseCommand):
         for i in range(count):
             user, created = User.objects.get_or_create(
                 username=f"sv{i:02d}",
-                defaults={"full_name": f"Sinh viên {i + 1:02d}",
+                defaults={"full_name": MEMBER_NAMES[i],
                           "mssv": f"AT2000{i:02d}",
                           "email": f"sv{i:02d}@example.com",
                           "role": Role.MEMBER},
@@ -135,19 +149,21 @@ class Command(BaseCommand):
             pool.append(user)
         return pool
 
-    def _issue_tickets(self, event, ticket_type, users, status, checked_by=None):
+    def _issue_tickets(self, event, ticket_type, users, status, checked_by=None,
+                       booking_ref=None, booked_hours_ago=0):
         """
         Tạo vé thật cho một nhóm người, đồng thời cập nhật cột `sold`.
 
         Luôn đi qua hàm này thay vì gán tay `sold`, để số vé đã bán và số bản
-        ghi Ticket không bao giờ lệch nhau.
+        ghi Ticket không bao giờ lệch nhau. Truyền `booking_ref` để các vé
+        chung một mã giao dịch (1 người đặt nhiều vé).
         """
         now = timezone.now()
         made = []
         for user in users:
             made.append(Ticket.objects.create(
                 event=event, ticket_type=ticket_type, user=user,
-                booking_ref=make_booking_ref(),
+                booking_ref=booking_ref or make_booking_ref(),
                 price=ticket_type.price, status=status,
                 confirmed_at=None if status == TicketStatus.PENDING else now,
                 checked_in_at=event.starts_at
@@ -155,6 +171,10 @@ class Command(BaseCommand):
                 checked_in_by=checked_by
                     if status == TicketStatus.CHECKED_IN else None,
             ))
+        if booked_hours_ago:
+            # created_at là auto_now_add nên phải sửa sau khi tạo
+            Ticket.objects.filter(pk__in=[t.pk for t in made]).update(
+                created_at=now - timezone.timedelta(hours=booked_hours_ago))
         ticket_type.sold = ticket_type.tickets.exclude(
             status=TicketStatus.CANCELLED).count()
         ticket_type.save(update_fields=["sold"])
@@ -191,12 +211,16 @@ class Command(BaseCommand):
             # 12 vé miễn phí -> xác nhận ngay (đúng quy tắc F4.1)
             self._issue_tickets(event, free_type, pool[:12],
                                 TicketStatus.CONFIRMED)
-            # 16 vé có phí đã thanh toán
-            self._issue_tickets(event, paid_type, pool[12:28],
+            # Vé có phí đã thanh toán
+            self._issue_tickets(event, paid_type, pool[12:28] + pool[30:35],
                                 TicketStatus.CONFIRMED)
-            # 7 vé còn chờ thanh toán, để demo màn hình Xác nhận thanh toán
-            self._issue_tickets(event, paid_type, pool[28:35],
-                                TicketStatus.PENDING)
+            # Chỉ 2 giao dịch chờ thanh toán cho trang Xác nhận TT đỡ rối:
+            # 1 nhóm 2 vé sắp hết hạn (đặt 20h trước) và 1 vé vừa đặt.
+            self._issue_tickets(event, paid_type, [pool[28]] * 2,
+                                TicketStatus.PENDING,
+                                booking_ref=make_booking_ref(), booked_hours_ago=20)
+            self._issue_tickets(event, paid_type, [pool[29]],
+                                TicketStatus.PENDING, booked_hours_ago=2)
         return event
 
     def _event_one_seat_left(self, lead, pool):

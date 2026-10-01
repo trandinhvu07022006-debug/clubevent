@@ -469,3 +469,66 @@ class MySQLBehaviourTests(Base):
         entry.refresh_from_db()
         self.assertEqual(entry.status, WaitlistStatus.PROMOTED)
         self.assertEqual(entry.ticket.user, self.a)
+
+
+# ---------------------------------------------------------------------------
+# Tự xác nhận khi tiền về (webhook SePay)
+# ---------------------------------------------------------------------------
+@override_settings(SEPAY_API_KEY="khoa-bi-mat", **BANK)
+class SepayWebhookTests(Base):
+    url = reverse("registrations:sepay_webhook")
+
+    def post(self, content, amount, key="khoa-bi-mat", **extra):
+        body = {"id": 1, "gateway": "MBBank", "accountNumber": "0123456789",
+                "content": content, "transferType": "in",
+                "transferAmount": amount, **extra}
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(self.url, body, content_type="application/json",
+                                    HTTP_AUTHORIZATION=f"Apikey {key}")
+
+    def status_of(self, tickets):
+        return {Ticket.objects.get(pk=t.pk).status for t in tickets}
+
+    def test_full_amount_confirms_whole_booking(self):
+        tickets = self.book(self.a, self.paid, 2)
+        ref = tickets[0].booking_ref
+        r = self.post(f"MBVCB.123456.KMG{ref}.CT tu 0987", 100000)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["success"])
+        self.assertTrue(r.json()["confirmed"])
+        self.assertEqual(self.status_of(tickets), {TicketStatus.CONFIRMED})
+        self.assertEqual(Notification.objects.filter(
+            user=self.a, kind=NotificationKind.TICKET_CONFIRMED).count(), 1)
+
+    def test_underpaid_stays_pending(self):
+        tickets = self.book(self.a, self.paid, 2)
+        r = self.post(f"KMG {tickets[0].booking_ref}", 50000)
+        self.assertFalse(r.json()["confirmed"])
+        self.assertEqual(self.status_of(tickets), {TicketStatus.PENDING})
+
+    def test_retry_is_harmless(self):
+        tickets = self.book(self.a, self.paid, 1)
+        content = f"KMG {tickets[0].booking_ref}"
+        self.post(content, 50000)
+        r = self.post(content, 50000)
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.json()["confirmed"])
+        self.assertEqual(Notification.objects.filter(
+            user=self.a, kind=NotificationKind.TICKET_CONFIRMED).count(), 1)
+
+    def test_wrong_key_rejected(self):
+        tickets = self.book(self.a, self.paid, 1)
+        r = self.post(f"KMG {tickets[0].booking_ref}", 50000, key="sai")
+        self.assertEqual(r.status_code, 401)
+        self.assertEqual(self.status_of(tickets), {TicketStatus.PENDING})
+
+    def test_outgoing_and_other_account_ignored(self):
+        tickets = self.book(self.a, self.paid, 1)
+        content = f"KMG {tickets[0].booking_ref}"
+        self.post(content, 50000, transferType="out")
+        self.post(content, 50000, accountNumber="999999")
+        self.assertEqual(self.status_of(tickets), {TicketStatus.PENDING})
+
+    @override_settings(SEPAY_API_KEY="")
+    def test_disabled_without_key(self):
+        self.assertEqual(self.post("KMG ABCDEFGH", 1).status_code, 404)

@@ -12,6 +12,7 @@ urlpatterns = [
     path("cho/<int:pk>/roi/", views.waitlist_leave, name="waitlist_leave"),
     path("<int:pk>/huy/", views.cancel, name="cancel"),
     path("thanhtoan/", views.payment_list, name="payment_list"),
+    path("thanhtoan/webhook/sepay/", views.sepay_webhook, name="sepay_webhook"),
     path("thanhtoan/<int:pk>/xacnhan/", views.payment_confirm, name="payment_confirm"),
     path("thanhtoan/nhom/<str:ref>/xacnhan/", views.payment_confirm_booking,
          name="payment_confirm_booking"),

@@ -1,14 +1,17 @@
 """View cho M4 - Đăng ký vé và M5 - Check-in."""
 import csv
+import hmac
 import json
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.permissions import lead_required, staff_required
@@ -17,7 +20,8 @@ from core.qr import qr_data_uri
 from events.models import Event, TicketType
 
 from .models import Ticket, TicketStatus, WaitlistEntry, WaitlistStatus
-from .services import (CHECKIN_OK, CHECKIN_USED, BookingError, book_tickets,
+from .services import (CHECKIN_OK, CHECKIN_USED, BookingError,
+                       auto_confirm_transfer, book_tickets,
                        cancel_ticket, check_in, checkin_progress_data,
                        confirm_booking, confirm_payment, event_waitlist,
                        join_waitlist, leave_waitlist, participants,
@@ -86,7 +90,9 @@ def my_tickets(request):
     # Chỉ sinh QR cho vé đang hiển thị và còn hiệu lực, đỡ tốn thời gian render.
     shown = active if tab == "active" else history
     for ticket in shown:
-        ticket.qr = qr_data_uri(ticket.code) if ticket.is_active else None
+        ticket.qr = (qr_data_uri(ticket.code)
+                     if ticket.is_active and ticket.status != TicketStatus.PENDING
+                     else None)
 
     # F4.7 - nhóm vé chờ thanh toán theo mã giao dịch
     payments = {}
@@ -202,6 +208,33 @@ def payment_confirm_booking(request, ref):
     keyword = request.POST.get("q", "")
     url = reverse("registrations:payment_list")
     return redirect(f"{url}?{urlencode({'q': keyword})}" if keyword else url)
+
+
+@csrf_exempt
+@require_POST
+def sepay_webhook(request):
+    """
+    SePay gọi vào đây mỗi khi tài khoản ngân hàng có giao dịch.
+    Xác thực bằng header "Authorization: Apikey <SEPAY_API_KEY>".
+    Phải trả 200 + {"success": true}, nếu không SePay sẽ gọi lại tối đa 7 lần.
+    """
+    key = settings.SEPAY_API_KEY
+    if not key:
+        raise Http404
+    sent = request.headers.get("Authorization", "")
+    if not hmac.compare_digest(sent.encode(), f"Apikey {key}".encode()):
+        return JsonResponse({"success": False}, status=401)
+    try:
+        data = json.loads(request.body)
+        amount = int(data.get("transferAmount") or 0)
+    except (ValueError, TypeError, AttributeError):
+        return JsonResponse({"success": False, "message": "JSON lỗi"}, status=400)
+
+    if data.get("transferType") != "in":
+        return JsonResponse({"success": True, "message": "Bỏ qua tiền ra."})
+    ok, message = auto_confirm_transfer(data.get("content", ""), amount,
+                                        str(data.get("accountNumber") or ""))
+    return JsonResponse({"success": True, "confirmed": ok, "message": message})
 
 
 @require_POST
