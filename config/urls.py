@@ -6,6 +6,7 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", include("pages.urls")),
     path("", include("events.urls")),
     path("taikhoan/", include("accounts.urls")),
     path("congviec/", include("organizing.urls")),
@@ -13,6 +14,7 @@ urlpatterns = [
     path("phanhoi/", include("feedback.urls")),
     path("troly/", include("aiassist.urls")),
     path("thongbao/", include("notifications.urls")),
+    path("tuyen-thanh-vien/", include("recruitment.urls")),
 ]
 
 if settings.DEBUG:

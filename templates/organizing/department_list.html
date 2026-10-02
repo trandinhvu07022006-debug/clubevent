@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Các Ban{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <span class="kicker">Tổ chức</span>
+  <div class="page-header-row">
+    <div>
+      <h1 class="h3 fw-bold">Các Ban</h1>
+      <p class="text-muted">Đơn vị tổ chức trong CLB. Việc giao cho Ban sẽ chờ thành viên trong Ban nhận.{% if mine_count %} Ban của bạn được đưa lên đầu.{% endif %}</p>
+    </div>
+    {% if user.is_lead %}
+      <div class="page-header-actions">
+        <a href="{% url 'organizing:department_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Tạo Ban</a>
+      </div>
+    {% endif %}
+  </div>
+</header>
+
+<div class="row g-3 g-lg-4">
+  {% for d in departments %}
+    <div class="col-md-6 col-xl-4">
+      <a href="{{ d.get_absolute_url }}" class="dept-card {% if d.is_mine %}mine{% endif %}">
+        <div class="d-flex align-items-center gap-3">
+          <span class="dept-icon lg"><i class="bi {{ d.icon }}"></i></span>
+          <div class="min-w-0">
+            <div class="fw-bold fs-5 text-truncate">{{ d.name }}</div>
+            <div class="small text-body-secondary">
+              {% if d.lead %}Trưởng ban: {{ d.lead.full_name|default:d.lead.username }}{% else %}Chưa có trưởng ban{% endif %}
+            </div>
+          </div>
+          {% if d.is_mine %}<span class="badge bg-primary-subtle text-primary-emphasis ms-auto">Ban của tôi</span>{% endif %}
+        </div>
+        {% if d.description %}<p class="small text-body-secondary mb-0">{{ d.description }}</p>{% endif %}
+        <div>
+          <div class="d-flex justify-content-between small mb-1"><span class="text-body-secondary">Tiến độ</span><strong>{{ d.progress }}%</strong></div>
+          <div class="bar-thin {% if d.progress == 100 %}ok{% endif %}"><span style="width: {{ d.progress }}%"></span></div>
+        </div>
+        <div class="nums">
+          <span><strong>{{ d.member_count }}</strong>thành viên</span>
+          <span><strong>{{ d.task_total }}</strong>việc</span>
+          <span><strong class="{% if d.task_unclaimed %}text-warning-emphasis{% endif %}">{{ d.task_unclaimed }}</strong>chờ nhận</span>
+          <span><strong class="{% if d.task_overdue %}text-danger{% endif %}">{{ d.task_overdue }}</strong>quá hạn</span>
+        </div>
+      </a>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        {% if user.is_lead %}
+          {% url 'organizing:department_create' as create_url %}
+          {% include "partials/empty_state.html" with icon="bi-diagram-3" title="CLB chưa có Ban nào" desc="Tạo các Ban như Truyền thông, Hậu cần, Đối ngoại… rồi thêm thành viên BTC vào từng Ban để giao việc theo Ban." action_url=create_url action_label="Tạo Ban đầu tiên" %}
+        {% else %}
+          {% include "partials/empty_state.html" with icon="bi-diagram-3" title="CLB chưa có Ban nào" desc="Trưởng BTC sẽ tạo các Ban và thêm bạn vào." %}
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

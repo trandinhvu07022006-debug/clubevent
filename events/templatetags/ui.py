@@ -4,11 +4,21 @@ Các filter dùng chung cho giao diện.
 Đặt trong app events nhưng dùng được ở mọi template, chỉ cần {% load ui %}.
 """
 from django import template
+from django.utils.html import format_html
+
+from core import once
 
 register = template.Library()
 
 
-# Ảnh bìa mặc định — TÊN PHẢI KHỚP FILE CÓ THẬT trong static/img/.
+@register.simple_tag
+def once_token():
+    """Ô ẩn chứa mã dùng-một-lần, chống gửi trùng form (xem core/once.py)."""
+    return format_html('<input type="hidden" name="{}" value="{}">',
+                       once.FIELD, once.new_token())
+
+
+# Ảnh bìa mặc định - TÊN PHẢI KHỚP FILE CÓ THẬT trong static/img/.
 # Trước đây filter trả về số 1..4 và template ghép thành "cover-1.jpg"…
 # nhưng trong static/img/ không hề có file nào tên như vậy, nên mọi sự kiện
 # chưa upload ảnh đều hiện ảnh vỡ.

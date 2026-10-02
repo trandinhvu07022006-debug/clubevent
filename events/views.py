@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.permissions import lead_required
+from core import once
 from core.pagination import paginate
 from core.qr import qr_data_uri
 from feedback.services import event_statistics
@@ -118,6 +119,9 @@ def event_detail(request, pk):
 def event_create(request):
     """F2.1 - Tạo sự kiện mới, trạng thái ban đầu là Đang chuẩn bị."""
     form = EventForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and not once.consume(request):
+        messages.info(request, "Yêu cầu này đã được gửi rồi - bỏ qua lần bấm trùng.")
+        return redirect("events:list")
     if request.method == "POST" and form.is_valid():
         event = form.save(commit=False)
         event.created_by = request.user
@@ -269,7 +273,7 @@ def event_ics_download(request, pk):
 
 
 def event_calendar(request):
-    """Lịch sự kiện theo tháng — nhìn nhanh cả tháng có gì."""
+    """Lịch sự kiện theo tháng - nhìn nhanh cả tháng có gì."""
     today = timezone.localdate()
     try:
         year = int(request.GET.get("y", today.year))

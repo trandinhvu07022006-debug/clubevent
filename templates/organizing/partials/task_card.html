@@ -1,4 +1,4 @@
-<div class="task-card {% if task.is_overdue %}task-overdue{% elif task.status == 'DONE' %}task-done{% elif task.status == 'DOING' %}task-doing{% endif %}">
+<div class="task-card {% if task.is_overdue %}task-overdue{% elif task.status == 'DONE' %}task-done{% elif task.status == 'DOING' %}task-doing{% else %}task-todo{% endif %}">
   <div class="d-flex justify-content-between align-items-start mb-2">
     <h6 class="mb-0 fw-bold">{{ task.title }}</h6>
     {% if task.priority == 'URGENT' %}
@@ -11,16 +11,19 @@
     {% endif %}
   </div>
   
+  {% if task.department %}
+    <a href="{{ task.department.get_absolute_url }}" class="d-inline-flex align-items-center gap-1 small text-decoration-none mb-2">
+      <i class="bi {{ task.department.icon }}"></i> {{ task.department.name }}
+    </a>
+  {% endif %}
   <div class="d-flex justify-content-between align-items-center mb-2">
     <div class="d-flex align-items-center gap-2">
       {% if task.assignee %}
-        <div class="avatar-sm shadow-sm" title="{{ task.assignee.full_name }}">
-          {{ task.assignee.full_name|first|upper }}
-        </div>
-        <span class="small fw-medium">{{ task.assignee.full_name }}</span>
+        {% include "partials/avatar.html" with person=task.assignee size="avatar-sm" %}
+        <span class="small fw-medium">{{ task.assignee.full_name|default:task.assignee.username }}</span>
       {% else %}
-        <div class="avatar-sm bg-secondary opacity-50"><i class="bi bi-person"></i></div>
-        <span class="small text-muted fst-italic">Chưa giao</span>
+        <span class="avatar-initials avatar-sm bg-secondary opacity-50" aria-hidden="true"><i class="bi bi-person"></i></span>
+        <span class="small text-muted fst-italic">{% if task.department %}Chờ thành viên Ban nhận{% else %}Chưa giao{% endif %}</span>
       {% endif %}
     </div>
   </div>

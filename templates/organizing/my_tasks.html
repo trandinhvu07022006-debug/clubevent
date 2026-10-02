@@ -28,7 +28,7 @@
       {% if overdue_count %}
         <span class="badge bg-danger px-3 py-2 fs-6 shadow-sm"><i class="bi bi-exclamation-triangle-fill"></i> {{ overdue_count }} việc quá hạn</span>
       {% endif %}
-      {% if user.is_lead %}
+      {% if can_assign %}
         <nav class="segmented" aria-label="Chế độ xem">
           <a href="?view=mine" class="segmented-item {% if view == 'mine' %}active{% endif %}">Việc của tôi</a>
           <a href="?view=assigned" class="segmented-item {% if view == 'assigned' %}active{% endif %}">Tôi đã giao</a>
@@ -38,6 +38,31 @@
     </div>
   </div>
 </header>
+
+{% if claimable %}
+<section class="card shadow-sm mb-4 border-warning-subtle" id="cho-nhan" aria-labelledby="claim-title">
+  <div class="card-body pb-1">
+    <h2 class="h6 fw-bold mb-1" id="claim-title"><i class="bi bi-inbox text-warning"></i> Việc Ban đang chờ nhận ({{ claimable|length }})</h2>
+    <p class="small text-body-secondary mb-2">Việc giao cho Ban của bạn mà chưa ai nhận. Bấm <strong>Nhận việc</strong> để chuyển sang việc của bạn.</p>
+    {% for task in claimable %}
+      <div class="icon-list-item">
+        <div class="icon-list-item-icon"><span class="dept-icon"><i class="bi {{ task.department.icon }}"></i></span></div>
+        <div class="icon-list-item-content">
+          <div class="icon-list-item-title">{{ task.title }}{% if task.priority == 'URGENT' %} <span class="badge bg-danger ms-1">Gấp</span>{% endif %}</div>
+          <div class="icon-list-item-subtitle">{{ task.department.name }} · {{ task.scope_label }}{% if task.deadline %} · Hạn {{ task.deadline|date:"H:i d/m" }}{% endif %}{% if task.is_overdue %} <strong class="text-danger">(Quá hạn)</strong>{% endif %}</div>
+        </div>
+        <div class="icon-list-item-right">
+          <form method="post" action="{% url 'organizing:claim' task.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button class="btn btn-sm btn-primary"><i class="bi bi-hand-index"></i> Nhận việc</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 <div class="card shadow-sm">
   <div class="card-body p-0">
@@ -64,12 +89,13 @@
             {% else %}
               <span class="badge bg-primary-subtle text-primary-emphasis"><i class="bi bi-building"></i> Việc chung CLB</span>
             {% endif %}
+            {% if task.department %} · <a href="{{ task.department.get_absolute_url }}" class="text-decoration-none"><i class="bi {{ task.department.icon }}"></i> {{ task.department.name }}</a>{% endif %}
             {% if task.deadline %} · Hạn: {{ task.deadline|date:"H:i d/m" }}{% endif %}
             {% if task.is_overdue %}<strong class="text-danger">(Quá hạn)</strong>{% endif %}
           </div>
           <div class="small text-body-secondary mt-1">
             {% if view == 'assigned' %}
-              <i class="bi bi-person"></i> Giao cho <strong>{{ task.assignee.full_name|default:task.assignee.username|default:"(chưa giao)" }}</strong>
+              <i class="bi bi-person"></i> Giao cho <strong>{% if task.assignee %}{{ task.assignee.full_name|default:task.assignee.username }}{% elif task.department %}{{ task.department.name }} (chờ nhận){% else %}(chưa giao){% endif %}</strong>
             {% elif task.created_by and task.created_by != user %}
               <i class="bi bi-person-up"></i> Giao bởi {{ task.created_by.full_name|default:task.created_by.username }}
             {% endif %}
@@ -108,7 +134,7 @@
           {% url 'organizing:assign' as action_url %}
           {% include "partials/empty_state.html" with icon="bi-send" title="Bạn chưa giao việc nào" desc="Giao việc cho thành viên BTC hoặc Ban chủ nhiệm, có thể gắn với sự kiện hoặc là việc chung của CLB." action_url=action_url action_label="Giao việc ngay" %}
         {% else %}
-          {% include "partials/empty_state.html" with icon="bi-cup-hot" title="Không còn việc nào — tuyệt vời!" desc="Bạn hiện không có công việc nào được giao." %}
+          {% include "partials/empty_state.html" with icon="bi-cup-hot" title="Không còn việc nào - tuyệt vời!" desc="Bạn hiện không có công việc nào được giao." %}
         {% endif %}
       </div>
     {% endfor %}

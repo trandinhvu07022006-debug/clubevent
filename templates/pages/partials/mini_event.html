@@ -1,0 +1,22 @@
+{% load static ui %}
+{% comment %} Thẻ sự kiện gọn. Gọi: {% include "pages/partials/mini_event.html" with ev=ev %} {% endcomment %}
+<a href="{% url 'events:detail' ev.pk %}" class="mini-event">
+  {% if ev.cover %}
+    <img src="{{ ev.cover.url }}" alt="Ảnh bìa {{ ev.name }}" loading="lazy" decoding="async">
+  {% else %}
+    {% with n=ev|default_cover %}<img src="{% static n %}" alt="" loading="lazy" decoding="async">{% endwith %}
+  {% endif %}
+  <div class="body">
+    <span class="when">{{ ev.starts_at|date:"D, d/m · H:i" }}</span>
+    <span class="name">{{ ev.name }}</span>
+    <span class="meta"><i class="bi bi-geo-alt"></i> {{ ev.location }}</span>
+    <span class="meta mt-auto pt-2 d-flex justify-content-between">
+      {% with tt=ev.ticket_types.all %}
+        <span>{% if tt %}{% if tt.0.is_free %}Miễn phí{% else %}Từ {{ tt.0.price|vnd }}đ{% endif %}{% else %}Chưa mở bán{% endif %}</span>
+      {% endwith %}
+      {% if ev.total_quota %}
+        <span class="{% if not ev.seats_left %}text-danger fw-semibold{% endif %}">{% if ev.seats_left %}Còn {{ ev.seats_left }} chỗ{% else %}Hết chỗ{% endif %}</span>
+      {% endif %}
+    </span>
+  </div>
+</a>

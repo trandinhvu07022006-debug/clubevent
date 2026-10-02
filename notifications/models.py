@@ -10,6 +10,8 @@ class NotificationKind(models.TextChoices):
     WAITLIST_PROMOTED= "WAIT_OK", "Có vé từ danh sách chờ"
     WAITLIST_EXPIRED = "WAIT_EXP", "Danh sách chờ kết thúc"
     TASK_ASSIGNED    = "TASK", "Được giao việc"
+    TASK_DUE         = "TASK_DUE", "Nhắc hạn công việc"
+    APPLICATION      = "APPLY", "Kết quả ứng tuyển"
 
 class Notification(models.Model):
     user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
@@ -41,4 +43,6 @@ class Notification(models.Model):
             NotificationKind.WAITLIST_PROMOTED: "bi-stars",
             NotificationKind.WAITLIST_EXPIRED: "bi-hourglass-bottom",
             NotificationKind.TASK_ASSIGNED: "bi-list-task",
+            NotificationKind.TASK_DUE: "bi-hourglass-split",
+            NotificationKind.APPLICATION: "bi-person-plus",
         }.get(self.kind, "bi-bell")

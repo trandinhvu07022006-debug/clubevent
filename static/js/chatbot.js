@@ -3,6 +3,11 @@
  *
  * Gửi câu hỏi lên server bằng fetch, nhận JSON rồi hiện ra. Toàn bộ phần
  * "hiểu câu hỏi" nằm ở server (aiassist/chatbot.py), file này chỉ lo giao diện.
+ *
+ * MỘT CHỖ DUY NHẤT xử lý gửi câu hỏi. Lỗi cũ: nút câu mẫu vừa có onclick
+ * trong template (bắn sự kiện submit) vừa có click listener ở đây -> mỗi lần
+ * bấm gửi 2 câu, câu sau dính "Bạn gửi quá nhanh". Giờ template không gắn
+ * JS nào nữa, và có cờ `busy`: đang chờ trả lời thì mọi cách gửi đều bị chặn.
  */
 (function () {
     const form = document.getElementById("chat-form");
@@ -11,6 +16,10 @@
     if (!form || !input || !log) return;
 
     const csrf = form.querySelector("[name=csrfmiddlewaretoken]").value;
+    const apiUrl = form.dataset.api || "/troly/hoi/";
+    const sendBtn = form.querySelector("button[type=submit]");
+    const suggestions = document.getElementById("chat-suggestions");
+    let busy = false;
 
     /** Thêm một bong bóng chat vào khung hội thoại. */
     function addMessage(text, who, links, source) {
@@ -47,14 +56,41 @@
         return div;
     }
 
+    /** Bong bóng "đang gõ" (3 chấm) thay cho dòng chữ chờ. */
+    function addTyping() {
+        const div = document.createElement("div");
+        div.className = "chat-msg chat-bot chat-typing";
+        div.setAttribute("aria-label", "Đang tra cứu");
+        for (let i = 0; i < 3; i++) {
+            const dot = document.createElement("span");
+            dot.className = "typing-dot";
+            div.appendChild(dot);
+        }
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+        return div;
+    }
+
+    /** Khoá / mở ô nhập, nút gửi và các câu mẫu trong lúc chờ trả lời. */
+    function setBusy(value) {
+        busy = value;
+        input.disabled = value;
+        if (sendBtn) sendBtn.disabled = value;
+        if (suggestions) {
+            suggestions.querySelectorAll("button").forEach(function (b) { b.disabled = value; });
+        }
+        log.setAttribute("aria-busy", value ? "true" : "false");
+    }
+
     function ask(question) {
-        if (!question.trim()) return;
+        question = (question || "").trim();
+        if (!question || busy) return;          // chặn gửi trùng
+        setBusy(true);
         addMessage(question, "user");
         input.value = "";
+        const waiting = addTyping();
 
-        const waiting = addMessage("Đang tra cứu...", "bot");
-
-        fetch("/troly/hoi/", {
+        fetch(apiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
             body: JSON.stringify({ question: question }),
@@ -62,7 +98,7 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 waiting.remove();
-                // data.error: server từ chối (gửi quá nhanh, dữ liệu lỗi) —
+                // data.error: server từ chối (gửi quá nhanh, dữ liệu lỗi) -
                 // hiện đúng lý do thay vì "Không có kết quả." chung chung.
                 addMessage(data.text || data.error || "Không có kết quả.", "bot",
                            data.links, data.source);
@@ -70,6 +106,10 @@
             .catch(function () {
                 waiting.remove();
                 addMessage("Không kết nối được máy chủ. Bạn thử lại nhé.", "bot");
+            })
+            .finally(function () {
+                setBusy(false);
+                input.focus();
             });
     }
 
@@ -78,12 +118,14 @@
         ask(input.value);
     });
 
-    // Bấm vào câu gợi ý thì hỏi luôn
-    document.querySelectorAll("#chat-suggestions .chip").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            ask(btn.textContent.trim());
+    // Bấm câu gợi ý thì hỏi luôn. Ủy quyền sự kiện (1 listener cho cả khối)
+    // và đọc câu hỏi từ data-question, không phụ thuộc khoảng trắng/icon.
+    if (suggestions) {
+        suggestions.addEventListener("click", function (e) {
+            const btn = e.target.closest("button[data-question]");
+            if (btn) ask(btn.dataset.question);
         });
-    });
+    }
 
     input.focus();
 })();

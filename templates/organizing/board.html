@@ -29,33 +29,20 @@
     padding: 1rem;
     margin-bottom: 1rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-    border-left: 4px solid var(--bs-secondary);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: box-shadow 0.2s;
   }
   .task-card:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   }
-  .task-overdue { border-left-color: var(--bs-danger) !important; }
-  .task-done { border-left-color: var(--bs-success) !important; opacity: 0.8; }
-  .task-doing { border-left-color: var(--bs-primary) !important; }
+  /* Màu 3 trạng thái (task-todo/doing/done/overdue) lấy từ app.css mục 8 -
+     KHÔNG định nghĩa lại ở đây: trước đây trang này ép "Đang làm" thành xanh
+     bằng !important, lệch với màu hổ phách dùng ở mọi trang khác. */
   /* Màu gạch chân cột theo trạng thái (thay cho inline style) */
-  .kanban-header.is-doing { border-bottom-color: var(--bs-primary); }
+  .kanban-header.is-doing { border-bottom-color: #e8973a; }
   .kanban-header.is-done  { border-bottom-color: var(--bs-success); }
   .kanban-scroll { min-height: 500px; }
   .task-status-select { width: 110px; }
   
-  .avatar-sm {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--brand);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: bold;
-  }
 </style>
 
 <header class="page-header">

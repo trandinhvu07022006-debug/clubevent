@@ -1,0 +1,50 @@
+{% load static %}
+<footer class="site-footer">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <a class="d-flex align-items-center gap-2 text-decoration-none text-reset mb-2" href="{% url 'pages:home' %}">
+          <img src="{% static 'img/logo.jpg' %}" alt="" class="app-logo">
+          <strong class="fs-5">{{ club.name }}</strong>
+        </a>
+        <p class="small text-body-secondary mb-1">{{ club.full_name }}</p>
+        <p class="small text-body-secondary mb-3 prose">{{ club.intro }}</p>
+        <div class="d-flex flex-column gap-1 small">
+          {% if club.email %}<a href="mailto:{{ club.email }}"><i class="bi bi-envelope me-1"></i>{{ club.email }}</a>{% endif %}
+          {% if club.facebook %}<a href="{{ club.facebook }}" target="_blank" rel="noopener"><i class="bi bi-facebook me-1"></i>Fanpage</a>{% endif %}
+          {% if club.address %}<span class="text-body-secondary"><i class="bi bi-geo-alt me-1"></i>{{ club.address }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2 offset-lg-1">
+        <h2 class="footer-heading">Khám phá</h2>
+        <ul class="footer-links">
+          <li><a href="{% url 'events:list' %}?when=upcoming">Sự kiện sắp tới</a></li>
+          <li><a href="{% url 'events:calendar' %}">Lịch sự kiện</a></li>
+          <li><a href="{% url 'pages:about' %}">Về câu lạc bộ</a></li>
+        </ul>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <h2 class="footer-heading">Tham gia</h2>
+        <ul class="footer-links">
+          <li><a href="{% url 'recruitment:home' %}">Tuyển thành viên</a></li>
+          <li><a href="{% url 'pages:for_members' %}">Cách đặt vé sự kiện</a></li>
+          <li><a href="{% url 'accounts:register' %}">Tạo tài khoản</a></li>
+          <li><a href="{% url 'accounts:login' %}">Đăng nhập</a></li>
+          <li><a href="{% url 'accounts:password_reset' %}">Quên mật khẩu</a></li>
+        </ul>
+      </div>
+      <div class="col-6 col-md-4 col-lg-3">
+        <h2 class="footer-heading">Ban tổ chức</h2>
+        <ul class="footer-links">
+          <li><a href="{% url 'pages:for_organizers' %}">Quy trình tổ chức</a></li>
+          <li><a href="{% url 'pages:for_organizers' %}#vai-tro">Vai trò & quyền hạn</a></li>
+          <li><a href="{% url 'pages:for_organizers' %}#cac-ban">Các Ban trong CLB</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© {% now "Y" %} {{ club.name }}. Ban Âm nhạc Hội Sinh viên Học viện Kỹ thuật Mật mã.</span>
+      <a href="#main" class="text-decoration-none"><i class="bi bi-arrow-up"></i> Lên đầu trang</a>
+    </div>
+  </div>
+</footer>

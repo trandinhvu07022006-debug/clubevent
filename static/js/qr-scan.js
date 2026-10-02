@@ -1,11 +1,11 @@
 /*
- * F5.3 + F5.4 — Quét QR bằng camera và bảng điểm danh cập nhật liên tục.
+ * F5.3 + F5.4 - Quét QR bằng camera và bảng điểm danh cập nhật liên tục.
  *
  * Nguyên tắc: camera là lớp TĂNG CƯỜNG. Ô gõ tay luôn còn và luôn dùng được;
  * camera không khả dụng thì im lặng rơi về gõ tay.
  *
  * Bảo mật: mọi dữ liệu từ server (tên người dùng, thông báo) được gán bằng
- * textContent, KHÔNG ghép vào innerHTML — tên người dùng do họ tự đặt, ghép
+ * textContent, KHÔNG ghép vào innerHTML - tên người dùng do họ tự đặt, ghép
  * thẳng vào HTML là lỗ hổng XSS nhắm vào máy của BTC.
  */
 (function () {
@@ -130,6 +130,9 @@
       var code = (input.value || "").trim().toUpperCase();
       if (!code) return;
       e.preventDefault();
+      // Đang chờ kết quả lần trước (nhấn Enter 2 lần) -> bỏ qua. Không có dòng
+      // này thì mã bị gửi 2 lần và lần sau báo nhầm "Đã sử dụng".
+      if (state === "BUSY") return;
       submitCode(code, false);
       input.value = "";
     });

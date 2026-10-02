@@ -203,7 +203,7 @@
                   </p>
                   {% if has_available %}
                   <form method="post" action="{% url 'registrations:book' event.pk %}">
-                    {% csrf_token %}
+                    {% csrf_token %}{% once_token %}
                     <fieldset class="mb-3">
                       <legend class="form-label small fw-bold">Loại vé</legend>
                       <div class="d-flex flex-column gap-2">
@@ -310,7 +310,7 @@
       var t = document.querySelector('[data-bs-target="#tab-tickets"]');
       if (t) bootstrap.Tab.getOrCreateInstance(t).show();
     }
-    // Xác nhận trước khi huỷ sự kiện — thao tác không hoàn tác được
+    // Xác nhận trước khi huỷ sự kiện - thao tác không hoàn tác được
     var sf = document.getElementById("status-form");
     if (sf) sf.addEventListener("submit", function (e) {
       if (sf.status.value === "CANCELLED" &&

@@ -1,30 +1,81 @@
 {% extends "base.html" %}
-{% block title %}Đăng ký{% endblock %}
+{% block title %}Tạo tài khoản{% endblock %}
+
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-6">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h4 class="card-title mb-3">Đăng ký tài khoản</h4>
-        <form method="post">
-          {% csrf_token %}
-          {% for field in form %}
-            <div class="mb-3">
-              <label class="form-label">{{ field.label }}</label>
-              {{ field }}
-              {% if field.help_text %}
-                <div class="form-text">{{ field.help_text|safe }}</div>
-              {% endif %}
-              {% if field.errors %}
-                <div class="text-danger small">{{ field.errors|first }}</div>
-              {% endif %}
-            </div>
-          {% endfor %}
-          <button class="btn btn-primary w-100">Đăng ký</button>
-        </form>
+<div class="auth-wrap">
+  <aside class="auth-aside d-none d-lg-flex">
+    <div>
+      <span class="lp-eyebrow text-white-50">{{ club.name }}</span>
+      <h2 class="fw-bold mt-2 mb-3">Tạo tài khoản để đặt vé</h2>
+      <p class="opacity-75 mb-4">Ai cũng tạo được tài khoản để xem lịch, giữ chỗ và nhận vé các sự kiện của {{ club.name }}.</p>
+      <ul class="auth-points">
+        <li><i class="bi bi-ticket-perforated"></i><span>Giữ chỗ sự kiện, nhận vé QR ngay trên điện thoại.</span></li>
+        <li><i class="bi bi-qr-code"></i><span>Chuyển khoản một lần cho cả nhóm vé bằng VietQR.</span></li>
+        <li><i class="bi bi-alarm"></i><span>Được nhắc lịch qua email trước 24 giờ.</span></li>
+      </ul>
+      <div class="auth-note mt-4">
+        <i class="bi bi-info-circle"></i>
+        <span>Tài khoản mới ở vai trò <strong>Khách</strong>. Muốn trở thành <strong>thành viên CLB</strong>, bạn nộp đơn ở mục <em>Tuyển thành viên</em> khi CLB mở đợt tuyển.</span>
       </div>
+    </div>
+    <a href="{% url 'recruitment:home' %}" class="small text-white-50">Xem đợt tuyển thành viên <i class="bi bi-arrow-right"></i></a>
+  </aside>
+
+  <div class="auth-main">
+    <div class="auth-card">
+      <h1 class="h3 fw-bold mb-1">Tạo tài khoản</h1>
+      <p class="text-body-secondary mb-4">Ai cũng tạo được: sinh viên Học viện, sinh viên trường khác hay người đi làm đều đặt vé xem show được.</p>
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2">{{ form.non_field_errors|first }}</div>
+      {% endif %}
+      <form method="post" novalidate id="register-form">
+        {% csrf_token %}
+        <fieldset class="mb-3">
+          <legend class="form-label fw-semibold fs-6">{{ form.affiliation.label }}</legend>
+          <div class="who-pick">
+            {% for radio in form.affiliation %}
+              <label class="who-option">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>
+            {% endfor %}
+          </div>
+          {% if form.affiliation.errors %}<div class="text-danger small mt-1">{{ form.affiliation.errors|first }}</div>{% endif %}
+        </fieldset>
+        {% for field in form %}{% if field.name != "affiliation" %}
+          <div class="mb-3" data-field="{{ field.name }}">
+            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+              {{ field.label }}{% if not field.field.required and field.name != "mssv" %} <span class="fw-normal text-body-secondary">(không bắt buộc)</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.help_text and field.name != "school" and field.name != "phone" %}<div class="form-text">{{ field.help_text|safe }}</div>{% endif %}
+            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|first }}</div>{% endif %}
+          </div>
+        {% endif %}{% endfor %}
+        <button class="btn btn-primary btn-lg w-100 mt-2">Tạo tài khoản</button>
+      </form>
+      <p class="mt-4 mb-0 text-center small text-body-secondary">
+        Đã có tài khoản? <a href="{% url 'accounts:login' %}" class="fw-semibold">Đăng nhập</a>
+      </p>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Sinh viên Học viện: hiện ô MSSV (bắt buộc), ẩn ô Trường.
+  // Người ngoài Học viện: ẩn MSSV, hiện ô Trường / đơn vị (không bắt buộc).
+  // Tắt JS thì mọi ô vẫn hiện, server tự kiểm tra đúng quy tắc.
+  (function () {
+    var form = document.getElementById("register-form");
+    if (!form) return;
+    function sync() {
+      var picked = form.querySelector("[name=affiliation]:checked");
+      var kma = !picked || picked.value === "KMA";
+      form.querySelector("[data-field=mssv]").hidden = !kma;
+      form.querySelector("[data-field=school]").hidden = kma;
+    }
+    form.addEventListener("change", function (e) { if (e.target.name === "affiliation") sync(); });
+    sync();
+  })();
+</script>
 {% endblock %}

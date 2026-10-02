@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Duyệt đơn ứng tuyển{% endblock %}
+
+{% block topbar %}
+<div class="d-flex justify-content-center w-100 my-2 my-lg-0 min-w-0">
+  <nav class="segmented" aria-label="Lọc theo trạng thái">
+    <a href="?dot={{ round.pk }}" class="segmented-item {% if not current_status %}active{% endif %}">Tất cả ({{ counts.all }})</a>
+    <a href="?dot={{ round.pk }}&status=PENDING" class="segmented-item {% if current_status == 'PENDING' %}active{% endif %}">Chờ duyệt ({{ counts.pending }})</a>
+    <a href="?dot={{ round.pk }}&status=INTERVIEW" class="segmented-item {% if current_status == 'INTERVIEW' %}active{% endif %}">Casting ({{ counts.interview }})</a>
+    <a href="?dot={{ round.pk }}&status=ACCEPTED" class="segmented-item {% if current_status == 'ACCEPTED' %}active{% endif %}">Đã nhận ({{ counts.accepted }})</a>
+  </nav>
+</div>
+{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <span class="kicker">Tổ chức · Tuyển thành viên</span>
+  <div class="page-header-row">
+    <div>
+      <h1 class="h3 fw-bold">Duyệt đơn ứng tuyển</h1>
+      <p class="text-muted">{% if user.is_lead %}Đơn vào mọi Ban.{% else %}Đơn vào Ban bạn làm Trưởng ban.{% endif %} Mỗi quyết định đều được báo cho ứng viên qua thông báo và email.</p>
+    </div>
+    <div class="page-header-actions">
+      {% if rounds %}
+        <form method="get" class="d-flex gap-2">
+          <select name="dot" class="form-select" onchange="this.form.submit()" aria-label="Chọn đợt tuyển">
+            {% for r in rounds %}<option value="{{ r.pk }}" {% if r.pk == round.pk %}selected{% endif %}>{{ r.name }}{% if r.is_open %} (đang mở){% endif %}</option>{% endfor %}
+          </select>
+        </form>
+      {% endif %}
+      {% if user.is_lead %}
+        {% if round %}<a href="{% url 'recruitment:round_update' round.pk %}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Sửa đợt</a>{% endif %}
+        <a href="{% url 'recruitment:round_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Mở đợt tuyển</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+{% if round %}
+<p class="small text-body-secondary">
+  <strong>{{ round.name }}</strong> · {{ round.opens_at|date:"d/m/Y" }} – {{ round.closes_at|date:"d/m/Y H:i" }}
+  {% if round.is_open %}<span class="badge text-bg-success ms-1">Đang nhận đơn</span>{% elif round.is_upcoming %}<span class="badge text-bg-secondary ms-1">Sắp mở</span>{% else %}<span class="badge text-bg-dark ms-1">Đã đóng</span>{% endif %}
+</p>
+{% endif %}
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light"><tr><th>Ứng viên</th><th>Ban</th><th>Thế mạnh</th><th>Trạng thái</th><th>Nộp lúc</th><th></th></tr></thead>
+      <tbody>
+        {% for app in apps %}
+          <tr>
+            <td><div class="d-flex align-items-center gap-2">{% include "partials/avatar.html" with person=app.user size="avatar-sm" %}<div><div class="fw-semibold">{{ app.user.full_name|default:app.user.username }}</div><div class="small text-body-secondary">{{ app.user.mssv|default:"-" }}</div></div></div></td>
+            <td class="small">{{ app.department.name|default:"-" }}</td>
+            <td class="small">{{ app.strengths|truncatechars:40 }}<div class="text-body-secondary">{{ app.get_level_display }}</div></td>
+            <td><span class="status-pill {% if app.status == 'ACCEPTED' %}bg-success-subtle text-success-emphasis{% elif app.status == 'INTERVIEW' %}bg-primary-subtle text-primary-emphasis{% elif app.status == 'PENDING' %}bg-warning-subtle text-warning-emphasis{% else %}bg-secondary-subtle text-secondary-emphasis{% endif %}">{{ app.get_status_display }}</span>
+              {% if app.interview_at and app.status == 'INTERVIEW' %}<div class="small text-body-secondary">{{ app.interview_at|date:"H:i d/m" }}</div>{% endif %}</td>
+            <td class="small text-nowrap">{{ app.created_at|date:"d/m H:i" }}</td>
+            <td class="text-end"><a href="{% url 'recruitment:review_detail' app.pk %}" class="btn btn-sm {% if app.is_active %}btn-primary{% else %}btn-outline-secondary{% endif %}">{% if app.is_active %}Duyệt{% else %}Xem{% endif %}</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            {% if round %}
+              {% include "partials/empty_state.html" with icon="bi-inbox" title="Chưa có đơn nào" desc="Đơn ứng tuyển sẽ hiện ở đây khi có người nộp." %}
+            {% else %}
+              {% url 'recruitment:round_create' as create_url %}
+              {% include "partials/empty_state.html" with icon="bi-megaphone" title="Chưa có đợt tuyển nào" desc="Mở một đợt tuyển để Khách nộp đơn vào các Ban." action_url=create_url action_label="Mở đợt tuyển" %}
+            {% endif %}
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "partials/pagination.html" with page=page_obj %}
+{% endblock %}

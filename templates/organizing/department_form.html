@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{% if dept %}Sửa {{ dept.name }}{% else %}Tạo Ban{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <header class="page-header">
+      <span class="kicker">Tổ chức</span>
+      <h1 class="h3 fw-bold mb-1">{% if dept %}Sửa {{ dept.name }}{% else %}Tạo Ban mới{% endif %}</h1>
+      <p class="text-muted mb-0">Trưởng ban được giao việc cho người trong Ban mình. Thành viên Ban nhận được thông báo khi có việc giao cho cả Ban.</p>
+    </header>
+
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}{% once_token %}
+          {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors|first }}</div>{% endif %}
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">{{ form.name.label }} <span class="text-danger">*</span></label>
+              {{ form.name }}
+              {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="{{ form.icon.id_for_label }}">{{ form.icon.label }}</label>
+              {{ form.icon }}
+              <div class="form-text">Tra tên tại icons.getbootstrap.com</div>
+              {% if form.icon.errors %}<div class="text-danger small">{{ form.icon.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold" for="{{ form.slug.id_for_label }}">{{ form.slug.label }}</label>
+              {{ form.slug }}
+              <div class="form-text">{{ form.slug.help_text }}</div>
+              {% if form.slug.errors %}<div class="text-danger small">{{ form.slug.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="{{ form.order.id_for_label }}">{{ form.order.label }}</label>
+              {{ form.order }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+              {{ form.description }}
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold" for="{{ form.lead.id_for_label }}">{{ form.lead.label }}</label>
+              {{ form.lead }}
+            </div>
+            <div class="col-12">
+              <fieldset>
+                <legend class="form-label fw-semibold fs-6">{{ form.members.label }}</legend>
+                <div class="member-picker border rounded-3 p-3">{{ form.members }}</div>
+                <div class="form-text">{{ form.members.help_text }}</div>
+              </fieldset>
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <button class="btn btn-primary px-4">Lưu</button>
+            <a href="{% if dept %}{{ dept.get_absolute_url }}{% else %}{% url 'organizing:department_list' %}{% endif %}" class="btn btn-link">Huỷ</a>
+          </div>
+        </form>
+        {% if dept %}
+          <hr class="my-4">
+          <form method="post" action="{% url 'organizing:department_delete' dept.slug %}" onsubmit="return confirm('Xoá {{ dept.name|escapejs }}? Công việc của Ban vẫn được giữ lại.');">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Xoá Ban này</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

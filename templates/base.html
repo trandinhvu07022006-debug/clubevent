@@ -4,7 +4,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}KMG Club{% endblock %}</title>
+  <title>{% block title %}{{ club.name }}{% endblock %}{% block title_suffix %} · {{ club.name }}{% endblock %}</title>
+  {% comment %}
+    Thẻ meta mô tả + Open Graph: chia sẻ link lên Facebook/Zalo sẽ hiện thẻ xem
+    trước có tiêu đề, mô tả, ảnh - thay vì một đường link trơn.
+    Trang nào cần mô tả riêng thì ghi đè block meta_description.
+  {% endcomment %}
+  <meta name="description" content="{% block meta_description %}{{ club.tagline }}{% endblock %}">
+  <meta property="og:site_name" content="{{ club.name }}">
+  <meta property="og:title" content="{% block og_title %}{{ club.name }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{{ club.tagline }}{% endblock %}">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/logo.jpg' %}{% endblock %}">
+  <meta name="theme-color" content="#1c2440">
   <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
 
   {% comment %}
@@ -27,167 +39,203 @@
     Lý do: wifi phòng học chập chờn là mất sạch CSS giữa lúc demo.
   {% endcomment %}
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
-  {% comment %} Bộ icon thật (Bootstrap Icons) self-host trong static/vendor — KHÔNG CDN. {% endcomment %}
+  {% comment %} Bộ icon thật (Bootstrap Icons) self-host trong static/vendor - KHÔNG CDN. {% endcomment %}
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% comment %} Lớp giao diện trang công khai + Tổng quan + các Ban. {% endcomment %}
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% if user.is_authenticated %}is-app{% else %}is-public{% endif %} {% block body_class %}{% endblock %}">
+<a class="skip-link" href="#main">Bỏ qua, tới nội dung chính</a>
 
+{% comment %}
+  HAI LỚP VỎ, MỘT NỘI DUNG - học cách Notion / Slack / Linear làm:
+    - Khách: thanh menu công khai trên cùng + chân trang (giống một website).
+    - Đã đăng nhập: sidebar ứng dụng, chia nhóm theo VAI TRÒ (Cá nhân / Tổ chức
+      / Quản trị) - mỗi người chỉ thấy đúng những gì mình dùng.
+  Block topbar và content chỉ xuất hiện MỘT LẦN trong file (Django không cho
+  khai báo block 2 lần), nên phần vỏ mở/đóng bằng các {% if %} bao quanh.
+{% endcomment %}
+{% if user.is_authenticated %}
 <div class="d-flex min-vh-100">
-  <!-- Sidebar -->
-  <aside class="app-sidebar offcanvas-lg offcanvas-start d-flex flex-column shadow-sm" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
+  <aside class="app-sidebar offcanvas-lg offcanvas-start d-flex flex-column shadow-sm" tabindex="-1" id="appSidebar" aria-label="Điều hướng chính">
     <div class="offcanvas-header pb-0 d-lg-none">
-      <a class="d-flex align-items-center gap-2 text-decoration-none text-reset app-brand-link" href="{% url 'events:list' %}">
-        <img src="{% static 'img/logo.jpg' %}" alt="Logo KMG Club" class="app-logo" style="width: 32px; height: 32px;">
-        <span class="fs-5 fw-bold app-brand-text">KMG Club</span>
+      <a class="d-flex align-items-center gap-2 text-decoration-none text-reset app-brand-link" href="{% url 'pages:dashboard' %}">
+        <img src="{% static 'img/logo.jpg' %}" alt="" class="app-logo" style="width: 32px; height: 32px;">
+        <span class="fs-5 fw-bold app-brand-text">{{ club.name }}</span>
       </a>
       <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Đóng"></button>
     </div>
-    
+
     <div class="d-none d-lg-flex align-items-center p-3 mb-1">
-      <a class="d-flex align-items-center gap-2 text-decoration-none text-reset app-brand-link" href="{% url 'events:list' %}">
-        <img src="{% static 'img/logo.jpg' %}" alt="Logo KMG Club" class="app-logo">
-        <span class="fs-4 fw-bold app-brand-text">KMG Club</span>
+      <a class="d-flex align-items-center gap-2 text-decoration-none text-reset app-brand-link" href="{% url 'pages:dashboard' %}">
+        <img src="{% static 'img/logo.jpg' %}" alt="Logo {{ club.name }}" class="app-logo">
+        <span class="fs-4 fw-bold app-brand-text">{{ club.name }}</span>
       </a>
     </div>
 
-    <div class="sidebar-scroll overflow-y-auto flex-grow-1 px-3">
-      <h6 class="sidebar-heading mt-4 mb-2 text-body-secondary text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Chung</h6>
-      <ul class="nav nav-pills flex-column mb-auto gap-1">
+    {% with rm=request.resolver_match %}
+    <nav class="sidebar-scroll overflow-y-auto flex-grow-1 px-3" aria-label="Menu ứng dụng">
+      <ul class="nav nav-pills flex-column gap-1 mt-2">
         <li class="nav-item">
-          <a href="{% url 'events:list' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.namespace == 'events' and request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'calendar' %}active{% else %}text-body-emphasis{% endif %}" title="Sự kiện">
-            <i class="bi bi-calendar-event"></i>
-            <span class="nav-text">Sự kiện</span>
+          <a href="{% url 'pages:dashboard' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'dashboard' and rm.namespace == 'pages' %}active{% else %}text-body-emphasis{% endif %}" title="Tổng quan">
+            <i class="bi bi-house-door"></i><span class="nav-text">Tổng quan</span>
+          </a>
+        </li>
+      </ul>
+
+      <h6 class="sidebar-heading">Khám phá</h6>
+      <ul class="nav nav-pills flex-column gap-1">
+        <li class="nav-item">
+          <a href="{% url 'events:list' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.namespace == 'events' and rm.url_name in 'list detail create update tt_create' %}active{% else %}text-body-emphasis{% endif %}" title="Sự kiện">
+            <i class="bi bi-calendar-event"></i><span class="nav-text">Sự kiện</span>
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'events:calendar' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'calendar' %}active{% else %}text-body-emphasis{% endif %}" title="Lịch sự kiện">
-            <i class="bi bi-calendar3"></i>
-            <span class="nav-text">Lịch sự kiện</span>
+          <a href="{% url 'events:calendar' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'calendar' %}active{% else %}text-body-emphasis{% endif %}" title="Lịch sự kiện">
+            <i class="bi bi-calendar3"></i><span class="nav-text">Lịch sự kiện</span>
+          </a>
+        </li>
+      </ul>
+
+      <h6 class="sidebar-heading">Cá nhân</h6>
+      <ul class="nav nav-pills flex-column gap-1">
+        <li class="nav-item">
+          <a href="{% url 'registrations:my_tickets' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'my_tickets' %}active{% else %}text-body-emphasis{% endif %}" title="Vé của tôi">
+            <i class="bi bi-ticket-perforated"></i><span class="nav-text">Vé của tôi</span>
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'registrations:my_tickets' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'my_tickets' %}active{% else %}text-body-emphasis{% endif %}" title="Vé của tôi">
-            <i class="bi bi-ticket-perforated"></i>
-            <span class="nav-text">Vé của tôi</span>
-          </a>
-        </li>
-        {% if user.is_authenticated %}
-        <li class="nav-item">
-          <a href="{% url 'notifications:list' %}" class="nav-link d-flex align-items-center justify-content-between {% if request.resolver_match.namespace == 'notifications' %}active{% else %}text-body-emphasis{% endif %}" title="Thông báo">
+          <a href="{% url 'notifications:list' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.namespace == 'notifications' %}active{% else %}text-body-emphasis{% endif %}" title="Thông báo">
             <span class="d-flex align-items-center gap-2"><i class="bi bi-bell"></i> <span class="nav-text">Thông báo</span></span>
-            {% if unread_count %}
-            <span class="badge rounded-pill" style="background-color: var(--brand);">{% if unread_count > 9 %}9+{% else %}{{ unread_count }}{% endif %}</span>
-            {% endif %}
+            {% if unread_count %}<span class="badge rounded-pill nav-badge">{% if unread_count > 9 %}9+{% else %}{{ unread_count }}{% endif %}</span>{% endif %}
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'accounts:profile' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'profile' or rm.url_name == 'password_change' %}active{% else %}text-body-emphasis{% endif %}" title="Hồ sơ">
+            <i class="bi bi-person-circle"></i><span class="nav-text">Hồ sơ cá nhân</span>
+          </a>
+        </li>
+        {% if not user.is_club_member %}
+        <li class="nav-item">
+          <a href="{% url 'recruitment:home' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.namespace == 'recruitment' %}active{% else %}text-body-emphasis{% endif %}" title="Ứng tuyển thành viên">
+            <span class="d-flex align-items-center gap-2"><i class="bi bi-person-plus"></i> <span class="nav-text">Ứng tuyển thành viên</span></span>
+            {% if recruit_open %}<span class="badge rounded-pill text-bg-success">Mở</span>{% endif %}
+          </a>
+        </li>
+        {% elif not user.is_staff_btc %}
+        <li class="nav-item">
+          <a href="{% url 'organizing:department_list' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name and 'department' in rm.url_name %}active{% else %}text-body-emphasis{% endif %}" title="Ban của tôi">
+            <i class="bi bi-diagram-3"></i><span class="nav-text">Các Ban của CLB</span>
           </a>
         </li>
         {% endif %}
         <li class="nav-item">
-          <a href="{% url 'aiassist:chat' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.namespace == 'aiassist' %}active{% else %}text-body-emphasis{% endif %}" title="Hỗ trợ">
-            <i class="bi bi-chat-dots"></i>
-            <span class="nav-text">Hỗ trợ</span>
+          <a href="{% url 'aiassist:chat' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.namespace == 'aiassist' %}active{% else %}text-body-emphasis{% endif %}" title="Hỗ trợ">
+            <i class="bi bi-chat-dots"></i><span class="nav-text">Hỗ trợ</span>
           </a>
         </li>
       </ul>
 
       {% if user.is_staff_btc %}
-      <h6 class="sidebar-heading mt-4 mb-2 text-body-secondary text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Ban tổ chức</h6>
-      <ul class="nav nav-pills flex-column mb-auto gap-1">
+      <h6 class="sidebar-heading">Tổ chức</h6>
+      <ul class="nav nav-pills flex-column gap-1">
         <li class="nav-item">
-          <a href="{% url 'organizing:my_tasks' %}" class="nav-link d-flex align-items-center justify-content-between {% if request.resolver_match.url_name == 'my_tasks' %}active{% else %}text-body-emphasis{% endif %}" title="Việc của tôi">
-            <span class="d-flex align-items-center gap-2"><i class="bi bi-list-task"></i> <span class="nav-text">Việc của tôi</span></span>
-            {% if my_tasks_count %}
-            <span class="badge rounded-pill" style="background-color: var(--brand);">{{ my_tasks_count }}</span>
-            {% endif %}
+          <a href="{% url 'organizing:my_tasks' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.url_name == 'my_tasks' %}active{% else %}text-body-emphasis{% endif %}" title="Việc của tôi">
+            <span class="d-flex align-items-center gap-2"><i class="bi bi-list-check"></i> <span class="nav-text">Việc của tôi</span></span>
+            {% if my_tasks_count %}<span class="badge rounded-pill nav-badge">{{ my_tasks_count }}</span>{% endif %}
           </a>
         </li>
-        {% if user.is_lead %}
         <li class="nav-item">
-          <a href="{% url 'organizing:assign' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'assign' %}active{% else %}text-body-emphasis{% endif %}" title="Giao việc">
-            <i class="bi bi-send"></i>
-            <span class="nav-text">Giao việc</span>
+          <a href="{% url 'organizing:department_list' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.url_name and 'department' in rm.url_name %}active{% else %}text-body-emphasis{% endif %}" title="Các Ban">
+            <span class="d-flex align-items-center gap-2"><i class="bi bi-diagram-3"></i> <span class="nav-text">Các Ban</span></span>
+            {% if claimable_count %}<span class="badge rounded-pill text-bg-warning" title="Việc của Ban đang chờ người nhận">{{ claimable_count }}</span>{% endif %}
+          </a>
+        </li>
+        {% if can_review %}
+        <li class="nav-item">
+          <a href="{% url 'recruitment:review_list' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.namespace == 'recruitment' %}active{% else %}text-body-emphasis{% endif %}" title="Tuyển thành viên">
+            <span class="d-flex align-items-center gap-2"><i class="bi bi-person-plus"></i> <span class="nav-text">Tuyển thành viên</span></span>
+            {% if pending_applications_count %}<span class="badge rounded-pill nav-badge">{{ pending_applications_count }}</span>{% endif %}
+          </a>
+        </li>
+        {% endif %}
+        {% if can_assign %}
+        <li class="nav-item">
+          <a href="{% url 'organizing:assign' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'assign' %}active{% else %}text-body-emphasis{% endif %}" title="Giao việc">
+            <i class="bi bi-send"></i><span class="nav-text">Giao việc</span>
           </a>
         </li>
         {% endif %}
         <li class="nav-item">
-          <a href="{% url 'registrations:payment_list' %}" class="nav-link d-flex align-items-center justify-content-between {% if request.resolver_match.url_name == 'payment_list' %}active{% else %}text-body-emphasis{% endif %}" title="Xác nhận TT">
-            <span class="d-flex align-items-center gap-2"><i class="bi bi-currency-dollar"></i> <span class="nav-text">Xác nhận TT</span></span>
-            {% if pending_tickets_count %}
-            <span class="badge rounded-pill" style="background-color: var(--brand);">{{ pending_tickets_count }}</span>
-            {% endif %}
+          <a href="{% url 'registrations:payment_list' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.url_name == 'payment_list' %}active{% else %}text-body-emphasis{% endif %}" title="Xác nhận thanh toán">
+            <span class="d-flex align-items-center gap-2"><i class="bi bi-cash-coin"></i> <span class="nav-text">Xác nhận TT</span></span>
+            {% if pending_tickets_count %}<span class="badge rounded-pill nav-badge">{{ pending_tickets_count }}</span>{% endif %}
           </a>
         </li>
       </ul>
       {% endif %}
 
-      {% if user.is_lead or user.is_admin_role %}
-      <h6 class="sidebar-heading mt-4 mb-2 text-body-secondary text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Quản trị</h6>
-      <ul class="nav nav-pills flex-column mb-auto gap-1">
-        {% if user.is_lead %}
+      {% if user.is_lead %}
+      <h6 class="sidebar-heading">Quản trị</h6>
+      <ul class="nav nav-pills flex-column gap-1">
         <li class="nav-item">
-          <a href="{% url 'events:dashboard' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'dashboard' %}active{% else %}text-body-emphasis{% endif %}" title="Thống kê">
-            <i class="bi bi-graph-up"></i>
-            <span class="nav-text">Thống kê</span>
+          <a href="{% url 'events:dashboard' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.namespace == 'events' and rm.url_name == 'dashboard' %}active{% else %}text-body-emphasis{% endif %}" title="Thống kê">
+            <i class="bi bi-graph-up"></i><span class="nav-text">Thống kê</span>
           </a>
         </li>
-        {% endif %}
         {% if user.is_admin_role %}
         <li class="nav-item">
-          <a href="{% url 'accounts:user_list' %}" class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.namespace == 'accounts' and request.resolver_match.url_name != 'profile' %}active{% else %}text-body-emphasis{% endif %}" title="Tài khoản">
-            <i class="bi bi-people"></i>
-            <span class="nav-text">Tài khoản</span>
+          <a href="{% url 'accounts:user_list' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'user_list' or rm.url_name == 'user_role' %}active{% else %}text-body-emphasis{% endif %}" title="Tài khoản">
+            <i class="bi bi-people"></i><span class="nav-text">Tài khoản</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'accounts:audit_log' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'audit_log' %}active{% else %}text-body-emphasis{% endif %}" title="Nhật ký thao tác">
+            <i class="bi bi-journal-text"></i><span class="nav-text">Nhật ký</span>
           </a>
         </li>
         {% endif %}
       </ul>
       {% endif %}
-    </div>
+    </nav>
+    {% endwith %}
 
     <div class="mt-auto p-3 border-top border-secondary-subtle">
-      {% if user.is_authenticated %}
-        <div class="dropdown">
-          <a href="#" class="d-flex align-items-center text-body-emphasis text-decoration-none dropdown-toggle w-100" data-bs-toggle="dropdown" aria-expanded="false">
-            {% include "partials/avatar.html" with person=user size="avatar-sm" %}
-            <div class="ms-2 d-flex flex-column lh-1 text-truncate sidebar-user-info">
-              <strong>{{ user.full_name|default:user.username }}</strong>
-              <small class="text-body-secondary mt-1">{{ user.get_role_display }}</small>
-            </div>
-          </a>
-          <ul class="dropdown-menu shadow">
-            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="bi bi-person me-2"></i>Trang cá nhân</a></li>
-            <li><a class="dropdown-item" href="{% url 'registrations:my_tickets' %}"><i class="bi bi-ticket-perforated me-2"></i>Vé của tôi</a></li>
-            <li class="d-flex align-items-center px-3 py-1">
-              <span class="me-auto text-body-secondary small">Giao diện</span>
-              <button class="btn btn-sm btn-outline-secondary py-0 px-2 nav-theme-toggle themeToggleBtn" type="button" title="Đổi giao diện">
-                <span class="theme-icon-light"><i class="bi bi-sun-fill"></i></span><span class="theme-icon-dark"><i class="bi bi-moon-stars-fill"></i></span>
-              </button>
-            </li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-              <form method="post" action="{% url 'accounts:logout' %}">
-                {% csrf_token %}
-                <button class="dropdown-item text-danger" type="submit">Đăng xuất</button>
-              </form>
-            </li>
-          </ul>
-        </div>
-      {% else %}
-        <a class="btn btn-primary btn-sm w-100 mb-2 fw-semibold" href="{% url 'accounts:register' %}">Đăng ký</a>
-        <a class="btn btn-outline-secondary btn-sm w-100 mb-3 fw-semibold" href="{% url 'accounts:login' %}">Đăng nhập</a>
-        <div class="d-flex align-items-center px-2 py-1">
-          <span class="me-auto text-body-secondary small">Giao diện</span>
-          <button class="btn btn-sm btn-outline-secondary py-0 px-2 nav-theme-toggle themeToggleBtn" type="button" title="Đổi giao diện">
-            <span class="theme-icon-light"><i class="bi bi-sun-fill"></i></span><span class="theme-icon-dark"><i class="bi bi-moon-stars-fill"></i></span>
-          </button>
-        </div>
-      {% endif %}
-      <button class="btn btn-sm btn-outline-secondary mt-3 w-100 d-none d-lg-block btn-collapse-sidebar" id="sidebarCollapseBtn" title="Thu gọn/mở rộng">
+      <div class="dropdown">
+        <a href="#" class="d-flex align-items-center text-body-emphasis text-decoration-none dropdown-toggle w-100" data-bs-toggle="dropdown" aria-expanded="false">
+          {% include "partials/avatar.html" with person=user size="avatar-sm" %}
+          <div class="ms-2 d-flex flex-column lh-1 text-truncate sidebar-user-info">
+            <strong class="text-truncate">{{ user.full_name|default:user.username }}</strong>
+            <small class="text-body-secondary mt-1">{{ user.get_role_display }}</small>
+          </div>
+        </a>
+        <ul class="dropdown-menu shadow">
+          <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="bi bi-person me-2"></i>Trang cá nhân</a></li>
+          <li><a class="dropdown-item" href="{% url 'accounts:password_change' %}"><i class="bi bi-key me-2"></i>Đổi mật khẩu</a></li>
+          <li><a class="dropdown-item" href="{% url 'pages:home' %}?xem=1"><i class="bi bi-globe2 me-2"></i>Trang giới thiệu CLB</a></li>
+          <li class="d-flex align-items-center px-3 py-1">
+            <span class="me-auto text-body-secondary small">Giao diện</span>
+            <button class="btn btn-sm btn-outline-secondary py-0 px-2 themeToggleBtn" type="button" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện sáng/tối">
+              <span class="theme-icon-light"><i class="bi bi-sun-fill"></i></span><span class="theme-icon-dark"><i class="bi bi-moon-stars-fill"></i></span>
+            </button>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <form method="post" action="{% url 'accounts:logout' %}">
+              {% csrf_token %}
+              <button class="dropdown-item text-danger" type="submit"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+      <button class="btn btn-sm btn-outline-secondary mt-3 w-100 d-none d-lg-flex btn-collapse-sidebar" id="sidebarCollapseBtn" title="Thu gọn/mở rộng" type="button">
         <i class="bi bi-chevron-double-left"></i> <span class="collapse-text">Thu gọn</span>
       </button>
     </div>
   </aside>
 
-  <!-- Main content wrapper -->
   <div class="flex-grow-1 d-flex flex-column min-w-0" style="min-width: 0;">
     <header class="app-nav sticky-top">
       <div class="container-fluid d-flex align-items-center justify-content-between">
@@ -195,77 +243,100 @@
           <button class="navbar-toggler border-0 d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Mở menu">
             <span class="navbar-toggler-icon"></span>
           </button>
-          <a class="navbar-brand d-flex align-items-center gap-2 m-0 d-lg-none" href="{% url 'events:list' %}">
-            <img src="{% static 'img/logo.jpg' %}" alt="Logo KMG Club" class="app-logo">
-            KMG Club
+          <a class="navbar-brand d-flex align-items-center gap-2 m-0 d-lg-none" href="{% url 'pages:dashboard' %}">
+            <img src="{% static 'img/logo.jpg' %}" alt="" class="app-logo">
+            {{ club.name }}
           </a>
         </div>
-        
         <div class="flex-grow-1 d-flex justify-content-center min-w-0">
-          {% block topbar %}{% endblock %}
-        </div>
+{% else %}
+  {% include "partials/public_nav.html" %}
+  <div class="public-subbar">
+    <div class="container d-flex justify-content-center">
+{% endif %}
 
-        {% if user.is_authenticated %}
-          {% comment %} F7.3 - Chuông thông báo: badge chưa đọc + 5 thông báo mới nhất. {% endcomment %}
-          <div class="dropdown ms-2 flex-shrink-0">
-            <button class="btn btn-bell position-relative" type="button" data-bs-toggle="dropdown"
-                    data-bs-auto-close="outside" aria-expanded="false"
-                    aria-label="Thông báo{% if unread_count %}, {{ unread_count }} chưa đọc{% endif %}">
-              <i class="bi bi-bell{% if unread_count %}-fill{% endif %}"></i>
+{% block topbar %}{% endblock %}
+
+{% if user.is_authenticated %}
+        </div>
+        {% comment %} F7.3 - Chuông thông báo: badge chưa đọc + 5 thông báo mới nhất. {% endcomment %}
+        <div class="dropdown ms-2 flex-shrink-0">
+          <button class="btn btn-bell position-relative" type="button" data-bs-toggle="dropdown"
+                  data-bs-auto-close="outside" aria-expanded="false"
+                  aria-label="Thông báo{% if unread_count %}, {{ unread_count }} chưa đọc{% endif %}">
+            <i class="bi bi-bell{% if unread_count %}-fill{% endif %}"></i>
+            {% if unread_count %}
+              <span class="bell-badge">{% if unread_count > 9 %}9+{% else %}{{ unread_count }}{% endif %}</span>
+            {% endif %}
+          </button>
+          <div class="dropdown-menu dropdown-menu-end shadow bell-menu p-0">
+            <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+              <strong>Thông báo</strong>
               {% if unread_count %}
-                <span class="bell-badge">{% if unread_count > 9 %}9+{% else %}{{ unread_count }}{% endif %}</span>
+                <form method="post" action="{% url 'notifications:read_all' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button class="btn btn-link btn-sm p-0 text-decoration-none">Đánh dấu đã đọc hết</button>
+                </form>
               {% endif %}
-            </button>
-            <div class="dropdown-menu dropdown-menu-end shadow bell-menu p-0">
-              <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-                <strong>Thông báo</strong>
-                {% if unread_count %}
-                  <form method="post" action="{% url 'notifications:read_all' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <button class="btn btn-link btn-sm p-0 text-decoration-none">Đánh dấu đã đọc hết</button>
-                  </form>
-                {% endif %}
-              </div>
-              <div class="bell-list">
-                {% for n in recent_notifications %}
-                  <form method="post" action="{% url 'notifications:open' n.pk %}">
-                    {% csrf_token %}
-                    <button class="bell-item {% if not n.is_read %}is-unread{% endif %}">
-                      <i class="bi {{ n.icon }} bell-item-icon"></i>
-                      <span class="bell-item-body">
-                        <span class="bell-item-title">{{ n.title }}</span>
-                        <span class="bell-item-msg">{{ n.message }}</span>
-                        <span class="bell-item-time">{{ n.created_at|khoang }} trước</span>
-                      </span>
-                    </button>
-                  </form>
-                {% empty %}
-                  <div class="text-center text-muted small py-4">Chưa có thông báo nào.</div>
-                {% endfor %}
-              </div>
-              <a class="d-block text-center small fw-semibold py-2 border-top text-decoration-none" href="{% url 'notifications:list' %}">Xem tất cả</a>
             </div>
+            <div class="bell-list">
+              {% for n in recent_notifications %}
+                <form method="post" action="{% url 'notifications:open' n.pk %}">
+                  {% csrf_token %}
+                  <button class="bell-item {% if not n.is_read %}is-unread{% endif %}">
+                    <i class="bi {{ n.icon }} bell-item-icon"></i>
+                    <span class="bell-item-body">
+                      <span class="bell-item-title">{{ n.title }}</span>
+                      <span class="bell-item-msg">{{ n.message }}</span>
+                      <span class="bell-item-time">{{ n.created_at|khoang }} trước</span>
+                    </span>
+                  </button>
+                </form>
+              {% empty %}
+                <div class="text-center text-muted small py-4">Chưa có thông báo nào.</div>
+              {% endfor %}
+            </div>
+            <a class="d-block text-center small fw-semibold py-2 border-top text-decoration-none" href="{% url 'notifications:list' %}">Xem tất cả</a>
           </div>
-        {% endif %}
+        </div>
       </div>
     </header>
+{% else %}
+    </div>
+  </div>
+{% endif %}
 
-<main class="container py-4 {% if user.is_authenticated %}flex-grow-1{% endif %}">
+<main id="main" class="{% block main_class %}container py-4{% endblock %} flex-grow-1" tabindex="-1">
   {% if messages %}
+    <div class="app-messages">
     {% for m in messages %}
       <div class="alert alert-{{ m.tags|default:'info' }} alert-dismissible border-0 shadow-sm fade show">
         {{ m }}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
       </div>
     {% endfor %}
+    </div>
   {% endif %}
 
   {% block content %}{% endblock %}
 </main>
 
+{% if user.is_authenticated %}
+    <footer class="app-footer">
+      <div class="container d-flex flex-wrap justify-content-between gap-2">
+        <span>© {% now "Y" %} {{ club.name }}</span>
+        <span class="d-flex gap-3">
+          <a href="{% url 'pages:home' %}?xem=1">Giới thiệu</a>
+          <a href="{% url 'aiassist:chat' %}">Trợ giúp</a>
+        </span>
+      </div>
+    </footer>
   </div>
 </div>
+{% else %}
+  {% include "partials/public_footer.html" %}
+{% endif %}
 
 <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
 <script>
@@ -281,24 +352,52 @@
       });
     });
 
-    // Toggle sidebar collapse
+    // Thu gọn sidebar (chỉ có khi đã đăng nhập)
     var collapseBtn = document.getElementById("sidebarCollapseBtn");
     var sidebar = document.querySelector(".app-sidebar");
     if (collapseBtn && sidebar) {
-      // Khôi phục trạng thái từ localStorage
       try {
-        var isCollapsed = localStorage.getItem("sidebar_collapsed");
-        if (isCollapsed === "true") {
-          sidebar.classList.add("collapsed");
-        }
+        if (localStorage.getItem("sidebar_collapsed") === "true") sidebar.classList.add("collapsed");
       } catch (e) {}
-
       collapseBtn.addEventListener("click", function() {
         sidebar.classList.toggle("collapsed");
-        try {
-          localStorage.setItem("sidebar_collapsed", sidebar.classList.contains("collapsed"));
-        } catch (e) {}
+        try { localStorage.setItem("sidebar_collapsed", sidebar.classList.contains("collapsed")); } catch (e) {}
       });
+    }
+
+    // CHỐNG GỬI TRÙNG cho MỌI form POST: đang gửi thì không gửi lại nữa.
+    // Lỗi thật: mạng chậm + bấm đúp "Đăng ký" -> đặt 2 vé. Server cũng chặn
+    // (core/once.py), lớp này giúp người dùng thấy ngay là đã bấm rồi.
+    // - Bỏ qua form đã bị JS khác chặn (confirm() bấm Huỷ, form chat dùng fetch).
+    // - Khoá nút SAU khi trình duyệt đã gom dữ liệu form (setTimeout 0), để
+    //   tên/giá trị của nút được bấm (vd name="again") vẫn được gửi đi.
+    // - Mở khoá lại sau 10 giây (POST tải file không chuyển trang) và khi
+    //   quay lại trang bằng nút Back (bfcache).
+    document.addEventListener("submit", function (e) {
+      var f = e.target;
+      if (e.defaultPrevented || (f.getAttribute("method") || "").toLowerCase() !== "post") return;
+      if (f.dataset.submitting) { e.preventDefault(); return; }
+      f.dataset.submitting = "1";
+      var btns = f.querySelectorAll("button:not([type=button]), input[type=submit]");
+      setTimeout(function () {
+        btns.forEach(function (b) { b.disabled = true; b.setAttribute("aria-busy", "true"); });
+      }, 0);
+      setTimeout(function () { unlock(f); }, 10000);
+    });
+    function unlock(f) {
+      delete f.dataset.submitting;
+      f.querySelectorAll("[aria-busy=true]").forEach(function (b) { b.disabled = false; b.removeAttribute("aria-busy"); });
+    }
+    window.addEventListener("pageshow", function (e) {
+      if (e.persisted) document.querySelectorAll("form[data-submitting]").forEach(unlock);
+    });
+
+    // Thanh menu công khai: thêm bóng khi cuộn xuống (giống Stripe/Linear)
+    var siteNav = document.querySelector(".site-nav");
+    if (siteNav) {
+      var onScroll = function () { siteNav.classList.toggle("is-scrolled", window.scrollY > 8); };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
     }
   })();
 </script>

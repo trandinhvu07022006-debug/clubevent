@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}Công việc{% endblock %}
 
 {% block content %}
@@ -6,12 +7,15 @@
   <div class="col-lg-6">
     <div class="card shadow-sm">
       <div class="card-body">
-        <h5 class="card-title">
+        <h1 class="h5 card-title">
           {% if task %}Sửa công việc{% else %}Tạo công việc mới{% endif %}
-        </h5>
+        </h1>
         <p class="text-muted small">{% if event %}{{ event.name }}{% else %}Việc chung của CLB{% endif %}</p>
         <form method="post">
-          {% csrf_token %}
+          {% csrf_token %}{% once_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2">{{ form.non_field_errors|first }}</div>
+          {% endif %}
           {% for field in form %}
             <div class="mb-3">
               <label class="form-label">{{ field.label }}</label>

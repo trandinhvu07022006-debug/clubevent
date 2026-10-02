@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Giới thiệu{% endblock %}
+{% block meta_description %}{{ profile.official_name }} - tiền thân {{ profile.former_name }}, CLB lâu đời nhất Học viện. {{ profile.motto }}.{% endblock %}
+{% block main_class %}landing{% endblock %}
+
+{% block content %}
+{% comment %}
+  Nội dung lấy từ pages/club_content.py (văn bản, thành tích) và
+  pages.ClubOfficer (Ban Quản trị - Admin sửa trong trang quản trị).
+{% endcomment %}
+
+{# 1. HERO #}
+<section class="lp-hero compact" style="--hero-img: url('{% static 'img/scene-4.jpg' %}')">
+  <div class="container">
+    <span class="lp-eyebrow"><i class="bi bi-music-note-beamed"></i> Về {{ profile.short_name }}</span>
+    <h1 class="mt-2">{{ profile.official_name }}</h1>
+    <p class="lead mb-1">Tiền thân: {{ profile.former_name }}</p>
+    <p class="lead fst-italic mb-0">“{{ profile.motto }}”</p>
+  </div>
+</section>
+
+{# 2. CHÚNG TÔI LÀ AI + tiêu chí #}
+<section class="lp-section">
+  <div class="container">
+    <div class="row g-5 align-items-center">
+      <div class="col-lg-7">
+        <span class="lp-eyebrow">Câu chuyện</span>
+        <h2 class="lp-title mt-1">CLB lâu đời nhất Học viện</h2>
+        <p class="lp-sub">{{ profile.summary }}</p>
+        <p class="small text-body-secondary mb-2 mt-4 fw-semibold text-uppercase">Tiêu chí hoạt động</p>
+        <p class="mission-quote mb-0">{{ profile.mission }}</p>
+      </div>
+      <div class="col-lg-5">
+        <div class="panel">
+          <div class="panel-head"><h2><i class="bi bi-compass"></i> Bạn muốn làm gì?</h2></div>
+          <a class="panel-row" href="{% url 'recruitment:home' %}"><i class="bi bi-person-plus fs-5 text-primary"></i><div class="main"><div class="title">Trở thành thành viên{% if recruit_round %} <span class="badge text-bg-success">Đang mở</span>{% endif %}</div><div class="meta">Ứng tuyển theo đợt, chọn Ban phù hợp</div></div><i class="bi bi-chevron-right"></i></a>
+          <a class="panel-row" href="{% url 'events:list' %}?when=upcoming"><i class="bi bi-calendar-event fs-5 text-primary"></i><div class="main"><div class="title">Đi xem show của CLB</div><div class="meta">Đặt vé, nhận vé QR</div></div><i class="bi bi-chevron-right"></i></a>
+          <a class="panel-row" href="{% url 'pages:for_organizers' %}"><i class="bi bi-diagram-3 fs-5 text-primary"></i><div class="main"><div class="title">Tôi ở Ban tổ chức</div><div class="meta">Quy trình, vai trò, các Ban</div></div><i class="bi bi-chevron-right"></i></a>
+          {% if club.email or club.facebook or club.address %}
+          <div class="panel-body border-top small d-grid gap-2">
+            {% if club.email %}<a href="mailto:{{ club.email }}"><i class="bi bi-envelope me-2"></i>{{ club.email }}</a>{% endif %}
+            {% if club.facebook %}<a href="{{ club.facebook }}" target="_blank" rel="noopener"><i class="bi bi-facebook me-2"></i>Fanpage của CLB</a>{% endif %}
+            {% if club.address %}<span class="text-body-secondary"><i class="bi bi-geo-alt me-2"></i>{{ club.address }}</span>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# 3. ĐIỀU LÀM NÊN KMG #}
+<section class="lp-section alt">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Ở {{ profile.short_name }} có gì</span>
+      <h2 class="lp-title mt-1">Những điều bạn không nên bỏ lỡ</h2>
+    </div>
+    <div class="row g-3 g-lg-4">
+      {% for icon, title, desc in highlights %}
+        <div class="col-sm-6 col-lg-4"><div class="feature"><span class="ico"><i class="bi {{ icon }}"></i></span><h3>{{ title }}</h3><p>{{ desc }}</p></div></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# 4. THÀNH TÍCH #}
+<section class="lp-section" id="thanh-tich">
+  <div class="container">
+    <div class="lp-head">
+      <span class="lp-eyebrow">Thành tích</span>
+      <h2 class="lp-title mt-1">Dấu ấn trên sân khấu</h2>
+    </div>
+    <div class="row g-3">
+      {% for rank, contest, note in achievements %}
+        <div class="col-sm-6 col-lg-3">
+          <div class="award">
+            <span class="medal"><i class="bi bi-trophy"></i></span>
+            <div><div class="rank">{{ rank }}</div><div class="ct">{{ contest }}{% if note %}<br><span class="small">{{ note }}</span>{% endif %}</div></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# 5. BAN QUẢN TRỊ #}
+{% if officers %}
+<section class="lp-section alt" id="ban-quan-tri">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Nhiệm kỳ {{ officers.0.term }}</span>
+      <h2 class="lp-title mt-1">Ban Quản trị</h2>
+      <p class="lp-sub">{{ profile.board_message }}</p>
+    </div>
+    <div class="row g-3 g-lg-4 justify-content-center">
+      {% for o in officers %}
+        <div class="col-6 col-md-4 col-lg-3">{% include "pages/partials/officer.html" with o=o %}</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# 6. CƠ CẤU 2 BAN #}
+{% if departments %}
+<section class="lp-section" id="cac-ban">
+  <div class="container">
+    <div class="lp-head">
+      <span class="lp-eyebrow">Cơ cấu</span>
+      <h2 class="lp-title mt-1">Các Ban của {{ profile.short_name }}</h2>
+    </div>
+    <div class="row g-4">
+      {% for d in departments %}
+        <div class="col-md-6">
+          <div class="dept-big">
+            <span class="dept-icon lg"><i class="bi {{ d.icon }}"></i></span>
+            <h3>{{ d.name }}</h3>
+            <p class="text-body-secondary mb-3">{{ d.description }}</p>
+            <div class="small text-body-secondary">{% if d.lead %}Trưởng ban: <strong class="text-body">{{ d.lead.full_name|default:d.lead.username }}</strong> · {% endif %}{{ d.member_count }} thành viên</div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="lp-section pt-0">
+  <div class="container">
+    <div class="cta-band">
+      <h2>Muốn trở thành một phần của {{ profile.short_name }}?</h2>
+      <p>Không cần biết chơi nhạc cụ - chọn Ban Chuyên môn nếu bạn mê đàn hát, hoặc Ban Truyền thông & Sự kiện nếu bạn thích thiết kế, quay chụp, tổ chức.</p>
+      <a href="{% url 'recruitment:home' %}" class="btn btn-light btn-lg px-4">{% if recruit_round %}Ứng tuyển ngay{% else %}Xem thông tin tuyển thành viên{% endif %}</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

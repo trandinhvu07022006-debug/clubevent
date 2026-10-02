@@ -15,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.permissions import lead_required, staff_required
+from core import once
 from core.pagination import paginate
 from core.qr import qr_data_uri
 from events.models import Event, TicketType
@@ -36,6 +37,10 @@ def book(request, event_id):
 
     if request.method != "POST":
         return redirect("events:detail", pk=event_id)
+    # Bấm đúp / mạng chậm bấm lại: KHÔNG đặt thêm vé lần nữa
+    if not once.consume(request):
+        messages.info(request, "Yêu cầu này đã được gửi rồi - bỏ qua lần bấm trùng.")
+        return redirect("registrations:my_tickets")
 
     try:
         ticket_type_id = int(request.POST.get("ticket_type", 0))
@@ -351,12 +356,12 @@ def participant_csv(request, event_id):
     response.write('\ufeff')  # BOM for Excel
 
     writer = csv.writer(response)
-    writer.writerow(["Mã vé", "Mã giao dịch", "Họ tên", "MSSV", "Email",
+    writer.writerow(["Mã vé", "Mã giao dịch", "Họ tên", "MSSV", "Đối tượng", "Trường / đơn vị", "Email",
                      "Loại vé", "Giá", "Trạng thái", "Ngày đặt", "Check-in lúc"])
     for t in participants(event):
         writer.writerow([
             t.code, t.booking_ref, t.user.full_name, t.user.mssv or "",
-            t.user.email, t.ticket_type.name,
+            t.user.get_affiliation_display(), t.user.school, t.user.email, t.ticket_type.name,
             t.price, t.get_status_display(),
             timezone.localtime(t.created_at).strftime("%d/%m/%Y %H:%M"),
             timezone.localtime(t.checked_in_at).strftime("%d/%m/%Y %H:%M")

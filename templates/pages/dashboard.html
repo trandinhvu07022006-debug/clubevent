@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% load static ui %}
+{% block title %}Tổng quan{% endblock %}
+
+{% block content %}
+{% comment %}
+  TỔNG QUAN - trang đầu tiên sau khi đăng nhập (như GitHub/Linear "Home").
+  Hai không gian:
+    - Cá nhân (?space=me): vé, thanh toán, đánh giá, gợi ý, bước bắt đầu.
+    - Tổ chức (?space=org): việc của tôi, Ban của tôi, sự kiện đang chạy,
+      mở rộng thêm theo vai trò (Trưởng BTC, Admin).
+  Nguyên tắc: thứ CẦN XỬ LÝ lên trước, thứ để xem để sau.
+{% endcomment %}
+<div class="dash-head">
+  <div>
+    <div class="sub mb-1">{{ today|date:"l, d/m/Y" }}</div>
+    <h1>{{ greeting }}, {{ user.full_name|default:user.username }}!</h1>
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+      <span class="role-pill"><i class="bi bi-shield-check"></i> {{ user.get_role_display }}</span>
+      {% for d in user.led_departments.all %}<span class="role-pill"><i class="bi bi-star"></i> Trưởng {{ d.name }}</span>{% endfor %}
+    </div>
+  </div>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    {% if user.is_staff_btc %}
+      <nav class="segmented" aria-label="Chọn không gian">
+        <a href="?space=org" class="segmented-item {% if space == 'org' %}active{% endif %}" {% if space == 'org' %}aria-current="page"{% endif %}><i class="bi bi-diagram-3"></i> Tổ chức</a>
+        <a href="?space=me" class="segmented-item {% if space == 'me' %}active{% endif %}" {% if space == 'me' %}aria-current="page"{% endif %}><i class="bi bi-person"></i> Cá nhân</a>
+      </nav>
+    {% endif %}
+    {% if space == 'org' and can_assign %}
+      <a href="{% url 'organizing:assign' %}" class="btn btn-primary"><i class="bi bi-send"></i> Giao việc</a>
+    {% elif space == 'me' %}
+      <a href="{% url 'events:list' %}?when=upcoming" class="btn btn-primary"><i class="bi bi-search"></i> Tìm sự kiện</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if space == 'me' %}
+{# ======================= KHÔNG GIAN CÁ NHÂN ======================= #}
+<div class="kpi-grid">
+  <a class="kpi" href="{% url 'registrations:my_tickets' %}"><span class="ico"><i class="bi bi-ticket-perforated"></i></span><span><span class="num d-block">{{ stats.booked }}</span><span class="lbl">vé đang giữ</span></span></a>
+  <a class="kpi {% if pending_groups %}warn{% endif %}" href="{% url 'registrations:my_tickets' %}"><span class="ico"><i class="bi bi-hourglass-split"></i></span><span><span class="num d-block">{{ pending_groups|length }}</span><span class="lbl">đơn chờ thanh toán</span></span></a>
+  <a class="kpi ok" href="{% url 'accounts:profile' %}"><span class="ico"><i class="bi bi-patch-check"></i></span><span><span class="num d-block">{{ stats.attended }}</span><span class="lbl">sự kiện đã tham gia</span></span></a>
+  <a class="kpi" href="{% url 'notifications:list' %}"><span class="ico"><i class="bi bi-bell"></i></span><span><span class="num d-block">{{ unread_count|default:0 }}</span><span class="lbl">thông báo chưa đọc</span></span></a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8 d-flex flex-column gap-4">
+    {% if pending_groups or feedback_due %}
+    <section class="panel" aria-labelledby="todo-title">
+      <div class="panel-head"><h2 id="todo-title"><i class="bi bi-lightning-charge text-warning"></i> Cần bạn xử lý</h2></div>
+      {% for g in pending_groups %}
+        <a class="panel-row" href="{% url 'registrations:my_tickets' %}">
+          <i class="bi bi-qr-code fs-4 text-warning"></i>
+          <div class="main">
+            <div class="title">Thanh toán {{ g.count }} vé - {{ g.event.name }}</div>
+            <div class="meta">Mã giao dịch <strong>{{ g.ref }}</strong> · {{ g.amount|vnd }}đ · quét VietQR trong "Vé của tôi"</div>
+          </div>
+          <span class="btn btn-sm btn-outline-primary">Thanh toán</span>
+        </a>
+      {% endfor %}
+      {% for ev in feedback_due %}
+        <a class="panel-row" href="{% url 'feedback:send' ev.pk %}">
+          <i class="bi bi-star-half fs-4 text-warning"></i>
+          <div class="main">
+            <div class="title">Đánh giá "{{ ev.name }}"</div>
+            <div class="meta">Bạn đã tham gia ngày {{ ev.starts_at|date:"d/m" }} - góp ý giúp BTC làm tốt hơn</div>
+          </div>
+          <span class="btn btn-sm btn-outline-primary">Đánh giá</span>
+        </a>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    <section class="panel" aria-labelledby="up-title">
+      <div class="panel-head"><h2 id="up-title"><i class="bi bi-calendar-check text-primary"></i> Sự kiện sắp tới của bạn</h2><a href="{% url 'registrations:my_tickets' %}">Vé của tôi</a></div>
+      {% for ev in upcoming %}
+        <a class="panel-row" href="{% url 'events:detail' ev.pk %}">
+          <div class="date-tile"><div class="d">{{ ev.starts_at|date:"d" }}</div><div class="m">Th{{ ev.starts_at|date:"n" }}</div></div>
+          <div class="main">
+            <div class="title">{{ ev.name }}</div>
+            <div class="meta">{{ ev.starts_at|date:"H:i" }} · {{ ev.location }} · {{ ev.my_count }} vé</div>
+          </div>
+          <span class="small text-body-secondary text-nowrap">còn {{ ev.starts_at|khoang }}</span>
+        </a>
+      {% empty %}
+        <div class="panel-body">
+          {% url 'events:list' as list_url %}
+          {% include "partials/empty_state.html" with icon="bi-calendar-plus" title="Bạn chưa có vé nào sắp tới" desc="Xem các sự kiện đang mở đăng ký và giữ chỗ sớm." action_url=list_url action_label="Xem sự kiện" %}
+        </div>
+      {% endfor %}
+    </section>
+
+    {% if suggestions %}
+    <section aria-labelledby="sug-title">
+      <h2 class="h6 fw-bold mb-3" id="sug-title"><i class="bi bi-stars text-primary"></i> Có thể bạn quan tâm</h2>
+      <div class="row g-3">
+        {% for ev in suggestions %}<div class="col-md-4">{% include "pages/partials/mini_event.html" with ev=ev %}</div>{% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-4 d-flex flex-column gap-4">
+    {% if not user.is_club_member %}
+    <section class="panel" aria-labelledby="join-title">
+      <div class="panel-head"><h2 id="join-title"><i class="bi bi-person-plus text-primary"></i> Trở thành thành viên</h2></div>
+      <div class="panel-body small">
+        {% if latest_app and latest_app.is_active %}
+          <p class="mb-2">Đơn vào <strong>{{ latest_app.department.name }}</strong>: <span class="status-pill {% if latest_app.status == 'INTERVIEW' %}bg-primary-subtle text-primary-emphasis{% else %}bg-warning-subtle text-warning-emphasis{% endif %}">{{ latest_app.get_status_display }}</span></p>
+          {% if latest_app.interview_at %}<p class="mb-2"><i class="bi bi-calendar-event"></i> Casting / phỏng vấn: <strong>{{ latest_app.interview_at|date:"H:i d/m/Y" }}</strong></p>{% endif %}
+          <a href="{% url 'recruitment:my_application' %}" class="btn btn-sm btn-outline-primary">Xem đơn của tôi</a>
+        {% elif not can_apply %}
+          <p class="mb-0">Tài khoản của bạn là <strong>Khách</strong> — đặt vé, xem show thoải mái. Tuyển thành viên CLB dành cho sinh viên Học viện; nếu bạn là sinh viên Học viện, hãy <a href="{% url 'accounts:profile' %}">cập nhật đối tượng và MSSV</a>.</p>
+        {% elif recruit_round %}
+          <p class="mb-2">Tài khoản của bạn đang là <strong>Khách</strong>. CLB đang mở <strong>{{ recruit_round.name }}</strong> - nhận đơn đến {{ recruit_round.closes_at|date:"d/m/Y" }}.</p>
+          <a href="{% url 'recruitment:home' %}" class="btn btn-sm btn-primary">Ứng tuyển ngay</a>
+        {% else %}
+          <p class="mb-2">Tài khoản của bạn đang là <strong>Khách</strong> - đặt vé thoải mái. Khi CLB mở đợt tuyển, bạn sẽ nộp đơn được ở đây.</p>
+          <a href="{% url 'recruitment:home' %}" class="btn btn-sm btn-outline-primary">Thông tin tuyển thành viên</a>
+        {% endif %}
+      </div>
+    </section>
+    {% elif my_departments_simple %}
+    <section class="panel" aria-labelledby="mydept-title">
+      <div class="panel-head"><h2 id="mydept-title"><i class="bi bi-diagram-3 text-primary"></i> Ban của tôi</h2></div>
+      {% for d in my_departments_simple %}
+        <a class="panel-row" href="{{ d.get_absolute_url }}">
+          <span class="dept-icon"><i class="bi {{ d.icon }}"></i></span>
+          <div class="main"><div class="title">{{ d.name }}</div><div class="meta">{% if d.lead %}Trưởng ban: {{ d.lead.full_name|default:d.lead.username }}{% endif %}</div></div>
+          <i class="bi bi-chevron-right small"></i>
+        </a>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if steps_done < steps_total %}
+    <section class="panel onboard" aria-labelledby="ob-title">
+      <div class="panel-head"><h2 id="ob-title"><i class="bi bi-rocket-takeoff text-primary"></i> Bắt đầu</h2><span class="small text-body-secondary">{{ steps_done }}/{{ steps_total }}</span></div>
+      <div class="panel-body">
+        <div class="progress mb-2" role="progressbar" aria-label="Tiến độ bắt đầu" aria-valuenow="{% widthratio steps_done steps_total 100 %}" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar" style="width: {% widthratio steps_done steps_total 100 %}%"></div>
+        </div>
+        {% for s in steps %}
+          {% if s.done %}
+            <div class="onboard-step done"><span class="dot"><i class="bi bi-check-lg"></i></span><span class="label small">{{ s.label }}</span></div>
+          {% else %}
+            <a class="onboard-step" href="{{ s.url }}"><span class="dot"></span><span class="label small">{{ s.label }}</span><i class="bi bi-chevron-right ms-auto small text-body-secondary"></i></a>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="panel" aria-labelledby="quick-title">
+      <div class="panel-head"><h2 id="quick-title"><i class="bi bi-grid"></i> Lối tắt</h2></div>
+      <a class="panel-row" href="{% url 'events:calendar' %}"><i class="bi bi-calendar3 text-primary"></i><div class="main"><div class="title">Lịch sự kiện</div></div><i class="bi bi-chevron-right small"></i></a>
+      <a class="panel-row" href="{% url 'accounts:profile' %}"><i class="bi bi-award text-primary"></i><div class="main"><div class="title">Chứng nhận tham gia</div></div><i class="bi bi-chevron-right small"></i></a>
+      <a class="panel-row" href="{% url 'aiassist:chat' %}"><i class="bi bi-chat-dots text-primary"></i><div class="main"><div class="title">Hỏi trợ lý</div></div><i class="bi bi-chevron-right small"></i></a>
+
+    </section>
+  </div>
+</div>
+
+{% else %}
+{# ======================= KHÔNG GIAN TỔ CHỨC ======================= #}
+<div class="kpi-grid">
+  <a class="kpi" href="{% url 'organizing:my_tasks' %}"><span class="ico"><i class="bi bi-list-check"></i></span><span><span class="num d-block">{{ task_counts.open }}</span><span class="lbl">việc đang mở của tôi</span></span></a>
+  <a class="kpi {% if task_counts.overdue %}danger{% endif %}" href="{% url 'organizing:my_tasks' %}"><span class="ico"><i class="bi bi-exclamation-octagon"></i></span><span><span class="num d-block">{{ task_counts.overdue }}</span><span class="lbl">việc quá hạn</span></span></a>
+  <a class="kpi {% if task_counts.due_soon %}warn{% endif %}" href="{% url 'organizing:my_tasks' %}"><span class="ico"><i class="bi bi-alarm"></i></span><span><span class="num d-block">{{ task_counts.due_soon }}</span><span class="lbl">đến hạn trong 3 ngày</span></span></a>
+  <a class="kpi {% if claimable_count %}warn{% endif %}" href="{% url 'organizing:my_tasks' %}#cho-nhan"><span class="ico"><i class="bi bi-inbox"></i></span><span><span class="num d-block">{{ claimable_count }}</span><span class="lbl">việc Ban chờ nhận</span></span></a>
+  <a class="kpi" href="{% url 'registrations:payment_list' %}"><span class="ico"><i class="bi bi-cash-coin"></i></span><span><span class="num d-block">{{ pending_payments }}</span><span class="lbl">đơn chờ xác nhận TT</span></span></a>
+</div>
+
+{% if checkin_today %}
+<div class="alert alert-info border-0 shadow-sm d-flex flex-wrap align-items-center gap-2">
+  <i class="bi bi-broadcast"></i> <strong>Hôm nay có sự kiện:</strong>
+  {% for ev in checkin_today %}
+    <a href="{% url 'registrations:checkin' ev.pk %}" class="btn btn-sm btn-primary">Mở check-in · {{ ev.name|truncatechars:30 }} ({{ ev.starts_at|date:"H:i" }})</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-7 d-flex flex-column gap-4">
+    <section class="panel" aria-labelledby="mytask-title">
+      <div class="panel-head"><h2 id="mytask-title"><i class="bi bi-list-check text-primary"></i> Việc của tôi</h2><a href="{% url 'organizing:my_tasks' %}">Xem tất cả</a></div>
+      {% for t in my_tasks %}
+        <a class="panel-row" href="{% url 'organizing:my_tasks' %}">
+          <i class="bi {% if t.status == 'DOING' %}bi-play-circle-fill text-primary{% else %}bi-circle text-body-secondary{% endif %} fs-5"></i>
+          <div class="main">
+            <div class="title">{{ t.title }}{% if t.priority == 'URGENT' %} <span class="badge bg-danger">Gấp</span>{% endif %}</div>
+            <div class="meta">{{ t.scope_label }}{% if t.department %} · {{ t.department.name }}{% endif %}</div>
+          </div>
+          {% if t.deadline %}
+            <span class="small text-nowrap {% if t.is_overdue %}text-danger fw-semibold{% else %}text-body-secondary{% endif %}">
+              {% if t.is_overdue %}Quá hạn{% else %}{{ t.deadline|date:"H:i d/m" }}{% endif %}
+            </span>
+          {% endif %}
+        </a>
+      {% empty %}
+        <div class="panel-body">
+          {% include "partials/empty_state.html" with icon="bi-cup-hot" title="Bạn không còn việc nào đang mở" desc="Xem các Ban để nhận thêm việc nếu bạn đang rảnh." %}
+        </div>
+      {% endfor %}
+    </section>
+
+    {% if active_events %}
+    <section class="panel" aria-labelledby="ev-title">
+      <div class="panel-head"><h2 id="ev-title"><i class="bi bi-kanban text-primary"></i> Sự kiện đang chuẩn bị & mở bán</h2><a href="{% url 'events:create' %}"><i class="bi bi-plus-lg"></i> Tạo sự kiện</a></div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <thead class="table-light"><tr><th scope="col">Sự kiện</th><th scope="col">Trạng thái</th><th scope="col" style="min-width:120px">Tiến độ việc</th><th scope="col">Vé</th><th scope="col"></th></tr></thead>
+          <tbody>
+            {% for ev in active_events %}
+              <tr>
+                <td><a href="{% url 'events:detail' ev.pk %}" class="fw-semibold text-decoration-none">{{ ev.name|truncatechars:38 }}</a><div class="text-body-secondary">{{ ev.starts_at|date:"d/m H:i" }}</div></td>
+                <td><span class="status-pill {% if ev.status == 'OPEN' %}bg-success-subtle text-success-emphasis{% elif ev.status == 'DRAFT' %}bg-secondary-subtle text-secondary-emphasis{% else %}bg-warning-subtle text-warning-emphasis{% endif %}">{{ ev.get_status_display }}</span></td>
+                <td><div class="d-flex align-items-center gap-2"><div class="bar-thin flex-grow-1 {% if ev.task_progress == 100 %}ok{% endif %}"><span style="width: {{ ev.task_progress }}%"></span></div><span>{{ ev.task_progress }}%</span></div></td>
+                <td class="text-nowrap">{{ ev.total_sold }}/{{ ev.total_quota }}</td>
+                <td class="text-end text-nowrap">
+                  <a href="{% url 'organizing:board' ev.pk %}" class="btn btn-sm btn-outline-secondary border-0" title="Bảng công việc" aria-label="Bảng công việc"><i class="bi bi-kanban"></i></a>
+                  <a href="{% url 'registrations:participants' ev.pk %}" class="btn btn-sm btn-outline-secondary border-0" title="Người tham gia" aria-label="Người tham gia"><i class="bi bi-people"></i></a>
+                  <a href="{% url 'organizing:budget' ev.pk %}" class="btn btn-sm btn-outline-secondary border-0" title="Ngân sách" aria-label="Ngân sách"><i class="bi bi-wallet2"></i></a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if recent_logs %}
+    <section class="panel" aria-labelledby="log-title">
+      <div class="panel-head"><h2 id="log-title"><i class="bi bi-journal-text text-primary"></i> Hoạt động gần đây</h2><a href="{% url 'accounts:audit_log' %}">Nhật ký</a></div>
+      {% for log in recent_logs %}
+        <div class="panel-row">
+          {% if log.user %}{% include "partials/avatar.html" with person=log.user size="avatar-sm" %}{% else %}<i class="bi bi-gear"></i>{% endif %}
+          <div class="main">
+            <div class="title small">{% if log.user %}{{ log.user.full_name|default:log.user.username }}{% else %}Hệ thống{% endif %} · {{ log.action }}</div>
+            <div class="meta text-truncate">{{ log.target }}{% if log.note %} - {{ log.note }}{% endif %}</div>
+          </div>
+          <span class="small text-body-secondary text-nowrap">{{ log.created_at|khoang }} trước</span>
+        </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5 d-flex flex-column gap-4">
+    <section class="panel" aria-labelledby="dept-title">
+      <div class="panel-head"><h2 id="dept-title"><i class="bi bi-diagram-3 text-primary"></i> Ban của tôi</h2><a href="{% url 'organizing:department_list' %}">Tất cả các Ban</a></div>
+      {% for d in my_departments %}
+        <a class="panel-row" href="{{ d.get_absolute_url }}">
+          <span class="dept-icon"><i class="bi {{ d.icon }}"></i></span>
+          <div class="main">
+            <div class="title">{{ d.name }}</div>
+            <div class="bar-thin my-1 {% if d.progress == 100 %}ok{% endif %}"><span style="width: {{ d.progress }}%"></span></div>
+            <div class="meta">{{ d.task_done }}/{{ d.task_total }} việc xong{% if d.task_unclaimed %} · <span class="text-warning-emphasis fw-semibold">{{ d.task_unclaimed }} chờ nhận</span>{% endif %}{% if d.task_overdue %} · <span class="text-danger">{{ d.task_overdue }} quá hạn</span>{% endif %}</div>
+          </div>
+        </a>
+      {% empty %}
+        <div class="panel-body small text-body-secondary">
+          Bạn chưa thuộc Ban nào. {% if user.is_lead %}<a href="{% url 'organizing:department_create' %}">Tạo Ban đầu tiên</a>{% else %}Nhờ Trưởng BTC thêm bạn vào một Ban.{% endif %}
+        </div>
+      {% endfor %}
+    </section>
+
+    {% if all_departments %}
+    <section class="panel" aria-labelledby="alldept-title">
+      <div class="panel-head"><h2 id="alldept-title"><i class="bi bi-bar-chart-steps text-primary"></i> Tiến độ các Ban</h2>{% if assigned_open %}<a href="{% url 'organizing:my_tasks' %}?view=assigned">{{ assigned_open }} việc tôi giao đang mở</a>{% endif %}</div>
+      <div class="panel-body d-grid gap-3">
+        {% for d in all_departments %}
+          <div>
+            <div class="d-flex justify-content-between small mb-1">
+              <a href="{{ d.get_absolute_url }}" class="fw-semibold text-decoration-none">{{ d.name }}</a>
+              <span class="text-body-secondary">{{ d.progress }}%{% if d.task_overdue %} · <span class="text-danger">{{ d.task_overdue }} trễ</span>{% endif %}</span>
+            </div>
+            <div class="bar-thin {% if d.progress == 100 %}ok{% endif %}"><span style="width: {{ d.progress }}%"></span></div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if role_rows %}
+    <section class="panel" aria-labelledby="users-title">
+      <div class="panel-head"><h2 id="users-title"><i class="bi bi-people text-primary"></i> Tài khoản</h2><a href="{% url 'accounts:user_list' %}">Quản lý</a></div>
+      <div class="panel-body">
+        <div class="row g-2 mb-2">
+          {% for label, n in role_rows %}
+            <div class="col-6"><div class="stat-tile"><div class="num">{{ n }}</div><div class="lbl">{{ label }}</div></div></div>
+          {% endfor %}
+        </div>
+        <div class="small text-body-secondary">+{{ new_users_week }} tài khoản mới trong 7 ngày{% if locked_users %} · {{ locked_users }} đang bị khoá{% endif %}</div>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

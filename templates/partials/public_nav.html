@@ -1,0 +1,57 @@
+{% load static %}
+{% comment %}
+  Thanh menu cho KHÁCH (chưa đăng nhập).
+  - "Tạo tài khoản" chỉ để đặt vé / theo dõi sự kiện (vai trò Khách).
+  - Muốn thành THÀNH VIÊN phải qua "Tuyển thành viên" theo đợt - tách riêng
+    để danh sách thành viên không bị loãng.
+  - "Hướng dẫn" gom 2 lối đi theo đối tượng: người tham gia sự kiện / Ban tổ chức.
+{% endcomment %}
+{% with rm=request.resolver_match %}
+<header class="site-nav sticky-top">
+  <nav class="navbar navbar-expand-lg" aria-label="Menu chính">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'pages:home' %}">
+        <img src="{% static 'img/logo.jpg' %}" alt="" class="app-logo">
+        <span>{{ club.name }}</span>
+      </a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#siteNavMenu"
+              aria-controls="siteNavMenu" aria-expanded="false" aria-label="Mở menu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="siteNavMenu">
+        <ul class="navbar-nav mx-lg-auto gap-lg-1">
+          <li class="nav-item">
+            <a class="nav-link {% if rm.url_name == 'about' %}active{% endif %}" href="{% url 'pages:about' %}">Giới thiệu</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if rm.namespace == 'events' and rm.url_name != 'calendar' %}active{% endif %}" href="{% url 'events:list' %}">Sự kiện</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if rm.url_name == 'calendar' %}active{% endif %}" href="{% url 'events:calendar' %}">Lịch</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center gap-1 {% if rm.namespace == 'recruitment' %}active{% endif %}" href="{% url 'recruitment:home' %}">
+              Tuyển thành viên {% if recruit_open %}<span class="badge rounded-pill text-bg-success">Đang mở</span>{% endif %}
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if rm.url_name == 'for_members' or rm.url_name == 'for_organizers' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Hướng dẫn</a>
+            <ul class="dropdown-menu shadow">
+              <li><a class="dropdown-item py-2" href="{% url 'pages:for_members' %}"><i class="bi bi-ticket-perforated me-2"></i>Tham gia sự kiện<div class="small text-body-secondary ms-4">Đặt vé, thanh toán, check-in</div></a></li>
+              <li><a class="dropdown-item py-2" href="{% url 'pages:for_organizers' %}"><i class="bi bi-diagram-3 me-2"></i>Dành cho Ban tổ chức<div class="small text-body-secondary ms-4">Quy trình, vai trò, các Ban</div></a></li>
+            </ul>
+          </li>
+        </ul>
+        <div class="d-flex flex-wrap align-items-center gap-2 py-3 py-lg-0">
+          <button class="btn btn-sm btn-outline-secondary px-2 themeToggleBtn" type="button" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện sáng/tối">
+            <span class="theme-icon-light"><i class="bi bi-sun-fill"></i></span><span class="theme-icon-dark"><i class="bi bi-moon-stars-fill"></i></span>
+          </button>
+          <a class="btn btn-sm btn-link text-body-emphasis text-decoration-none fw-semibold" href="{% url 'accounts:login' %}">Đăng nhập</a>
+          <a class="btn btn-sm btn-primary px-3" href="{% url 'accounts:register' %}">Tạo tài khoản</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+{% endwith %}

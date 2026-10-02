@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dành cho Ban tổ chức{% endblock %}
+{% block meta_description %}Cách Ban chủ nhiệm, Ban tổ chức và các Ban của {{ club.name }} phối hợp: giao việc theo Ban, nhắc hạn tự động, check-in, thống kê.{% endblock %}
+{% block main_class %}landing{% endblock %}
+
+{% block content %}
+<section class="lp-hero compact" style="--hero-img: url('{% static 'img/scene-3.jpg' %}')">
+  <div class="container">
+    <span class="lp-eyebrow"><i class="bi bi-diagram-3"></i> Lối đi tổ chức</span>
+    <h1 class="mt-2">Dành cho Ban tổ chức</h1>
+    <p class="lead mb-4">Chia việc theo Ban, biết ai đang làm gì, không sót hạn chót. Mỗi người trong Ban tổ chức có một không gian làm việc riêng với đúng những việc của mình.</p>
+    <div class="d-flex flex-wrap gap-2">
+      {% if user.is_authenticated and user.is_staff_btc %}
+        <a href="{% url 'pages:dashboard' %}?space=org" class="btn btn-light btn-lg px-4">Vào không gian tổ chức</a>
+      {% elif user.is_authenticated %}
+        <a href="{% url 'pages:dashboard' %}" class="btn btn-light btn-lg px-4">Về trang Tổng quan</a>
+      {% else %}
+        <a href="{% url 'accounts:login' %}" class="btn btn-light btn-lg px-4">Đăng nhập Ban tổ chức</a>
+      {% endif %}
+      <a href="#vai-tro" class="btn btn-outline-light btn-lg px-4">Xem vai trò & quyền</a>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Quy trình</span>
+      <h2 class="lp-title mt-1">Từ cuộc họp đầu tiên tới bản tổng kết</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Lập kế hoạch</h3><p>Trưởng BTC tạo sự kiện (bản nháp), đặt sức chứa, loại vé, ngân sách. Bấm "AI gợi ý" để có danh sách đầu việc.</p><span class="who">Trưởng BTC</span></div>
+      <div class="step"><h3>Chia việc theo Ban</h3><p>Giao từng việc cho một người, hoặc cho cả Ban để thành viên tự nhận. Trưởng ban giao tiếp trong Ban mình.</p><span class="who">Trưởng BTC · Trưởng ban</span></div>
+      <div class="step"><h3>Theo dõi tiến độ</h3><p>Bảng Kanban theo sự kiện, % hoàn thành theo Ban, việc quá hạn tô đỏ. Hệ thống tự nhắc trước 24 giờ.</p><span class="who">Mọi thành viên BTC</span></div>
+      <div class="step"><h3>Vận hành ngày diễn ra</h3><p>Xác nhận thanh toán theo nhóm, quét QR check-in, bảng điểm danh trực tiếp.</p><span class="who">Thành viên BTC</span></div>
+      <div class="step"><h3>Tổng kết</h3><p>AI tóm tắt phản hồi, thống kê tỉ lệ tham dự, đối chiếu thu chi, xuất CSV nộp quyết toán.</p><span class="who">Trưởng BTC</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section alt" id="vai-tro">
+  <div class="container">
+    <div class="lp-head">
+      <span class="lp-eyebrow">Vai trò & quyền hạn</span>
+      <h2 class="lp-title mt-1">Mỗi người thấy đúng phần việc của mình</h2>
+      <p class="lp-sub">Quyền được kiểm tra ở máy chủ: gõ thẳng đường dẫn vượt quyền sẽ bị chặn (lỗi 403), không chỉ ẩn nút trên giao diện.</p>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table role-table mb-0">
+          <thead class="table-light">
+            <tr><th scope="col">Việc làm được</th><th scope="col" class="text-center">Khách</th><th scope="col" class="text-center">Thành viên</th><th scope="col" class="text-center">Thành viên BTC</th><th scope="col" class="text-center">Trưởng ban</th><th scope="col" class="text-center">Trưởng BTC / Phó CN</th><th scope="col" class="text-center">Admin / Chủ nhiệm</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Tạo tài khoản, đặt vé, check-in, đánh giá, nhận chứng nhận</td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td></tr>
+            <tr><td>Nộp đơn ứng tuyển thành viên (khi CLB mở đợt tuyển)</td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="no">-</td><td class="no">-</td><td class="no">-</td><td class="no">-</td><td class="no">-</td></tr>
+            <tr><td>Vào Ban (Chuyên môn / Truyền thông & Sự kiện), xem hoạt động của Ban</td><td class="no">-</td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td></tr>
+            <tr><td>Nhận & cập nhật việc, nhận việc của Ban, xác nhận thanh toán, quét check-in</td><td class="no">-</td><td class="no">-</td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td></tr>
+            <tr><td>Giao việc và duyệt đơn ứng tuyển trong Ban mình</td><td class="no">-</td><td class="no">-</td><td class="no">-</td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td></tr>
+            <tr><td>Tạo sự kiện, mở đợt tuyển, giao việc mọi Ban, thống kê, ngân sách</td><td class="no">-</td><td class="no">-</td><td class="no">-</td><td class="no">-</td><td class="yes"><i class="bi bi-check-lg"></i></td><td class="yes"><i class="bi bi-check-lg"></i></td></tr>
+            <tr><td>Quản lý tài khoản, gán vai trò, xem nhật ký thao tác</td><td class="no">-</td><td class="no">-</td><td class="no">-</td><td class="no">-</td><td class="no">-</td><td class="yes"><i class="bi bi-check-lg"></i></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="small text-body-secondary mt-2 mb-0"><i class="bi bi-info-circle"></i> <strong>Khách</strong> là tài khoản tự tạo để đặt vé; chỉ lên <strong>Thành viên</strong> khi đơn ứng tuyển được nhận. "Trưởng ban" là Thành viên BTC được chọn làm trưởng một Ban - không phải vai trò riêng.</p>
+  </div>
+</section>
+
+<section class="lp-section" id="cac-ban">
+  <div class="container">
+    <div class="lp-head">
+      <span class="lp-eyebrow">Đơn vị tổ chức</span>
+      <h2 class="lp-title mt-1">Các Ban trong CLB</h2>
+      <p class="lp-sub">Việc có thể giao cho cả một Ban: thành viên nào rảnh thì bấm "Nhận việc". Trưởng ban thấy mỗi người đang giữ bao nhiêu việc để chia đều tay.</p>
+    </div>
+    {% if departments %}
+      <div class="row g-3">
+        {% for d in departments %}
+          <div class="col-md-6 col-lg-4">
+            <div class="dept-chip align-items-start">
+              <span class="dept-icon"><i class="bi {{ d.icon }}"></i></span>
+              <div class="min-w-0 flex-grow-1">
+                <div class="fw-bold">{{ d.name }}</div>
+                <div class="small text-body-secondary mb-2">{{ d.description|default:"-" }}</div>
+                <div class="small text-body-secondary">{% if d.lead %}Trưởng ban: <strong class="text-body">{{ d.lead.full_name|default:d.lead.username }}</strong> · {% endif %}{{ d.member_count }} thành viên</div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      {% include "partials/empty_state.html" with icon="bi-diagram-3" title="CLB chưa khai báo các Ban" desc="Trưởng BTC tạo Ban trong mục Tổ chức › Các Ban sau khi đăng nhập." %}
+    {% endif %}
+  </div>
+</section>
+
+<section class="lp-section pt-0">
+  <div class="container">
+    <div class="cta-band">
+      <h2>Muốn vào Ban tổ chức?</h2>
+      <p>Trở thành thành viên qua đợt tuyển trước; thành viên tích cực sẽ được Ban Quản trị mời vào Ban tổ chức các show.</p>
+      <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a href="{% url 'recruitment:home' %}" class="btn btn-light btn-lg px-4">Tuyển thành viên</a>
+        {% if club.email %}<a href="mailto:{{ club.email }}" class="btn btn-outline-light btn-lg px-4">Liên hệ Ban chủ nhiệm</a>{% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

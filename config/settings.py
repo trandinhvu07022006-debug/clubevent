@@ -2,7 +2,7 @@
 Cấu hình Django cho hệ thống hỗ trợ tổ chức sự kiện CLB sinh viên.
 
 Mọi thông tin bí mật (SECRET_KEY, mật khẩu DB, API key AI) đọc từ biến
-môi trường trong file .env — KHÔNG hard-code, KHÔNG commit lên Git.
+môi trường trong file .env - KHÔNG hard-code, KHÔNG commit lên Git.
 """
 import os
 import sys
@@ -62,6 +62,8 @@ INSTALLED_APPS = [
     "feedback",       # M6 - Phản hồi & thống kê
     "aiassist",       # Tích hợp AI
     "notifications",  # M7 - Nền tảng thông báo chung
+    "pages",          # Trang giới thiệu công khai + Tổng quan theo vai trò
+    "recruitment",    # Tuyển thành viên theo đợt (Khách -> Thành viên)
 ]
 
 MIDDLEWARE = [
@@ -94,6 +96,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.user_badges",
+                "core.context_processors.site_info",
             ],
         },
     },
@@ -128,7 +131,7 @@ if DB_ENGINE == "sqlite":
                 # 2 người cùng đặt chỗ cuối sẽ XẾP HÀNG: người sau chờ người
                 # trước commit rồi mới đọc số chỗ -> nhận đúng thông báo "hết
                 # chỗ". Để mặc định (DEFERRED) thì người sau gặp lỗi
-                # "database is locked" (trang 500) — đã đo: 10/10 lần.
+                # "database is locked" (trang 500) - đã đo: 10/10 lần.
                 "transaction_mode": "IMMEDIATE",
                 # Chờ tối đa 20 giây khi DB đang bận thay vì báo lỗi ngay
                 "timeout": 20,
@@ -184,6 +187,28 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "KMG Club <no-reply@kmgclub.local
 # (nhắc lịch) không có request để suy ra tên miền.
 SITE_URL = env("SITE_URL", "http://127.0.0.1:8000").rstrip("/")
 
+# Thông tin CLB hiện trên trang chủ, trang Giới thiệu và chân trang.
+# SỬA CHO ĐÚNG CLB CỦA MÌNH - để trống mục nào thì mục đó tự ẩn, không hiện
+# chữ mẫu ra ngoài. Đặt ở settings (không phải CSDL) vì hiếm khi đổi.
+CLUB_INFO = {
+    "name": env("CLUB_NAME", "KMG Club"),
+    "full_name": env("CLUB_FULL_NAME", "KMA Guitar Club"),
+    "tagline": env("CLUB_TAGLINE", "Nơi âm nhạc bắt đầu từ những trái tim đồng điệu"),
+    # Giới thiệu dài (trang Giới thiệu) lấy từ pages/club_content.py - chỉ để
+    # ở đây phần ngắn hiện trong thẻ meta/chân trang.
+    "intro": env("CLUB_INTRO",
+                 "Ban Âm nhạc Hội Sinh viên Học viện Kỹ thuật Mật mã, tiền thân là CLB "
+                 "Guitar Học viện Kỹ thuật Mật mã - câu lạc bộ lâu đời nhất Học viện."),
+    "email": env("CLUB_EMAIL", ""),
+    "facebook": env("CLUB_FACEBOOK", ""),
+    "address": env("CLUB_ADDRESS", ""),
+}
+
+# KMG là Ban của Hội Sinh viên Học viện -> chỉ sinh viên Học viện (có MSSV)
+# được ỨNG TUYỂN thành viên. Người ngoài vẫn tạo tài khoản và đặt vé bình
+# thường. Đặt RECRUIT_KMA_ONLY=False trong .env nếu CLB mở cho người ngoài.
+RECRUIT_KMA_ONLY = env_bool("RECRUIT_KMA_ONLY", True)
+
 PASSWORD_RESET_TIMEOUT = 2 * 60 * 60
 
 # --- F4.7 - Chuyển khoản VietQR ---
@@ -231,11 +256,11 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Mật khẩu băm bằng bcrypt. Cả bcrypt và PBKDF2 đều là hàm băm CHẬM và có
-# SALT — đúng yêu cầu cho mật khẩu. Tuyệt đối không dùng MD5/SHA1 vì chúng
+# SALT - đúng yêu cầu cho mật khẩu. Tuyệt đối không dùng MD5/SHA1 vì chúng
 # nhanh, nên dò mật khẩu bằng brute-force rất dễ.
 #
 # Dò xem máy đã cài thư viện bcrypt chưa. Nếu chưa thì dùng PBKDF2 có sẵn
-# trong Django để dự án vẫn chạy được — tránh cảnh bạn nào quên
+# trong Django để dự án vẫn chạy được - tránh cảnh bạn nào quên
 # `pip install -r requirements.txt` là không chạy nổi.
 try:
     import bcrypt  # noqa: F401
@@ -280,8 +305,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "events:list"
-LOGOUT_REDIRECT_URL = "events:list"
+LOGIN_REDIRECT_URL = "pages:dashboard"
+LOGOUT_REDIRECT_URL = "pages:home"
 
 # --- Quy tắc nghiệp vụ (đưa ra đây để dễ sửa và dễ test) ---
 MAX_TICKETS_PER_USER_PER_EVENT = 4   # F4.1 - tối đa 4 vé/người/sự kiện

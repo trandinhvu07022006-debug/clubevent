@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Tuyển thành viên{% endblock %}
+{% block meta_description %}Tuyển thành viên {{ club.name }} - Ban Chuyên môn và Ban Truyền thông & Sự kiện. Không cần biết chơi nhạc cụ.{% endblock %}
+{% block main_class %}landing{% endblock %}
+
+{% block content %}
+<section class="lp-hero compact" style="--hero-img: url('{% static 'img/scene-2.jpg' %}')">
+  <div class="container">
+    <div class="row g-4 align-items-end">
+      <div class="col-lg-7">
+        <span class="lp-eyebrow"><i class="bi bi-person-plus"></i> Tuyển thành viên</span>
+        <h1 class="mt-2">{% if round %}{{ round.name }}{% else %}Gia nhập {{ profile.short_name }}{% endif %}</h1>
+        <p class="lead mb-4">
+          {% if round %}Nhận đơn đến <strong>{{ round.closes_at|date:"H:i, d/m/Y" }}</strong>. Không cần biết chơi nhạc cụ - chọn Ban hợp với bạn nhất.
+          {% elif upcoming %}Đợt tuyển tiếp theo mở lúc <strong>{{ upcoming.opens_at|date:"H:i, d/m/Y" }}</strong>. Tạo tài khoản trước để nộp đơn ngay khi mở.
+          {% else %}Hiện CLB chưa mở đợt tuyển. Tạo tài khoản và theo dõi fanpage để không bỏ lỡ đợt tiếp theo.{% endif %}
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          {% if my_app %}
+            <a href="{% url 'recruitment:my_application' %}" class="btn btn-light btn-lg px-4"><i class="bi bi-file-earmark-text"></i> Xem đơn của tôi - {{ my_app.get_status_display }}</a>
+          {% elif round and not reason %}
+            <a href="{% url 'recruitment:apply' %}" class="btn btn-light btn-lg px-4"><i class="bi bi-pencil-square"></i> Nộp đơn ứng tuyển</a>
+          {% elif round and not user.is_authenticated %}
+            <a href="{% url 'accounts:register' %}" class="btn btn-light btn-lg px-4">Tạo tài khoản để ứng tuyển</a>
+            <a href="{% url 'accounts:login' %}?next={% url 'recruitment:apply' %}" class="btn btn-outline-light btn-lg px-4">Đã có tài khoản</a>
+          {% elif round and reason == kma_only_reason %}
+            <p class="mb-2 text-white-50 small">{{ reason }}</p>
+            <a href="{% url 'accounts:profile' %}" class="btn btn-light btn-lg px-4"><i class="bi bi-person-vcard"></i> Cập nhật hồ sơ</a>
+          {% elif user.is_authenticated and user.is_club_member %}
+            <span class="btn btn-outline-light btn-lg px-4 disabled"><i class="bi bi-check-circle"></i> Bạn đã là thành viên CLB</span>
+          {% elif not user.is_authenticated %}
+            <a href="{% url 'accounts:register' %}" class="btn btn-light btn-lg px-4">Tạo tài khoản</a>
+          {% endif %}
+        </div>
+      </div>
+      {% if round %}
+      <div class="col-lg-5">
+        <div class="award"><span class="medal"><i class="bi bi-hourglass-split"></i></span>
+          <div><div class="rank">Còn {{ round.closes_at|timeuntil }}</div><div class="ct">để nộp đơn đợt này</div></div></div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% if round.description %}
+<section class="lp-section pb-0">
+  <div class="container"><div class="panel"><div class="panel-body prose"><p class="mb-0">{{ round.description|linebreaksbr }}</p></div></div></div>
+</section>
+{% endif %}
+
+<section class="lp-section">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Chọn Ban</span>
+      <h2 class="lp-title mt-1">Bạn hợp với Ban nào?</h2>
+    </div>
+    <div class="row g-4">
+      {% for d in departments|default:all_departments %}
+        <div class="col-md-6">
+          <div class="dept-big">
+            <span class="dept-icon lg"><i class="bi {{ d.icon }}"></i></span>
+            <h3>{{ d.name }}</h3>
+            <p class="text-body-secondary mb-0">{{ d.description }}</p>
+          </div>
+        </div>
+      {% empty %}
+        <div class="col-12 text-center text-body-secondary">Thông tin các Ban sẽ được cập nhật cùng đợt tuyển.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="lp-section alt">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Quy trình</span>
+      <h2 class="lp-title mt-1">4 bước trở thành thành viên</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Tạo tài khoản</h3><p>Tài khoản ban đầu là Khách - đặt vé xem show được ngay.</p></div>
+      <div class="step"><h3>Nộp đơn online</h3><p>Chọn Ban, ghi nhạc cụ / thế mạnh, kèm link video hoặc sản phẩm nếu có.</p></div>
+      <div class="step"><h3>Casting / phỏng vấn</h3><p>Ban Quản trị hoặc Trưởng ban hẹn lịch; bạn nhận thông báo và email.</p></div>
+      <div class="step"><h3>Chào mừng!</h3><p>Được nhận, tài khoản tự lên Thành viên và vào Ban bạn đã chọn.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Vì sao chọn {{ profile.short_name }}</span>
+      <h2 class="lp-title mt-1">{{ profile.motto }}</h2>
+    </div>
+    <div class="row g-3 g-lg-4">
+      {% for icon, title, desc in profile_highlights %}
+        <div class="col-sm-6 col-lg-4"><div class="feature"><span class="ico"><i class="bi {{ icon }}"></i></span><h3>{{ title }}</h3><p>{{ desc }}</p></div></div>
+      {% endfor %}
+    </div>
+    <p class="text-center mt-4 mb-0"><a href="{% url 'pages:about' %}#thanh-tich" class="fw-semibold">Xem thành tích & Ban Quản trị <i class="bi bi-arrow-right"></i></a></p>
+  </div>
+</section>
+{% endblock %}

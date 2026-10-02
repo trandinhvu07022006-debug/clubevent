@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Đơn của {{ app.user.full_name|default:app.user.username }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="small mb-2">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'recruitment:review_list' %}?dot={{ app.round_id }}">Duyệt đơn</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ app.user.full_name|default:app.user.username }}</li>
+  </ol>
+</nav>
+
+<h1 class="visually-hidden">Đơn ứng tuyển của {{ app.user.full_name|default:app.user.username }}</h1>
+<div class="row g-4">
+  <div class="col-lg-7">
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="d-flex align-items-center gap-2">{% include "partials/avatar.html" with person=app.user size="avatar-sm" %} {{ app.user.full_name|default:app.user.username }}</h2>
+        <span class="status-pill {% if app.status == 'ACCEPTED' %}bg-success-subtle text-success-emphasis{% elif app.status == 'INTERVIEW' %}bg-primary-subtle text-primary-emphasis{% elif app.status == 'PENDING' %}bg-warning-subtle text-warning-emphasis{% else %}bg-secondary-subtle text-secondary-emphasis{% endif %}">{{ app.get_status_display }}</span>
+      </div>
+      <div class="panel-body">
+        <dl class="row small mb-0">
+          <dt class="col-sm-4 text-body-secondary fw-normal">MSSV</dt><dd class="col-sm-8">{{ app.user.mssv|default:"-" }}</dd>
+          <dt class="col-sm-4 text-body-secondary fw-normal">Liên hệ</dt><dd class="col-sm-8">{{ app.user.email|default:"-" }}{% if app.user.phone %} · {{ app.user.phone }}{% endif %}</dd>
+          <dt class="col-sm-4 text-body-secondary fw-normal">Ban mong muốn</dt><dd class="col-sm-8 fw-semibold">{{ app.department.name|default:"-" }}</dd>
+          <dt class="col-sm-4 text-body-secondary fw-normal">Nhạc cụ / thế mạnh</dt><dd class="col-sm-8">{{ app.strengths }}</dd>
+          <dt class="col-sm-4 text-body-secondary fw-normal">Trình độ</dt><dd class="col-sm-8">{{ app.get_level_display }}</dd>
+          <dt class="col-sm-4 text-body-secondary fw-normal">Video / sản phẩm</dt><dd class="col-sm-8">{% if app.portfolio_url %}<a href="{{ app.portfolio_url }}" target="_blank" rel="noopener noreferrer">{{ app.portfolio_url|truncatechars:50 }} <i class="bi bi-box-arrow-up-right"></i></a>{% else %}-{% endif %}</dd>
+          <dt class="col-sm-4 text-body-secondary fw-normal">Đợt</dt><dd class="col-sm-8">{{ app.round.name }} · nộp {{ app.created_at|date:"H:i d/m/Y" }}</dd>
+        </dl>
+        <hr>
+        <p class="small text-body-secondary mb-1">Vì sao muốn tham gia</p>
+        <p class="mb-0">{{ app.motivation|linebreaksbr }}</p>
+        {% if app.reviewer %}
+          <hr>
+          <p class="small text-body-secondary mb-0">Lần duyệt gần nhất: {{ app.reviewer.full_name|default:app.reviewer.username }} · {{ app.reviewed_at|date:"H:i d/m/Y" }}{% if app.review_note %} - “{{ app.review_note }}”{% endif %}</p>
+        {% endif %}
+      </div>
+    </section>
+    {% if others %}
+      <p class="small text-body-secondary mt-3 mb-1">Đơn khác của người này:</p>
+      <ul class="small">{% for o in others %}<li>{{ o.round.name }} - {{ o.department.name|default:"-" }}: {{ o.get_status_display }}</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <section class="panel">
+      <div class="panel-head"><h2><i class="bi bi-check2-square text-primary"></i> Quyết định</h2></div>
+      <div class="panel-body">
+        {% if form %}
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% for field in form %}
+              <div class="mb-3">
+                <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="text-danger small">{{ field.errors|first }}</div>{% endif %}
+              </div>
+            {% endfor %}
+            <div class="form-text mb-3">Chọn <strong>Đã nhận</strong>: tài khoản tự lên Thành viên và vào {{ app.department.name|default:"Ban" }}. Ứng viên nhận thông báo + email cho mọi quyết định.</div>
+            <button class="btn btn-primary w-100">Lưu quyết định</button>
+          </form>
+        {% else %}
+          <p class="mb-0 text-body-secondary">Đơn đã ở trạng thái cuối (<strong>{{ app.get_status_display }}</strong>), không đổi được nữa.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

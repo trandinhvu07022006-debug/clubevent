@@ -6,11 +6,11 @@ from .models import AuditLog, User
 
 @admin.register(User)
 class AppUserAdmin(UserAdmin):
-    list_display = ("username", "full_name", "mssv", "role", "is_locked")
-    list_filter = ("role", "is_locked")
+    list_display = ("username", "full_name", "mssv", "affiliation", "role", "is_locked")
+    list_filter = ("role", "affiliation", "is_locked")
     search_fields = ("username", "full_name", "mssv", "email")
     fieldsets = UserAdmin.fieldsets + (
-        ("Thông tin CLB", {"fields": ("mssv", "full_name", "phone",
+        ("Thông tin CLB", {"fields": ("affiliation", "mssv", "school", "full_name", "phone",
                                       "role", "avatar", "is_locked")}),
     )
 

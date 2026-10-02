@@ -2,9 +2,9 @@
 {% block title %}Nhật ký thao tác{% endblock %}
 
 {% block content %}
-<h4 class="mb-1">Nhật ký thao tác</h4>
+<h1 class="h4 mb-1">Nhật ký thao tác</h1>
 <p class="text-muted small">
-  F0.2 — ghi lại các thao tác quan trọng để truy vết khi có tranh chấp.
+  F0.2 - ghi lại các thao tác quan trọng để truy vết khi có tranh chấp.
 </p>
 
 <div class="card">
@@ -18,7 +18,7 @@
         {% for log in logs %}
           <tr>
             <td class="text-nowrap">{{ log.created_at|date:"d/m/Y H:i" }}</td>
-            <td>{{ log.user|default:"—" }}</td>
+            <td>{{ log.user|default:"-" }}</td>
             <td><span class="badge bg-secondary">{{ log.action }}</span></td>
             <td>{{ log.target }}</td>
             <td class="small text-muted">{{ log.note }}</td>

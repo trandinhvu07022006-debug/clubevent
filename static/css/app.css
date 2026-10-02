@@ -1,7 +1,7 @@
 /* =========================================================================
-   LỚP DESIGN SYSTEM — theme tùy biến trên nền Bootstrap 5.3 (self-hosted)
+   LỚP DESIGN SYSTEM - theme tùy biến trên nền Bootstrap 5.3 (self-hosted)
    -------------------------------------------------------------------------
-   Nguyên tắc (BẢN TINH GIẢN — chuẩn chuyên nghiệp):
+   Nguyên tắc (BẢN TINH GIẢN - chuẩn chuyên nghiệp):
      - KHÔNG thêm thư viện, KHÔNG CDN. Chỉ dựa trên biến CSS của Bootstrap 5.3
        và một ít token riêng, nên rớt mạng giữa lúc demo vẫn còn nguyên giao diện.
      - Dark mode dùng cơ chế có sẵn của Bootstrap 5.3: đặt data-bs-theme="dark"
@@ -11,14 +11,14 @@
 
 /* ---- 1. TOKENS ---------------------------------------------------------- */
 :root {
-  /* Màu thương hiệu — XANH MỰC (deep ink blue).
+  /* Màu thương hiệu - XANH MỰC (deep ink blue).
      Triết lý: poster sự kiện vốn đã nhiều màu, nên giao diện LÙI LẠI làm nền
      cho chúng thay vì tranh màu. Xanh mực trầm + nền giấy ấm là cặp cổ điển,
      hoà thuận với mọi tấm poster. Muốn đổi màu chỉ cần sửa 4 dòng dưới đây. */
-  --brand:        #34477d;   /* xanh mực trầm — chữ trắng đè lên đạt 9:1 */
+  --brand:        #34477d;   /* xanh mực trầm - chữ trắng đè lên đạt 9:1 */
   --brand-strong: #2f4070;   /* đậm hơn (trạng thái hover/active) */
   --brand-rgb:    52, 71, 125;
-  --accent:       #a87d26;   /* cát ấm — sao đánh giá, điểm nhấn nhỏ */
+  --accent:       #a87d26;   /* cát ấm - sao đánh giá, điểm nhấn nhỏ */
   --accent-rgb:   168, 125, 38;
 
   /* --brand dùng làm NỀN (nút, pill: chữ trắng đè lên) nên cần đủ ĐẬM.
@@ -43,29 +43,29 @@
   --app-shadow-lg:    0 24px 30px -8px rgba(30, 35, 55, 0.14), 0 10px 14px -8px rgba(30, 35, 55, 0.07);
   --app-shadow-hover: 0 16px 26px -8px rgba(var(--brand-rgb), 0.22), 0 8px 12px -8px rgba(var(--brand-rgb), 0.14);
 
-  --bs-body-bg:          #f7f6f3;   /* giấy ấm — trung tính, để poster tự nổi */
+  --bs-body-bg:          #f7f6f3;   /* giấy ấm - trung tính, để poster tự nổi */
   --bs-body-color:       #23262e;   /* mực than xanh */
   --bs-body-font-size:   0.98rem;
   --bs-body-font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --app-heading-font:    'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 
-  /* Token riêng của app — BỀ MẶT ĐẶC (alpha = 1) để tương phản luôn ổn định */
+  /* Token riêng của app - BỀ MẶT ĐẶC (alpha = 1) để tương phản luôn ổn định */
   --app-surface:   #ffffff;
   --app-surface-2: #f0efeb;   /* giấy đậm hơn một nhịp */
   --app-border:    #e3e1db;
 
-  /* Navbar: MỘT màu xanh mực đặc — phẳng, sạch, không gradient cho đỡ rối. */
+  /* Navbar: MỘT màu xanh mực đặc - phẳng, sạch, không gradient cho đỡ rối. */
   --app-header-bg:   #1c2440;
   --app-header-blur: blur(10px);
 }
 
 [data-bs-theme="dark"] {
-  /* Đêm xanh mực — trầm, sạch, không ngả xanh lá. */
+  /* Đêm xanh mực - trầm, sạch, không ngả xanh lá. */
   --brand:           #5068c0;   /* sáng hơn để vừa đọc chữ trắng (5.1:1) vừa nổi trên nền đêm */
   --brand-strong:    #6b80d0;
   --brand-rgb:       80, 104, 192;
   --brand-text:      #93a7e0;   /* chữ/link: xanh sáng, đạt 7.6:1 trên nền đêm */
-  --accent:          #d9a441;   /* cát ấm sáng hơn — trên nền tối mới đủ nổi */
+  --accent:          #d9a441;   /* cát ấm sáng hơn - trên nền tối mới đủ nổi */
   --accent-rgb:      217, 164, 65;
   --bs-body-bg:      #14161d;
   --bs-body-color:   #eceef4;
@@ -80,7 +80,7 @@
   --app-shadow-hover:0 16px 26px -8px rgba(var(--brand-rgb), 0.28);
 }
 
-/* ---- 2. NỀN CHUNG — ẢNH TĨNH phủ voan, không animation, không cross-fade -- */
+/* ---- 2. NỀN CHUNG - ẢNH TĨNH phủ voan, không animation, không cross-fade -- */
 body {
   background-color: var(--bs-body-bg);
   color: var(--bs-body-color);
@@ -90,8 +90,8 @@ body {
 }
 
 /* Nền: ẢNH NÚI SƯƠNG MÙ, HIỆN RÕ.
-   Lần trước hỏng vì chỉ hé đúng DẢI TRÊN CÙNG của ảnh — chỗ có cành cây khô và
-   sườn đồi bạc màu — nên nó đọc như vệt ố. Lần này hiện TRỌN ảnh (cover, căn
+   Lần trước hỏng vì chỉ hé đúng DẢI TRÊN CÙNG của ảnh - chỗ có cành cây khô và
+   sườn đồi bạc màu - nên nó đọc như vệt ố. Lần này hiện TRỌN ảnh (cover, căn
    giữa) với lớp voan MỎNG và ĐỀU, để nó ra dáng một tấm ảnh thật sự.
    Thẻ card vẫn đặc hoàn toàn nên chữ trong nội dung không bị ảnh làm rối. */
 body::before {
@@ -129,7 +129,7 @@ h1, h2, h3, h4, h5, h6, .navbar-brand {
   font-family: var(--app-heading-font);
   font-weight: 700;
   letter-spacing: -0.01em;   /* nới nhẹ để dấu tiếng Việt "thở" */
-  line-height: 1.3;          /* tiêu đề thoáng hơn — dấu tiếng Việt không chạm nhau */
+  line-height: 1.3;          /* tiêu đề thoáng hơn - dấu tiếng Việt không chạm nhau */
 }
 
 /* Nhịp đọc thong thả: dòng thưa hơn một chút cho cảm giác nhẹ nhàng. */
@@ -174,7 +174,7 @@ p, li { text-wrap: pretty; }
   box-shadow: 0 0 0 .2rem rgba(var(--brand-rgb), .18);
 }
 
-/* ---- 3. HEADER TRANG — MỘT kiểu dùng CHUNG cho mọi trang --------------- */
+/* ---- 3. HEADER TRANG - MỘT kiểu dùng CHUNG cho mọi trang --------------- */
 /* Cấu trúc: <header class="page-header">
      <span class="kicker">NHÃN</span>
      <div class="page-header-row">
@@ -235,7 +235,7 @@ p, li { text-wrap: pretty; }
 .btn {
   font-weight: 600;
   letter-spacing: 0.01em;
-  /* CẮT 5: KHÔNG dịch chuyển nút khi hover — chỉ đổi màu/đổ bóng nhẹ. */
+  /* CẮT 5: KHÔNG dịch chuyển nút khi hover - chỉ đổi màu/đổ bóng nhẹ. */
   transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
   /* Chiều cao sàn + canh giữa nội dung: nút có icon và nút chỉ có chữ cao bằng
      nhau, không còn nút bị "lùn" khi chữ ngắn. Xem mục VÙNG CHẠM bên dưới. */
@@ -279,7 +279,7 @@ p, li { text-wrap: pretty; }
   transition: box-shadow .2s ease, border-color .2s ease;
 }
 
-/* Thẻ sự kiện: CẮT 5 — bỏ nhấc/scale, chỉ đổi bóng + viền nhẹ khi rê chuột. */
+/* Thẻ sự kiện: CẮT 5 - bỏ nhấc/scale, chỉ đổi bóng + viền nhẹ khi rê chuột. */
 .card-event {
   overflow: hidden;
   border: 1px solid transparent;
@@ -295,7 +295,7 @@ p, li { text-wrap: pretty; }
   top: 0;
   z-index: 1030;
   background: var(--app-surface) !important;   /* nền dịu mát */
-  backdrop-filter: var(--app-header-blur);        /* blur — chỗ DUY NHẤT được giữ */
+  backdrop-filter: var(--app-header-blur);        /* blur - chỗ DUY NHẤT được giữ */
   -webkit-backdrop-filter: var(--app-header-blur);
   box-shadow: var(--app-shadow);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -344,7 +344,7 @@ p, li { text-wrap: pretty; }
 html[data-bs-theme="dark"] .theme-icon-light { display: none; }
 html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 
-/* ---- 7. HERO (chỉ dùng ở trang chi tiết — dải ảnh bìa có chữ đè) -------- */
+/* ---- 7. HERO (chỉ dùng ở trang chi tiết - dải ảnh bìa có chữ đè) -------- */
 .hero {
   position: relative;
   overflow: hidden;
@@ -352,7 +352,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   /* Đệm co theo bề ngang: màn hẹp thì thu lại để chữ có chỗ thở. */
   padding: clamp(1.75rem, 1rem + 4vw, 4rem) clamp(1.15rem, .5rem + 3vw, 3rem);
   color: #ffffff;
-  /* ĐẶC (không kính mờ) — xanh mực trầm, chỉ là nền dự phòng khi chưa có ảnh. */
+  /* ĐẶC (không kính mờ) - xanh mực trầm, chỉ là nền dự phòng khi chưa có ảnh. */
   background: linear-gradient(135deg, #1c2440 0%, #26325a 100%);
   border: 1px solid var(--app-border);
   box-shadow: var(--app-shadow);
@@ -386,7 +386,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 }
 
 /* ---- 8. TRẠNG THÁI, TIẾN ĐỘ -------------------------------------------- */
-/* Pill trạng thái mềm hơn badge đặc — dùng kèm class bg-*-subtle của BS 5.3 */
+/* Pill trạng thái mềm hơn badge đặc - dùng kèm class bg-*-subtle của BS 5.3 */
 .status-pill {
   border-radius: 999px;
   font-weight: 600;
@@ -400,14 +400,14 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 .progress.progress-md { height: 10px; }
 .progress.progress-lg { height: 12px; }
 
-/* Màu 3 TRẠNG THÁI công việc — CỐ ĐỊNH (mang ý nghĩa nên không đổi).
+/* Màu 3 TRẠNG THÁI công việc - CỐ ĐỊNH (mang ý nghĩa nên không đổi).
    Gắn class theo status: task-todo / task-doing / task-done; thêm task-overdue nếu trễ. */
-.task-todo    { border-left: 4px solid #9aa0ad; }                     /* Chưa làm — xám xanh */
+.task-todo    { border-left: 4px solid #9aa0ad; }                     /* Chưa làm - xám xanh */
 /* Giữ HỔ PHÁCH cho "đang làm" (không dùng --accent hồng) để 3 trạng thái +
    quá hạn (đỏ) luôn phân biệt được bằng màu, kể cả với người khó phân biệt màu. */
-.task-doing   { border-left: 4px solid #e8973a; }                     /* Đang làm — hổ phách */
-.task-done    { border-left: 4px solid var(--bs-success); }           /* Xong — xanh lá */
-.task-overdue { border-left: 4px solid var(--bs-danger) !important; } /* Quá hạn — đỏ (đè) */
+.task-doing   { border-left: 4px solid #e8973a; }                     /* Đang làm - hổ phách */
+.task-done    { border-left: 4px solid var(--bs-success); }           /* Xong - xanh lá */
+.task-overdue { border-left: 4px solid var(--bs-danger) !important; } /* Quá hạn - đỏ (đè) */
 .task-done .task-title { text-decoration: line-through; opacity: .6; }
 
 /* ---- 9. CHECK-IN (màn BTC dùng ở cửa, trên điện thoại) ------------------ */
@@ -426,32 +426,40 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 
 .star-rating { color: var(--accent); letter-spacing: .1em; }
 
-/* ---- 10. TRỢ LÝ TRA CỨU (chat) — theme-aware --------------------------- */
+/* ---- 10. TRỢ LÝ TRA CỨU (chat) - theme-aware --------------------------- */
+/* NGUỒN DUY NHẤT cho bong bóng chat. Trước đây chat.html định nghĩa lại các
+   class này -> margin (ở đây) + gap (ở template) cộng dồn, nền/viền lệch nhau. */
 .chat-log {
-  height: 420px;
+  flex: 1;
   overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
   background: var(--app-surface-2);
-  border-radius: var(--bs-border-radius-lg);
+  scroll-behavior: smooth;
 }
 .chat-msg {
   max-width: 85%;
-  padding: 10px 14px;
-  border-radius: 14px;
-  margin-bottom: 10px;
+  padding: .75rem 1.1rem;
+  border-radius: 1rem;
   white-space: pre-line;      /* giữ xuống dòng trong câu trả lời nhiều ý */
   line-height: 1.5;
   font-size: .94rem;
+  animation: chat-in .25s ease;
 }
+@keyframes chat-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .chat-bot {
+  align-self: flex-start;
   background: var(--app-surface);
   color: var(--bs-body-color);
   border: 1px solid var(--app-border);
   border-bottom-left-radius: 4px;
 }
 .chat-user {
+  align-self: flex-end;
   background: var(--brand);
   color: #fff;
-  margin-left: auto;
   border-bottom-right-radius: 4px;
 }
 .chat-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -492,7 +500,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 .avatar-lg, .avatar-lg.avatar-initials { width: 96px; height: 96px; font-size: 1.75rem; }
 .avatar-sm, .avatar-sm.avatar-initials { width: 28px; height: 28px; font-size: .68rem; }
 
-/* ---- 12. TIỆN ÍCH NHỎ — thay cho các inline style TĨNH ------------------ */
+/* ---- 12. TIỆN ÍCH NHỎ - thay cho các inline style TĨNH ------------------ */
 .text-xs          { font-size: .75rem; }             /* chú thích rất nhỏ */
 .progress-inline  { width: 70px; margin-left: auto; }/* thanh mini trong bảng thống kê */
 .rating-label     { width: 25px; }                   /* nhãn số sao / số lượng */
@@ -501,14 +509,14 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 .letter-spacing-1 { letter-spacing: .1em; }
 .tracking-widest  { letter-spacing: .15em; }
 
-/* ---- 13. VÙNG CHẠM (TOUCH TARGET) — chuẩn hoá cho chuột & ngón tay ------
+/* ---- 13. VÙNG CHẠM (TOUCH TARGET) - chuẩn hoá cho chuột & ngón tay ------
    Căn cứ:
      - WCAG 2.2 SC 2.5.8 (Target Size Minimum): tối thiểu 24x24 CSS px.
      - WCAG 2.1 SC 2.5.5 (Enhanced) & Apple HIG: 44x44.
      - Material Design: 48x48dp, cách nhau >= 8dp.
    Nguyên tắc: CHUỘT trỏ chính xác nên desktop không cần nút to (40px là đủ
    thoáng); NGÓN TAY thì không, nên mọi thiết bị cảm ứng được nới lên 44px.
-   Phân biệt bằng @media (pointer: coarse) thay vì theo bề ngang màn hình —
+   Phân biệt bằng @media (pointer: coarse) thay vì theo bề ngang màn hình -
    vì laptop cảm ứng màn rộng vẫn cần nút to, còn cửa sổ hẹp trên desktop thì
    không. Đây là cách đúng, bắt theo THIẾT BỊ NHẬP chứ không theo kích thước. */
 
@@ -666,7 +674,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
    Bootstrap GHI CỨNG màu xanh mặc định #0d6efd vào nhiều thành phần. Đổi
    --bs-primary ở mục 1 KHÔNG chạm tới được những chỗ này, nên trang lòi ra
    "hai màu xanh" (mục menu đang chọn xanh chói, nút thì xanh mực).
-   Quét bootstrap.min.css: 12 nhóm còn ghim #0d6efd — trỏ hết về token ở đây. */
+   Quét bootstrap.min.css: 12 nhóm còn ghim #0d6efd - trỏ hết về token ở đây. */
 .nav-pills     { --bs-nav-pills-link-active-bg: var(--brand); }
 .pagination    {
   --bs-pagination-active-bg: var(--brand);
@@ -752,7 +760,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 
 /* Thanh trên cùng: bộ lọc + ô tìm kiếm chia chỗ hợp lý.
    Lưu ý: Bootstrap KHÔNG có class width theo breakpoint (w-lg-auto không tồn
-   tại) — dùng nhầm thì ô tìm kiếm giữ w-100 và nuốt hết hàng, cắt mất bộ lọc.
+   tại) - dùng nhầm thì ô tìm kiếm giữ w-100 và nuốt hết hàng, cắt mất bộ lọc.
    Ô tìm kiếm có trần 340px; bộ lọc hiện đủ, chỉ cuộn ngang khi màn quá hẹp. */
 .topbar-search { width: 100%; }
 @media (min-width: 992px) {
@@ -774,7 +782,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   border-color: var(--bs-border-color);
 }
 
-/* Nhãn "Trả lời bởi AI" trong khung chat — nhỏ, lùi lại, không tranh chú ý
+/* Nhãn "Trả lời bởi AI" trong khung chat - nhỏ, lùi lại, không tranh chú ý
    với nội dung trả lời; dùng --brand-text nên đúng màu ở cả 2 theme. */
 .chat-ai-tag {
   margin-top: 6px;
@@ -786,7 +794,7 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
 }
 
 /* ---- 18. CHUÔNG THÔNG BÁO (F7.3) ------------------------------------------
-   Nút vuông 40px (44px trên cảm ứng — mục 13), badge đỏ góc trên. Dropdown
+   Nút vuông 40px (44px trên cảm ứng - mục 13), badge đỏ góc trên. Dropdown
    rộng cố định, cuộn khi dài; mỗi dòng là 1 form POST nhỏ (đánh dấu đã đọc). */
 .btn-bell {
   width: 40px; height: 40px; padding: 0;

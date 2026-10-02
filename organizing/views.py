@@ -1,27 +1,35 @@
 """View cho M3 - Phân công công việc BTC, kèm nút AI gợi ý."""
 import csv
+import re
 
 from django import forms
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from accounts.models import Role, User
-from accounts.permissions import lead_required, staff_required
+from accounts.models import AuditLog, Role, User
+from accounts.permissions import lead_required, member_required, staff_required
 from aiassist.services import suggest_tasks
+from core import once
 from core.images import shrink_image
 from events.models import Event, EventStatus
 from events.services import budget_summary
 
-from .models import Expense, Task, TaskPriority, TaskStatus
-from .services import delete_expense, save_expense, save_task
+from .models import Department, Expense, Task, TaskPriority, TaskStatus
+from .services import (claim_task, delete_expense, departments_with_stats,
+                       department_people, save_expense, save_task)
 
 CTRL = {"class": "form-control"}
+
+
+BTC_ROLES = [Role.STAFF, Role.LEAD, Role.ADMIN]
 
 
 class TaskForm(forms.ModelForm):
@@ -29,10 +37,12 @@ class TaskForm(forms.ModelForm):
 
     class Meta:
         model = Task
-        fields = ("title", "description", "assignee", "priority", "deadline")
+        fields = ("title", "description", "department", "assignee", "priority",
+                  "deadline")
         widgets = {
             "title": forms.TextInput(attrs=CTRL),
             "description": forms.Textarea(attrs={**CTRL, "rows": 3}),
+            "department": forms.Select(attrs={"class": "form-select"}),
             "assignee": forms.Select(attrs={"class": "form-select"}),
             "priority": forms.Select(attrs={"class": "form-select"}),
             "deadline": forms.DateTimeInput(
@@ -43,34 +53,125 @@ class TaskForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Người nhận việc: mọi thành viên BTC, kể cả Ban chủ nhiệm (Trưởng BTC, Admin)
         self.fields["assignee"].queryset = (User.objects.filter(
-            role__in=[Role.STAFF, Role.LEAD, Role.ADMIN], is_locked=False)
-            .order_by("role", "full_name"))
+            role__in=BTC_ROLES, is_locked=False).order_by("role", "full_name"))
         self.fields["assignee"].label_from_instance = (
-            lambda u: f"{u.full_name or u.username} — {u.get_role_display()}")
+            lambda u: f"{u.full_name or u.username} - {u.get_role_display()}")
         self.fields["assignee"].required = False
+        self.fields["department"].required = False
+        self.fields["department"].empty_label = "- Không thuộc Ban nào -"
 
 
 class AssignForm(TaskForm):
     """
-    Giao việc nhanh của Ban chủ nhiệm từ trang "Việc của tôi".
+    Giao việc nhanh từ trang "Việc của tôi" / trang Ban.
 
-    Khác TaskForm ở chỗ chọn được sự kiện, hoặc để trống = việc chung của CLB;
-    và bắt buộc có người nhận (giao việc mà không giao cho ai thì vô nghĩa).
+    - Chọn được sự kiện, hoặc để trống = việc chung của CLB.
+    - Giao cho MỘT NGƯỜI, cho CẢ BAN (thành viên tự nhận), hoặc cả hai
+      (người đó phụ trách, Ban cùng theo dõi). Phải có ít nhất một trong hai.
+    - Ban chủ nhiệm giao cho bất kỳ ai. Trưởng ban (không phải Trưởng BTC)
+      chỉ giao được trong Ban mình quản và cho người trong Ban đó.
     """
 
     class Meta(TaskForm.Meta):
-        fields = ("title", "event", "assignee", "priority", "deadline", "description")
+        fields = ("title", "event", "department", "assignee", "priority",
+                  "deadline", "description")
         widgets = {**TaskForm.Meta.widgets,
                    "event": forms.Select(attrs={"class": "form-select"})}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, actor=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["assignee"].required = True
+        self.actor = actor
         # Chỉ sự kiện còn đang tổ chức; sự kiện đã xong/huỷ thì không giao thêm
         self.fields["event"].queryset = Event.objects.exclude(
             status__in=[EventStatus.DONE, EventStatus.CANCELLED]).order_by("starts_at")
-        self.fields["event"].empty_label = "— Việc chung của CLB (không thuộc sự kiện) —"
+        self.fields["event"].empty_label = "- Việc chung của CLB (không thuộc sự kiện) -"
         self.fields["event"].required = False
+        self.fields["assignee"].empty_label = "- Để Ban tự nhận -"
+
+        if actor is not None and not actor.is_lead:
+            led = Department.objects.filter(lead=actor)
+            self.fields["department"].queryset = led
+            self.fields["department"].required = True
+            self.fields["department"].empty_label = None
+            self.fields["assignee"].queryset = (User.objects.filter(
+                Q(departments__in=led) | Q(led_departments__in=led),
+                role__in=BTC_ROLES, is_locked=False)
+                .distinct().order_by("full_name"))
+
+    def clean(self):
+        data = super().clean()
+        assignee, dept = data.get("assignee"), data.get("department")
+        if not assignee and not dept:
+            raise forms.ValidationError(
+                "Chọn người nhận, hoặc chọn Ban để thành viên Ban tự nhận việc.")
+        restricted = self.actor is not None and not self.actor.is_lead
+        if restricted and assignee and dept and not dept.has_member(assignee):
+            self.add_error("assignee", f"{assignee.full_name or assignee.username} "
+                                       f"không thuộc {dept.name}.")
+        return data
+
+
+class DepartmentForm(forms.ModelForm):
+    """Tạo / sửa một Ban. Đường dẫn để trống thì tự sinh từ tên."""
+
+    class Meta:
+        model = Department
+        fields = ("name", "slug", "icon", "description", "lead", "members", "order")
+        widgets = {
+            "name": forms.TextInput(attrs={**CTRL, "placeholder": "Vd: Ban Truyền thông"}),
+            "slug": forms.TextInput(attrs={**CTRL, "placeholder": "tự sinh nếu để trống"}),
+            "icon": forms.TextInput(attrs={**CTRL, "placeholder": "bi-megaphone"}),
+            "description": forms.TextInput(attrs=CTRL),
+            "lead": forms.Select(attrs={"class": "form-select"}),
+            "members": forms.CheckboxSelectMultiple,
+            "order": forms.NumberInput(attrs={**CTRL, "min": 0}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        btc = (User.objects.filter(role__in=BTC_ROLES, is_locked=False)
+               .order_by("full_name"))
+        official = (User.objects.exclude(role=Role.GUEST).filter(is_locked=False)
+                    .order_by("role", "full_name"))
+        self.fields["lead"].queryset = btc
+        self.fields["members"].queryset = official
+        label = lambda u: f"{u.full_name or u.username} - {u.get_role_display()}"  # noqa: E731
+        self.fields["lead"].label_from_instance = label
+        self.fields["members"].label_from_instance = label
+        self.fields["slug"].required = False
+        self.fields["members"].help_text = (
+            "Thành viên chính thức trở lên (Khách phải qua đợt tuyển). Chỉ người "
+            "trong Ban tổ chức mới nhận được việc của Ban.")
+
+    def clean_icon(self):
+        icon = (self.cleaned_data.get("icon") or "bi-people").strip()
+        # Chỉ nhận tên class icon hợp lệ, chặn chèn class/thuộc tính lạ vào HTML
+        if not re.fullmatch(r"bi-[a-z0-9-]{1,36}", icon):
+            raise forms.ValidationError("Icon có dạng bi-ten-icon, vd bi-megaphone.")
+        return icon
+
+    def clean(self):
+        data = super().clean()
+        if not data.get("slug") and data.get("name"):
+            slug = vn_slugify(data["name"])
+            exists = Department.objects.filter(slug=slug)
+            if self.instance.pk:
+                exists = exists.exclude(pk=self.instance.pk)
+            if exists.exists():
+                self.add_error("slug", "Đường dẫn này đã có Ban khác dùng, hãy nhập tay.")
+            data["slug"] = slug
+            self.instance.slug = slug
+        return data
+
+
+def vn_slugify(text: str) -> str:
+    """slugify của Django bỏ mất chữ 'đ' (không tách dấu được) -> thay trước."""
+    return slugify(text.replace("đ", "d").replace("Đ", "D"))[:80] or "ban"
+
+
+def _can_assign(user) -> bool:
+    """Ban chủ nhiệm, hoặc Trưởng của ít nhất một Ban."""
+    return user.is_lead or Department.objects.filter(lead=user).exists()
 
 
 def _back_to_task_list(task):
@@ -116,7 +217,7 @@ class ExpenseForm(forms.ModelForm):
 def task_board(request, event_id):
     """F3.5 - Bảng công việc của một sự kiện, kèm % tiến độ."""
     event = get_object_or_404(Event, pk=event_id)
-    tasks = event.tasks.select_related("assignee")
+    tasks = event.tasks.select_related("assignee", "department")
     return render(request, "organizing/board.html", {
         "event": event,
         "tasks": tasks,
@@ -131,6 +232,9 @@ def task_create(request, event_id):
     """F3.1 - Trưởng BTC tạo công việc và giao người."""
     event = get_object_or_404(Event, pk=event_id)
     form = TaskForm(request.POST or None)
+    if request.method == "POST" and not once.consume(request):
+        messages.info(request, "Yêu cầu này đã được gửi rồi - bỏ qua lần bấm trùng.")
+        return redirect("organizing:board", event_id=event.pk)
     if request.method == "POST" and form.is_valid():
         task = form.save(commit=False)
         task.event = event
@@ -145,12 +249,13 @@ def task_create(request, event_id):
 def task_update(request, pk):
     """F3.2 - Sửa công việc hoặc giao lại cho người khác."""
     task = get_object_or_404(Task, pk=pk)
-    old_assignee_id = task.assignee_id
+    old = (task.assignee_id, task.department_id, task.deadline)
     # Việc chung (không thuộc sự kiện) sửa bằng form giao việc để giữ ô Sự kiện
     form_class = TaskForm if task.event_id else AssignForm
     form = form_class(request.POST or None, instance=task)
     if request.method == "POST" and form.is_valid():
-        save_task(request.user, form.save(commit=False), old_assignee_id)
+        save_task(request.user, form.save(commit=False), old_assignee_id=old[0],
+                  old_department_id=old[1], old_deadline=old[2])
         messages.success(request, "Đã cập nhật công việc.")
         return _back_to_task_list(task)
     return render(request, "organizing/form.html",
@@ -170,22 +275,31 @@ def task_delete(request, pk):
     return _back_to_task_list(task)
 
 
-@lead_required
+@staff_required
 def task_assign(request):
     """
-    Ban chủ nhiệm giao việc: cho một sự kiện hoặc việc chung của CLB, cho bất
-    kỳ thành viên BTC nào — kể cả các thành viên Ban chủ nhiệm khác.
-    Người nhận được thông báo + email (qua save_task).
+    Giao việc: cho một sự kiện hoặc việc chung của CLB; cho một người hoặc
+    cho cả một Ban. Ban chủ nhiệm giao cho bất kỳ ai; Trưởng ban giao trong
+    Ban của mình. Người nhận được thông báo + email (qua save_task).
     """
+    if not _can_assign(request.user):
+        raise PermissionDenied("Chỉ Ban chủ nhiệm hoặc Trưởng ban được giao việc.")
     initial = {}
-    if request.GET.get("event", "").isdigit():
-        initial["event"] = request.GET["event"]
-    form = AssignForm(request.POST or None, initial=initial)
+    for key in ("event", "department"):
+        if request.GET.get(key, "").isdigit():
+            initial[key] = request.GET[key]
+    form = AssignForm(request.POST or None, initial=initial, actor=request.user)
+    if request.method == "POST" and not once.consume(request):
+        messages.info(request, "Yêu cầu này đã được gửi rồi - bỏ qua lần bấm trùng.")
+        return redirect(reverse("organizing:my_tasks") + "?view=assigned")
     if request.method == "POST" and form.is_valid():
         task = form.save(commit=False)
         task.created_by = request.user
         save_task(request.user, task)
-        who = task.assignee.full_name or task.assignee.username
+        if task.assignee_id:
+            who = task.assignee.full_name or task.assignee.username
+        else:
+            who = f"{task.department.name} (chờ thành viên nhận)"
         messages.success(request, f"Đã giao '{task.title}' cho {who}.")
         if request.POST.get("again"):
             return redirect("organizing:assign")
@@ -212,15 +326,28 @@ def my_tasks(request):
     """
     status = request.GET.get("status")
     view = request.GET.get("view")
-    if view != "assigned" or not request.user.is_lead:
+    can_assign = _can_assign(request.user)
+    if view != "assigned" or not can_assign:
         view = "mine"
 
+    live = Q(event__isnull=True) | ~Q(event__status=EventStatus.CANCELLED)
     if view == "assigned":
         base = Task.objects.filter(created_by=request.user)
     else:
         base = Task.objects.filter(assignee=request.user)
-    base = (base.filter(Q(event__isnull=True) | ~Q(event__status=EventStatus.CANCELLED))
-            .select_related("event", "assignee", "created_by"))
+    base = base.filter(live).select_related("event", "assignee", "created_by",
+                                            "department")
+
+    # Việc của các Ban mình thuộc về mà CHƯA AI NHẬN - hiện riêng để nhận nhanh
+    claimable = []
+    if view == "mine":
+        my_depts = Department.objects.filter(
+            Q(members=request.user) | Q(lead=request.user)).distinct()
+        claimable = list(Task.objects.filter(
+            live, department__in=my_depts, assignee__isnull=True)
+            .exclude(status=TaskStatus.DONE)
+            .select_related("event", "department", "created_by")
+            .order_by(_PRIORITY_RANK, "deadline"))
 
     counts = base.aggregate(
         all=Count("id"),
@@ -242,7 +369,128 @@ def my_tasks(request):
         "current_status": status,
         "view": view,
         "counts": counts,
+        "claimable": claimable,
+        "can_assign": can_assign,
     })
+
+
+@require_POST
+@staff_required
+def task_claim(request, pk):
+    """Thành viên Ban tự nhận một việc đang chờ của Ban."""
+    task = get_object_or_404(Task.objects.select_related("department"), pk=pk)
+    if claim_task(request.user, task):
+        messages.success(request, f"Bạn đã nhận việc '{task.title}'.")
+    else:
+        messages.error(request, "Không nhận được: việc đã có người nhận "
+                                "hoặc bạn không thuộc Ban này.")
+    nxt = request.POST.get("next", "")
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+        return redirect(nxt)
+    return redirect("organizing:my_tasks")
+
+
+# ---------------------------------------------------------------------------
+# CÁC BAN - đơn vị tổ chức trong CLB
+# ---------------------------------------------------------------------------
+@member_required
+def department_list(request):
+    """Tất cả các Ban kèm tiến độ; Ban của tôi được đưa lên đầu."""
+    rows = departments_with_stats()
+    mine_ids = set(Department.objects.filter(
+        Q(members=request.user) | Q(lead=request.user)).values_list("pk", flat=True))
+    for d in rows:
+        d.is_mine = d.pk in mine_ids
+    rows.sort(key=lambda d: (not d.is_mine, d.order, d.name))
+    return render(request, "organizing/department_list.html", {
+        "departments": rows,
+        "mine_count": len(mine_ids),
+    })
+
+
+@member_required
+def department_detail(request, slug):
+    """Trang của một Ban: thành viên, việc đang treo chờ nhận, tiến độ."""
+    dept = get_object_or_404(Department.objects.select_related("lead"), slug=slug)
+    status = request.GET.get("status", "")
+    live = Q(event__isnull=True) | ~Q(event__status=EventStatus.CANCELLED)
+    all_tasks = (dept.tasks.filter(live)
+                 .select_related("event", "assignee", "created_by"))
+    counts = all_tasks.aggregate(
+        all=Count("id"),
+        todo=Count("id", filter=Q(status=TaskStatus.TODO)),
+        doing=Count("id", filter=Q(status=TaskStatus.DOING)),
+        done=Count("id", filter=Q(status=TaskStatus.DONE)),
+    )
+    tasks = all_tasks.order_by(_OPEN_FIRST, _PRIORITY_RANK, "deadline", "id")
+    if status in TaskStatus.values:
+        tasks = tasks.filter(status=status)
+    else:
+        status = ""
+    tasks = list(tasks)
+    for t in tasks:
+        t.claimable = t.can_be_claimed_by(request.user)
+
+    people = sorted(department_people(dept),
+                    key=lambda u: (u.pk != dept.lead_id, u.full_name or u.username))
+    # Số việc đang mở của từng người trong Ban - để Trưởng ban chia việc đều tay
+    load = dict(Task.objects.filter(department=dept, assignee__in=people)
+                .exclude(status=TaskStatus.DONE)
+                .values_list("assignee").annotate(n=Count("id")))
+    for u in people:
+        u.open_load = load.get(u.pk, 0)
+
+    return render(request, "organizing/department_detail.html", {
+        "dept": dept,
+        "tasks": tasks,
+        "counts": counts,
+        "current_status": status,
+        "progress": round(counts["done"] * 100 / counts["all"]) if counts["all"] else 0,
+        "overdue_count": sum(1 for t in tasks if t.is_overdue),
+        "unclaimed_count": sum(1 for t in tasks
+                               if t.assignee_id is None and t.status != TaskStatus.DONE),
+        "people": people,
+        "is_member": dept.has_member(request.user),
+        "can_manage": dept.is_managed_by(request.user),
+    })
+
+
+@lead_required
+def department_create(request):
+    form = DepartmentForm(request.POST or None)
+    if request.method == "POST" and not once.consume(request):
+        messages.info(request, "Yêu cầu này đã được gửi rồi - bỏ qua lần bấm trùng.")
+        return redirect("organizing:department_list")
+    if request.method == "POST" and form.is_valid():
+        dept = form.save()
+        AuditLog.write(request.user, "Tạo Ban", dept.name)
+        messages.success(request, f"Đã tạo {dept.name}.")
+        return redirect(dept)
+    return render(request, "organizing/department_form.html", {"form": form})
+
+
+@lead_required
+def department_update(request, slug):
+    dept = get_object_or_404(Department, slug=slug)
+    form = DepartmentForm(request.POST or None, instance=dept)
+    if request.method == "POST" and form.is_valid():
+        dept = form.save()
+        AuditLog.write(request.user, "Sửa Ban", dept.name)
+        messages.success(request, f"Đã cập nhật {dept.name}.")
+        return redirect(dept)
+    return render(request, "organizing/department_form.html",
+                  {"form": form, "dept": dept})
+
+
+@require_POST
+@lead_required
+def department_delete(request, slug):
+    """Xoá Ban. Công việc của Ban VẪN GIỮ (chỉ bỏ gắn Ban), không mất dữ liệu."""
+    dept = get_object_or_404(Department, slug=slug)
+    AuditLog.write(request.user, "Xoá Ban", dept.name)
+    dept.delete()
+    messages.success(request, f"Đã xoá {dept.name}. Công việc của Ban vẫn được giữ lại.")
+    return redirect("organizing:department_list")
 
 
 @require_POST
@@ -264,7 +512,7 @@ def task_set_status(request, pk):
     task.mark(new_status)
     messages.success(request,
                      f"'{task.title}' -> {task.get_status_display()}.")
-    # Chỉ quay về trang nội bộ — chặn open redirect qua tham số next
+    # Chỉ quay về trang nội bộ - chặn open redirect qua tham số next
     nxt = request.POST.get("next", "")
     if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
         return redirect(nxt)
@@ -334,7 +582,7 @@ def ai_suggest(request, event_id):
 
 
 # ---------------------------------------------------------------------------
-# NGÂN SÁCH SỰ KIỆN — chỉ Trưởng BTC trở lên (dữ liệu tài chính)
+# NGÂN SÁCH SỰ KIỆN - chỉ Trưởng BTC trở lên (dữ liệu tài chính)
 # ---------------------------------------------------------------------------
 @lead_required
 def budget(request, event_id):
@@ -353,6 +601,9 @@ def expense_create(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
     form = ExpenseForm(request.POST or None, request.FILES or None,
                        initial={"paid_by": request.user})
+    if request.method == "POST" and not once.consume(request):
+        messages.info(request, "Yêu cầu này đã được gửi rồi - bỏ qua lần bấm trùng.")
+        return redirect("organizing:budget", event_id=event.pk)
     if request.method == "POST" and form.is_valid():
         expense = form.save(commit=False)
         expense.event = event

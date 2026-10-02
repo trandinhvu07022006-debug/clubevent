@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% load static ui %}
+{% block title %}{{ club.name }} - {{ profile.motto }}{% endblock %}
+{% block title_suffix %}{% endblock %}
+{% block meta_description %}{{ profile.summary }}{% endblock %}
+{% block main_class %}landing{% endblock %}
+
+{% block content %}
+{% comment %}
+  TRANG CHỦ:
+    1. Hero: câu định vị của KMG + show sắp tới (sự kiện THẬT)
+    2. "Bạn là ai?" - 3 lối đi: Khán giả / Muốn vào CLB / Thành viên & BTC
+    3. Show sắp tới   4. Về KMG + thành tích   5. Ban Quản trị
+    6. Hai Ban        7. Nền tảng vận hành       8. FAQ   9. CTA
+  "Tạo tài khoản" chỉ để đặt vé. Vào CLB phải qua "Tuyển thành viên" theo
+  đợt - tránh danh sách thành viên bị loãng.
+{% endcomment %}
+
+{# 1. HERO #}
+<section class="lp-hero" style="--hero-img: url('{% static 'img/scene-sunset.jpg' %}')">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <span class="lp-eyebrow"><i class="bi bi-music-note-beamed"></i> {{ club.name }} · {{ club.full_name }}</span>
+        <h1 class="mt-2">{{ profile.motto }}.</h1>
+        <p class="lead mb-4">{{ profile.summary }}</p>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{% url 'events:list' %}?when=upcoming" class="btn btn-light btn-lg px-4"><i class="bi bi-calendar-event"></i> Xem show sắp tới</a>
+          <a href="{% url 'recruitment:home' %}" class="btn btn-outline-light btn-lg px-4">
+            Tuyển thành viên {% if recruit_round %}<span class="badge text-bg-success ms-1">Đang mở</span>{% endif %}
+          </a>
+        </div>
+        <div class="hero-trust">
+          <span><i class="bi bi-check-circle-fill"></i> CLB lâu đời nhất Học viện</span>
+          {% with a=achievements.0 %}<span><i class="bi bi-check-circle-fill"></i> {{ a.0 }} {{ a.1 }}</span>{% endwith %}
+          <span><i class="bi bi-check-circle-fill"></i> Không cần biết chơi nhạc cụ</span>
+        </div>
+      </div>
+      <div class="col-lg-6 d-none d-lg-block">
+        {% with ev=events.0 %}
+        <div class="hero-preview">
+          <div class="bar"><span></span><span></span><span></span></div>
+          {% if ev %}
+            {% if ev.cover %}<img src="{{ ev.cover.url }}" alt="">{% else %}{% with n=ev|default_cover %}<img src="{% static n %}" alt="">{% endwith %}{% endif %}
+            <div class="p-3 p-xl-4">
+              <span class="category-tag"><i class="bi {{ ev.category_icon }}"></i> {{ ev.get_category_display }}</span>
+              <div class="fw-bold fs-5 mt-1">{{ ev.name }}</div>
+              <div class="small text-body-secondary mb-3"><i class="bi bi-clock"></i> {{ ev.starts_at|date:"H:i · d/m/Y" }} · <i class="bi bi-geo-alt"></i> {{ ev.location }}</div>
+              {% if ev.total_quota %}
+                <div class="d-flex justify-content-between small mb-1"><span class="text-body-secondary">Đã đăng ký</span><strong>{{ ev.total_sold }}/{{ ev.total_quota }}</strong></div>
+                <div class="bar-thin mb-3"><span style="width: {% widthratio ev.total_sold ev.total_quota 100 %}%"></span></div>
+              {% endif %}
+              <a href="{% url 'events:detail' ev.pk %}" class="btn btn-primary w-100">{% if ev.is_registerable %}Đặt vé ngay{% else %}Xem chi tiết{% endif %}</a>
+            </div>
+          {% else %}
+            <img src="{% static 'img/scene-2.jpg' %}" alt="">
+            <div class="p-4">
+              <div class="fw-bold fs-5">Show tiếp theo đang được chuẩn bị</div>
+              <p class="small text-body-secondary mb-0">Tạo tài khoản để nhận thông báo khi mở bán vé.</p>
+            </div>
+          {% endif %}
+        </div>
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{# 2. BẠN LÀ AI? #}
+<section class="lp-section">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Bạn là ai?</span>
+      <h2 class="lp-title mt-1">Chọn lối đi của bạn</h2>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <article class="audience-card">
+          <span class="tag"><i class="bi bi-ticket-perforated"></i> Khán giả</span>
+          <h3>Đi xem show</h3>
+          <p class="text-body-secondary mb-0">Sinh viên muốn tham dự các đêm nhạc, workshop của CLB.</p>
+          <ul class="check-list">
+            <li><i class="bi bi-check-circle-fill"></i> Tạo tài khoản miễn phí trong 1 phút</li>
+            <li><i class="bi bi-check-circle-fill"></i> Đặt vé, chuyển khoản 1 lần bằng VietQR</li>
+            <li><i class="bi bi-check-circle-fill"></i> Vé QR trên điện thoại, nhắc lịch qua email</li>
+          </ul>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'accounts:register' %}" class="btn btn-primary">Tạo tài khoản</a>
+            <a href="{% url 'pages:for_members' %}" class="btn btn-outline-secondary">Cách đặt vé</a>
+          </div>
+        </article>
+      </div>
+      <div class="col-lg-4">
+        <article class="audience-card org">
+          <span class="tag"><i class="bi bi-person-plus"></i> Muốn vào CLB</span>
+          <h3>Trở thành thành viên</h3>
+          <p class="text-body-secondary mb-0">Tuyển theo đợt, mỗi bạn chọn một Ban phù hợp với mình.</p>
+          <ul class="check-list">
+            <li><i class="bi bi-check-circle-fill"></i> Ban Chuyên môn: đàn, hát, biểu diễn</li>
+            <li><i class="bi bi-check-circle-fill"></i> Ban Truyền thông & Sự kiện: thiết kế, quay chụp, tổ chức</li>
+            <li><i class="bi bi-check-circle-fill"></i> Nộp đơn online, nhận lịch casting qua email</li>
+          </ul>
+          <a href="{% url 'recruitment:home' %}" class="btn btn-primary">{% if recruit_round %}Ứng tuyển - đang mở{% else %}Xem thông tin tuyển{% endif %} <i class="bi bi-arrow-right"></i></a>
+        </article>
+      </div>
+      <div class="col-lg-4">
+        <article class="audience-card">
+          <span class="tag"><i class="bi bi-diagram-3"></i> Thành viên & Ban tổ chức</span>
+          <h3>Vận hành CLB</h3>
+          <p class="text-body-secondary mb-0">Ban Quản trị, các Ban và Ban tổ chức sự kiện.</p>
+          <ul class="check-list">
+            <li><i class="bi bi-check-circle-fill"></i> Giao việc theo Ban, tự nhận việc</li>
+            <li><i class="bi bi-check-circle-fill"></i> Tự nhắc hạn, báo việc quá hạn</li>
+            <li><i class="bi bi-check-circle-fill"></i> Duyệt đơn ứng tuyển, check-in, thống kê</li>
+          </ul>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'accounts:login' %}" class="btn btn-primary">Đăng nhập</a>
+            <a href="{% url 'pages:for_organizers' %}" class="btn btn-outline-secondary">Quy trình</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# 3. SHOW SẮP TỚI #}
+<section class="lp-section alt">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 lp-head">
+      <div>
+        <span class="lp-eyebrow">Sắp diễn ra</span>
+        <h2 class="lp-title mt-1 mb-0">Show & sự kiện sắp tới</h2>
+      </div>
+      <a href="{% url 'events:list' %}" class="btn btn-outline-primary">Xem tất cả <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="row g-4">
+      {% for ev in events %}
+        <div class="col-md-6 col-lg-4">{% include "pages/partials/mini_event.html" with ev=ev %}</div>
+      {% empty %}
+        <div class="col-12">
+          {% url 'events:calendar' as cal_url %}
+          {% include "partials/empty_state.html" with icon="bi-music-note-list" title="Chưa có show nào mở bán vé" desc="CLB đang chuẩn bị chương trình tiếp theo. Xem lịch để biết các hoạt động đã và sắp diễn ra." action_url=cal_url action_label="Xem lịch sự kiện" %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# 4. VỀ KMG + THÀNH TÍCH #}
+<section class="lp-section">
+  <div class="container">
+    <div class="row g-5">
+      <div class="col-lg-5">
+        <span class="lp-eyebrow">Về {{ profile.short_name }}</span>
+        <h2 class="lp-title mt-1">CLB lâu đời nhất Học viện</h2>
+        <p class="lp-sub">{{ profile.official_name }}, tiền thân là {{ profile.former_name }}.</p>
+        <p class="mission-quote my-4">{{ profile.mission }}</p>
+        <a href="{% url 'pages:about' %}" class="btn btn-outline-primary">Tìm hiểu thêm về {{ profile.short_name }}</a>
+      </div>
+      <div class="col-lg-7">
+        <div class="row g-3">
+          {% for icon, title, desc in highlights|slice:":4" %}
+            <div class="col-sm-6"><div class="feature"><span class="ico"><i class="bi {{ icon }}"></i></span><h3>{{ title }}</h3><p>{{ desc }}</p></div></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="row g-3 mt-4">
+      {% for rank, contest, note in achievements %}
+        <div class="col-sm-6 col-lg-3">
+          <div class="award">
+            <span class="medal"><i class="bi bi-trophy"></i></span>
+            <div><div class="rank">{{ rank }}</div><div class="ct">{{ contest }}{% if note %}<br><span class="small">{{ note }}</span>{% endif %}</div></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# 5. BAN QUẢN TRỊ #}
+{% if officers %}
+<section class="lp-section alt">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Nhiệm kỳ {{ officers.0.term }}</span>
+      <h2 class="lp-title mt-1">Ban Quản trị</h2>
+      <p class="lp-sub">{{ profile.board_message }}</p>
+    </div>
+    <div class="row g-3 g-lg-4 justify-content-center">
+      {% for o in officers %}
+        <div class="col-6 col-md-4 col-lg-3">{% include "pages/partials/officer.html" with o=o %}</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# 6. HAI BAN #}
+{% if departments %}
+<section class="lp-section">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Cơ cấu</span>
+      <h2 class="lp-title mt-1">Các Ban của {{ profile.short_name }}</h2>
+    </div>
+    <div class="row g-4">
+      {% for d in departments %}
+        <div class="col-md-6">
+          <div class="dept-big">
+            <span class="dept-icon lg"><i class="bi {{ d.icon }}"></i></span>
+            <h3>{{ d.name }}</h3>
+            <p class="text-body-secondary mb-0">{{ d.description }}</p>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# 7. NỀN TẢNG VẬN HÀNH #}
+<section class="lp-section alt">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Nền tảng</span>
+      <h2 class="lp-title mt-1">Một show, từ ý tưởng tới check-in</h2>
+      <p class="lp-sub">Website này là nơi {{ profile.short_name }} vận hành mọi sự kiện, mỗi bước có người phụ trách rõ ràng.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Lên kế hoạch</h3><p>Tạo sự kiện, AI gợi ý đầu việc, chia việc cho 2 Ban, lập ngân sách.</p><span class="who">Ban Quản trị · Trưởng ban</span></div>
+      <div class="step"><h3>Mở bán vé</h3><p>Nhiều loại vé, chống bán vượt chỗ, danh sách chờ tự cấp vé khi có người huỷ.</p><span class="who">Khán giả</span></div>
+      <div class="step"><h3>Check-in</h3><p>Quét QR bằng camera điện thoại, bảng điểm danh cập nhật mỗi 5 giây.</p><span class="who">Ban tổ chức</span></div>
+      <div class="step"><h3>Tổng kết</h3><p>Thu đánh giá, AI tóm tắt góp ý, thống kê tỉ lệ tham dự và thu chi.</p><span class="who">Ban Quản trị</span></div>
+    </div>
+  </div>
+</section>
+
+{# 8. FAQ #}
+<section class="lp-section">
+  <div class="container">
+    <div class="row g-5">
+      <div class="col-lg-4">
+        <span class="lp-eyebrow">Hỏi đáp</span>
+        <h2 class="lp-title mt-1">Câu hỏi thường gặp</h2>
+        <p class="lp-sub">Chưa thấy câu trả lời? Hỏi trợ lý tra cứu sau khi đăng nhập{% if club.email %}, hoặc gửi email tới <a href="mailto:{{ club.email }}">{{ club.email }}</a>{% endif %}.</p>
+      </div>
+      <div class="col-lg-8 faq">
+        <details><summary>Tạo tài khoản là đã thành thành viên CLB chưa?</summary><p>Chưa. Tài khoản tự tạo ở vai trò <strong>Khách</strong> - dùng để đặt vé và theo dõi sự kiện. Muốn thành thành viên, bạn nộp đơn trong đợt tuyển; khi được nhận, tài khoản tự chuyển sang Thành viên và vào Ban bạn chọn.</p></details>
+        <details><summary>Không biết chơi đàn có vào CLB được không?</summary><p>Được. Ban Truyền thông & Sự kiện cần các bạn thích thiết kế, quay chụp, viết bài và tổ chức sự kiện. Còn nếu muốn học đàn, hát, Ban Chuyên môn luôn có người hướng dẫn.</p></details>
+        <details><summary>Đặt vé có phí thì thanh toán thế nào?</summary><p>Sau khi đặt, bạn nhận một mã giao dịch và mã VietQR. Quét bằng app ngân hàng là đúng số tiền, đúng nội dung. BTC xác nhận xong, vé chuyển sang "Đã xác nhận" và bạn có thông báo.</p></details>
+        <details><summary>Hết vé thì sao?</summary><p>Bạn vào danh sách chờ. Khi có người huỷ, hệ thống tự cấp vé cho người đầu hàng và báo ngay cho bạn.</p></details>
+        <details><summary>Dữ liệu cá nhân có bị gửi cho AI không?</summary><p>Không. Khi tóm tắt phản hồi, hệ thống chỉ gửi nội dung góp ý, đã bỏ tên và MSSV.</p></details>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# 9. CTA #}
+<section class="lp-section pt-0">
+  <div class="container">
+    <div class="cta-band">
+      <h2>Cùng {{ profile.short_name }} viết tiếp những đêm nhạc</h2>
+      <p>Đặt vé cho show sắp tới, hoặc ứng tuyển để trở thành một phần của gia đình {{ profile.short_name }}.</p>
+      <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a href="{% url 'recruitment:home' %}" class="btn btn-light btn-lg px-4">Tuyển thành viên</a>
+        <a href="{% url 'events:list' %}?when=upcoming" class="btn btn-outline-light btn-lg px-4">Xem show</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

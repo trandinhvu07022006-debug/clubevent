@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{% if round %}Sửa đợt tuyển{% else %}Mở đợt tuyển{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <header class="page-header">
+      <span class="kicker">Tuyển thành viên</span>
+      <h1 class="h3 fw-bold mb-1">{% if round %}Sửa {{ round.name }}{% else %}Mở đợt tuyển mới{% endif %}</h1>
+      <p class="text-muted mb-0">Trong khoảng thời gian mở, Khách thấy nút "Nộp đơn" và menu hiện nhãn <span class="badge text-bg-success">Đang mở</span>.</p>
+    </header>
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form method="post" novalidate>
+          {% csrf_token %}{% once_token %}
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">{{ form.name.label }} <span class="text-danger">*</span></label>
+              {{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ form.opens_at.id_for_label }}">{{ form.opens_at.label }} <span class="text-danger">*</span></label>
+              {{ form.opens_at }}{% if form.opens_at.errors %}<div class="text-danger small">{{ form.opens_at.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ form.closes_at.id_for_label }}">{{ form.closes_at.label }} <span class="text-danger">*</span></label>
+              {{ form.closes_at }}{% if form.closes_at.errors %}<div class="text-danger small">{{ form.closes_at.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <fieldset>
+                <legend class="form-label fw-semibold fs-6">{{ form.departments.label }}</legend>
+                <div class="member-picker border rounded-3 p-3">{{ form.departments }}</div>
+                <div class="form-text">{{ form.departments.help_text }}</div>
+              </fieldset>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+              {{ form.description }}
+              <div class="form-text">{{ form.description.help_text }}</div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-4">
+            <button class="btn btn-primary px-4">Lưu</button>
+            <a href="{% url 'recruitment:review_list' %}" class="btn btn-link">Huỷ</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

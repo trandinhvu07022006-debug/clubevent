@@ -1,0 +1,11 @@
+{% comment %} Thẻ một người trong Ban Quản trị. Gọi: {% include "pages/partials/officer.html" with o=o %} {% endcomment %}
+<article class="officer">
+  {% if o.photo_url %}
+    <img src="{{ o.photo_url }}" alt="{{ o.position }} {{ o.name }}" class="photo" loading="lazy" decoding="async">
+  {% else %}
+    <span class="photo" aria-hidden="true">{{ o.initials }}</span>
+  {% endif %}
+  <div class="pos">{{ o.position }}</div>
+  <div class="nm">{{ o.name }}</div>
+  <div class="dp">Nhiệm kỳ {{ o.term }}</div>
+</article>

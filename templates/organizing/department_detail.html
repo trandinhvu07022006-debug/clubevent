@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ dept.name }}{% endblock %}
+
+{% block topbar %}
+<div class="d-flex justify-content-center w-100 my-2 my-lg-0 min-w-0">
+  <nav class="segmented" aria-label="Lọc theo trạng thái">
+    <a href="?" class="segmented-item {% if not current_status %}active{% endif %}">Tất cả ({{ counts.all }})</a>
+    <a href="?status=TODO" class="segmented-item {% if current_status == 'TODO' %}active{% endif %}">Chưa làm ({{ counts.todo }})</a>
+    <a href="?status=DOING" class="segmented-item {% if current_status == 'DOING' %}active{% endif %}">Đang làm ({{ counts.doing }})</a>
+    <a href="?status=DONE" class="segmented-item {% if current_status == 'DONE' %}active{% endif %}">Xong ({{ counts.done }})</a>
+  </nav>
+</div>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="small mb-2">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'organizing:department_list' %}">Các Ban</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ dept.name }}</li>
+  </ol>
+</nav>
+
+<header class="page-header">
+  <div class="page-header-row">
+    <div class="d-flex align-items-center gap-3">
+      <span class="dept-icon lg"><i class="bi {{ dept.icon }}"></i></span>
+      <div>
+        <h1 class="h3 fw-bold mb-0">{{ dept.name }}</h1>
+        <p class="text-muted mb-0">{{ dept.description|default:"Chưa có giới thiệu." }}</p>
+      </div>
+    </div>
+    <div class="page-header-actions">
+      {% if can_manage %}
+        <a href="{% url 'organizing:assign' %}?department={{ dept.pk }}" class="btn btn-primary"><i class="bi bi-send"></i> Giao việc cho Ban</a>
+      {% endif %}
+      {% if user.is_lead %}
+        <a href="{% url 'organizing:department_update' dept.slug %}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Sửa Ban</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<div class="kpi-grid">
+  <div class="kpi"><span class="ico"><i class="bi bi-pie-chart"></i></span><span><span class="num d-block">{{ progress }}%</span><span class="lbl">việc đã xong</span></span></div>
+  <div class="kpi {% if unclaimed_count %}warn{% endif %}"><span class="ico"><i class="bi bi-inbox"></i></span><span><span class="num d-block">{{ unclaimed_count }}</span><span class="lbl">việc chờ người nhận</span></span></div>
+  <div class="kpi {% if overdue_count %}danger{% endif %}"><span class="ico"><i class="bi bi-exclamation-octagon"></i></span><span><span class="num d-block">{{ overdue_count }}</span><span class="lbl">việc quá hạn</span></span></div>
+  <div class="kpi"><span class="ico"><i class="bi bi-people"></i></span><span><span class="num d-block">{{ people|length }}</span><span class="lbl">người trong Ban</span></span></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="panel" aria-labelledby="tasks-title">
+      <div class="panel-head"><h2 id="tasks-title"><i class="bi bi-list-check text-primary"></i> Công việc của Ban</h2></div>
+      {% for task in tasks %}
+        <div class="panel-row {% if task.is_overdue %}border-start border-4 border-danger{% endif %}">
+          <i class="bi fs-5 {% if task.status == 'DONE' %}bi-check-circle-fill text-success{% elif task.status == 'DOING' %}bi-play-circle-fill text-primary{% else %}bi-circle text-body-secondary{% endif %}"></i>
+          <div class="main">
+            <div class="title {% if task.status == 'DONE' %}text-decoration-line-through opacity-75{% endif %}">
+              {{ task.title }}
+              {% if task.priority == 'URGENT' %}<span class="badge bg-danger ms-1">Gấp</span>{% elif task.priority == 'HIGH' %}<span class="badge bg-warning-subtle text-warning-emphasis ms-1">Cao</span>{% endif %}
+            </div>
+            <div class="meta">
+              {{ task.scope_label }}
+              {% if task.deadline %} · Hạn {{ task.deadline|date:"H:i d/m" }}{% endif %}
+              {% if task.is_overdue %} · <strong class="text-danger">Quá hạn</strong>{% endif %}
+              · {% if task.assignee %}<i class="bi bi-person"></i> {{ task.assignee.full_name|default:task.assignee.username }}{% else %}<span class="text-warning-emphasis fw-semibold">Chưa ai nhận</span>{% endif %}
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            {% if task.claimable %}
+              <form method="post" action="{% url 'organizing:claim' task.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button class="btn btn-sm btn-primary"><i class="bi bi-hand-index"></i> Nhận việc</button>
+              </form>
+            {% endif %}
+            {% if user.is_lead %}
+              <a href="{% url 'organizing:update' task.pk %}" class="btn btn-sm btn-outline-secondary border-0" title="Sửa / giao lại" aria-label="Sửa"><i class="bi bi-pencil"></i></a>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <div class="panel-body">
+          {% include "partials/empty_state.html" with icon="bi-clipboard-check" title="Ban chưa có công việc nào" desc="Việc giao cho Ban sẽ hiện ở đây; thành viên Ban bấm Nhận việc để nhận." %}
+        </div>
+      {% endfor %}
+    </section>
+  </div>
+
+  <div class="col-lg-4">
+    <section class="panel" aria-labelledby="people-title">
+      <div class="panel-head"><h2 id="people-title"><i class="bi bi-people text-primary"></i> Thành viên</h2></div>
+      <div class="panel-body">
+        {% for p in people %}
+          <div class="person-row">
+            {% include "partials/avatar.html" with person=p size="avatar-sm" %}
+            <div class="min-w-0">
+              <div class="fw-semibold small text-truncate">{{ p.full_name|default:p.username }}</div>
+              <div class="text-xs text-body-secondary">{% if p.pk == dept.lead_id %}Trưởng ban{% else %}{{ p.get_role_display }}{% endif %}</div>
+            </div>
+            <span class="load-pill {% if p.open_load >= 3 %}busy{% endif %}" title="Số việc đang mở trong Ban">{{ p.open_load }} việc</span>
+          </div>
+        {% empty %}
+          <p class="small text-body-secondary mb-0">Ban chưa có thành viên.{% if user.is_lead %} <a href="{% url 'organizing:department_update' dept.slug %}">Thêm thành viên</a>{% endif %}</p>
+        {% endfor %}
+      </div>
+    </section>
+    {% if not is_member and not user.is_lead %}
+      <p class="small text-body-secondary mt-3"><i class="bi bi-info-circle"></i> Bạn không thuộc Ban này nên chỉ xem được, không nhận việc được.</p>
+    {% elif is_member and not user.is_staff_btc %}
+      <p class="small text-body-secondary mt-3"><i class="bi bi-info-circle"></i> Bạn là thành viên Ban. Việc của Ban do Ban tổ chức nhận; hãy liên hệ Trưởng ban nếu muốn góp sức.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Tham gia sự kiện{% endblock %}
+{% block meta_description %}Tìm sự kiện, đặt vé bằng VietQR, check-in bằng mã QR và nhận chứng nhận tham gia - hướng dẫn cho thành viên {{ club.name }}.{% endblock %}
+{% block main_class %}landing{% endblock %}
+
+{% block content %}
+<section class="lp-hero compact" style="--hero-img: url('{% static 'img/scene-dawn.jpg' %}')">
+  <div class="container">
+    <span class="lp-eyebrow"><i class="bi bi-person"></i> Hướng dẫn cá nhân</span>
+    <h1 class="mt-2">Tham gia sự kiện</h1>
+    <p class="lead mb-4">Ai cũng có thể tạo tài khoản để đặt vé xem show của {{ club.name }}. Từ lúc thấy một sự kiện hay tới lúc nhận giấy chứng nhận, mọi thứ nằm trong một tài khoản.</p>
+    <div class="d-flex flex-wrap gap-2">
+      {% if user.is_authenticated %}
+        <a href="{% url 'pages:dashboard' %}?space=me" class="btn btn-light btn-lg px-4">Vào không gian cá nhân</a>
+      {% else %}
+        <a href="{% url 'accounts:register' %}" class="btn btn-light btn-lg px-4">Tạo tài khoản</a>
+      {% endif %}
+      <a href="{% url 'events:list' %}?when=upcoming" class="btn btn-outline-light btn-lg px-4">Xem sự kiện</a>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section">
+  <div class="container">
+    <div class="lp-head center">
+      <span class="lp-eyebrow">Hành trình</span>
+      <h2 class="lp-title mt-1">5 bước tham gia một sự kiện</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Tìm sự kiện</h3><p>Lọc theo danh mục, trạng thái, thời gian; xem lịch theo tháng; tải file .ics vào Google Calendar.</p></div>
+      <div class="step"><h3>Đặt vé</h3><p>Chọn loại vé, tối đa 4 vé mỗi sự kiện. Hết vé thì xếp hàng chờ, có người huỷ là được cấp vé tự động.</p></div>
+      <div class="step"><h3>Thanh toán</h3><p>Vé có phí: quét VietQR bằng app ngân hàng, một lần chuyển cho cả nhóm vé. Có thông báo khi BTC xác nhận.</p></div>
+      <div class="step"><h3>Check-in</h3><p>Mở "Vé của tôi", đưa mã QR cho BTC quét ở cửa. Được nhắc lịch qua email trước 24 giờ.</p></div>
+      <div class="step"><h3>Đánh giá & chứng nhận</h3><p>Trong 7 ngày sau sự kiện: gửi đánh giá, tải giấy chứng nhận có mã xác thực.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section alt">
+  <div class="container">
+    <div class="row g-4 align-items-center">
+      <div class="col-lg-5">
+        <span class="lp-eyebrow">Không gian cá nhân</span>
+        <h2 class="lp-title mt-1">Mọi thứ của bạn ở một chỗ</h2>
+        <p class="lp-sub">Sau khi đăng nhập, trang <strong>Tổng quan</strong> cho biết bạn cần làm gì tiếp theo: vé nào chưa thanh toán, sự kiện nào sắp tới, sự kiện nào đang chờ bạn đánh giá.</p>
+      </div>
+      <div class="col-lg-7">
+        <div class="row g-3">
+          <div class="col-sm-6"><div class="feature"><span class="ico"><i class="bi bi-ticket-perforated"></i></span><h3>Vé của tôi</h3><p>Mã QR, tab Sắp tới / Đã qua, in vé hoặc lưu PDF.</p></div></div>
+          <div class="col-sm-6"><div class="feature"><span class="ico"><i class="bi bi-bell"></i></span><h3>Thông báo</h3><p>Vé được xác nhận, có vé từ danh sách chờ, sự kiện đổi lịch.</p></div></div>
+          <div class="col-sm-6"><div class="feature"><span class="ico"><i class="bi bi-award"></i></span><h3>Chứng nhận</h3><p>Lịch sử tham gia và giấy chứng nhận có thể xác thực online.</p></div></div>
+          <div class="col-sm-6"><div class="feature"><span class="ico"><i class="bi bi-chat-dots"></i></span><h3>Trợ lý tra cứu</h3><p>Hỏi nhanh: còn vé không, chuyển khoản thế nào, sự kiện ở đâu.</p></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if events %}
+<section class="lp-section">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 lp-head">
+      <h2 class="lp-title mb-0">Bắt đầu với một sự kiện</h2>
+      <a href="{% url 'events:list' %}" class="btn btn-outline-primary">Tất cả sự kiện</a>
+    </div>
+    <div class="row g-4">
+      {% for ev in events %}<div class="col-md-6 col-lg-4">{% include "pages/partials/mini_event.html" with ev=ev %}</div>{% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="lp-section">
+  <div class="container">
+    <div class="cta-band">
+      <h2>Muốn trở thành thành viên {{ club.name }}?</h2>
+      <p>Tài khoản đặt vé là vai trò Khách. Để vào CLB, hãy ứng tuyển vào Ban Chuyên môn hoặc Ban Truyền thông & Sự kiện trong đợt tuyển.</p>
+      <a href="{% url 'recruitment:home' %}" class="btn btn-light btn-lg px-4">Tuyển thành viên <i class="bi bi-arrow-right"></i></a>
+    </div>
+  </div>
+</section>
+{% endblock %}

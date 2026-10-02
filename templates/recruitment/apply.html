@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Nộp đơn ứng tuyển{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <header class="page-header">
+      <span class="kicker">Tuyển thành viên · {{ round.name }}</span>
+      <h1 class="h3 fw-bold mb-1">Nộp đơn ứng tuyển</h1>
+      <p class="text-muted mb-0">Hạn nộp: <strong>{{ round.closes_at|date:"H:i, d/m/Y" }}</strong>. Mỗi đợt nộp 1 đơn. Kết quả và lịch casting gửi qua thông báo + email <strong>{{ user.email|default:"(bạn chưa có email - thêm ở Hồ sơ)" }}</strong>.</p>
+    </header>
+
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors|first }}</div>{% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}{% once_token %}
+          <fieldset class="mb-4">
+            <legend class="form-label fw-semibold fs-6">1. Bạn muốn vào Ban nào? <span class="text-danger">*</span></legend>
+            <div class="dept-pick">{{ form.department }}</div>
+            {% if form.department.errors %}<div class="text-danger small mt-1">{{ form.department.errors|first }}</div>{% endif %}
+          </fieldset>
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label fw-semibold" for="{{ form.strengths.id_for_label }}">2. {{ form.strengths.label }} <span class="text-danger">*</span></label>
+              {{ form.strengths }}
+              <div class="form-text">{{ form.strengths.help_text }}</div>
+              {% if form.strengths.errors %}<div class="text-danger small">{{ form.strengths.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-md-5">
+              <label class="form-label fw-semibold" for="{{ form.level.id_for_label }}">3. {{ form.level.label }}</label>
+              {{ form.level }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="{{ form.portfolio_url.id_for_label }}">4. {{ form.portfolio_url.label }}</label>
+              {{ form.portfolio_url }}
+              <div class="form-text">{{ form.portfolio_url.help_text }}</div>
+              {% if form.portfolio_url.errors %}<div class="text-danger small">{{ form.portfolio_url.errors|first }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="{{ form.motivation.id_for_label }}">5. {{ form.motivation.label }} <span class="text-danger">*</span></label>
+              {{ form.motivation }}
+              {% if form.motivation.errors %}<div class="text-danger small">{{ form.motivation.errors|first }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <button class="btn btn-primary btn-lg px-4"><i class="bi bi-send"></i> Gửi đơn</button>
+            <a href="{% url 'recruitment:home' %}" class="btn btn-link">Huỷ</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

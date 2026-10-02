@@ -1,8 +1,8 @@
 """
-Lệnh định kỳ TỔNG — chạy mỗi 15 phút.
+Lệnh định kỳ TỔNG - chạy mỗi 15 phút.
 
 Tuần tự: huỷ vé quá hạn thanh toán -> dọn danh sách chờ hết hạn -> nhắc lịch
--> xoá thông báo đã đọc quá 90 ngày. Mỗi bước bọc try/except riêng, một bước
+-> nhắc hạn công việc -> xoá thông báo đã đọc quá 90 ngày. Mỗi bước bọc try/except riêng, một bước
 lỗi không chặn bước sau.
 
 Linux/host:  */15 * * * * cd /app && python manage.py run_periodic
@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from events.services import send_event_reminders
 from notifications.models import Notification
+from organizing.services import send_task_reminders
 from registrations.services import expire_waitlists, release_expired_tickets
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ STEPS = [
     ("Huỷ vé quá hạn thanh toán", release_expired_tickets, "vé"),
     ("Dọn danh sách chờ hết hạn", expire_waitlists, "lượt chờ"),
     ("Nhắc lịch trước 24h", send_event_reminders, "sự kiện"),
+    ("Nhắc hạn / báo quá hạn công việc", send_task_reminders, "việc"),
     ("Xoá thông báo cũ đã đọc", purge_old_notifications, "thông báo"),
 ]
 

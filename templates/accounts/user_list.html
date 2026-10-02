@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Quản lý tài khoản</h4>
+  <h1 class="h4 mb-0">Quản lý tài khoản</h1>
   <a href="{% url 'accounts:audit_log' %}" class="btn btn-outline-secondary btn-sm">
     Nhật ký thao tác
   </a>
@@ -35,12 +35,12 @@
         {% for u in users %}
           <tr>
             <td>
-              <span class="d-flex align-items-center gap-2 text-truncate" style="max-width: 150px;" title="{{ u.full_name|default:'—' }}">
+              <span class="d-flex align-items-center gap-2 text-truncate" style="max-width: 150px;" title="{{ u.full_name|default:'-' }}">
                 {% include "partials/avatar.html" with person=u size="avatar-sm" %}
-                {{ u.full_name|default:"—" }}
+                {{ u.full_name|default:"-" }}
               </span>
             </td>
-            <td>{{ u.mssv|default:"—" }}</td>
+            <td>{{ u.mssv|default:"-" }}</td>
             <td class="text-truncate" style="max-width: 120px;" title="{{ u.username }}">{{ u.username }}</td>
             <td><span class="badge text-bg-info">{{ u.get_role_display }}</span></td>
             <td>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}{% if is_new %}Tạo sự kiện{% else %}Sửa sự kiện{% endif %}{% endblock %}
 
 {% block content %}
@@ -6,16 +7,16 @@
   <div class="col-lg-7">
     <div class="card shadow-sm">
       <div class="card-body">
-        <h5 class="card-title mb-3">
+        <h1 class="h5 card-title mb-3">
           {% if is_new %}Tạo sự kiện mới{% else %}Sửa: {{ event.name }}{% endif %}
-        </h5>
+        </h1>
 
         {% if form.non_field_errors %}
           <div class="alert alert-danger">{{ form.non_field_errors }}</div>
         {% endif %}
 
         <form method="post" enctype="multipart/form-data">
-          {% csrf_token %}
+          {% csrf_token %}{% once_token %}
           {% for field in form %}
             <div class="mb-3">
               <label class="form-label">{{ field.label }}</label>

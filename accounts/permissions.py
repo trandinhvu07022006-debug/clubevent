@@ -28,6 +28,9 @@ def _guard(test_func):
     return decorator
 
 
+# Thành viên chính thức trở lên (không phải Khách): xem các Ban
+member_required = _guard(lambda u: u.is_club_member)
+
 # Thành viên BTC trở lên: check-in, xác nhận thanh toán
 staff_required = _guard(lambda u: u.is_staff_btc)
 

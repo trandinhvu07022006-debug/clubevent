@@ -32,13 +32,13 @@ class AppLogoutView(LogoutView):
 def register(request):
     """F1.1 - Đăng ký rồi đăng nhập luôn."""
     if request.user.is_authenticated:
-        return redirect("events:list")
+        return redirect("pages:dashboard")
     form = RegisterForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
         login(request, user)
-        messages.success(request, "Đăng ký thành công. Chào mừng bạn!")
-        return redirect("events:list")
+        messages.success(request, "Đăng ký thành công. Chào mừng bạn đến với KMG Club!")
+        return redirect("pages:dashboard")
     return render(request, "accounts/register.html", {"form": form})
 
 

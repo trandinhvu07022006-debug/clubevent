@@ -2,40 +2,52 @@
 {% block title %}Đăng nhập{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-5">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h4 class="card-title mb-3">Đăng nhập</h4>
+{% comment %}
+  Bố cục 2 cột kiểu Linear/Notion: bên trái nói rõ SAU KHI ĐĂNG NHẬP bạn sẽ đi
+  đâu (theo vai trò), bên phải là form. Trên điện thoại chỉ còn form.
+{% endcomment %}
+<div class="auth-wrap">
+  <aside class="auth-aside d-none d-lg-flex">
+    <div>
+      <span class="lp-eyebrow text-white-50">{{ club.name }}</span>
+      <h2 class="fw-bold mt-2 mb-3">Một tài khoản, đúng không gian của bạn</h2>
+      <p class="opacity-75 mb-4">Đăng nhập xong bạn vào thẳng trang <strong>Tổng quan</strong>, nơi hiện đúng những việc bạn cần xử lý.</p>
+      <ul class="auth-points">
+        <li><i class="bi bi-person"></i><span><strong>Khách & Thành viên</strong> - vé sắp tới, đơn chờ thanh toán, sự kiện chờ đánh giá, đơn ứng tuyển.</span></li>
+        <li><i class="bi bi-diagram-3"></i><span><strong>Ban tổ chức</strong> - việc của tôi, việc Ban đang chờ nhận, check-in hôm nay.</span></li>
+        <li><i class="bi bi-shield-check"></i><span><strong>Ban chủ nhiệm</strong> - tiến độ các Ban, sự kiện đang chạy, tài khoản.</span></li>
+      </ul>
+    </div>
+    <a href="{% url 'pages:for_organizers' %}#vai-tro" class="small text-white-50">Xem chi tiết vai trò & quyền <i class="bi bi-arrow-right"></i></a>
+  </aside>
 
-        {% if form.non_field_errors %}
-          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-        {% endif %}
+  <div class="auth-main">
+    <div class="auth-card">
+      <h1 class="h3 fw-bold mb-1">Đăng nhập</h1>
+      <p class="text-body-secondary mb-4">Chào mừng bạn quay lại.</p>
 
-        <form method="post">
-          {% csrf_token %}
-          {% for field in form %}
-            <div class="mb-3">
-              <label class="form-label">{{ field.label }}</label>
-              {{ field }}
-              {% if field.errors %}
-                <div class="text-danger small">{{ field.errors|first }}</div>
-              {% endif %}
-              {% if field.name == "password" %}
-                <div class="mt-1 text-end">
-                  <a href="{% url 'accounts:password_reset' %}" class="small">Quên mật khẩu?</a>
-                </div>
-              {% endif %}
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2">{{ form.non_field_errors|first }}</div>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-baseline">
+              <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {% if field.name == "password" %}<a href="{% url 'accounts:password_reset' %}" class="small">Quên mật khẩu?</a>{% endif %}
             </div>
-          {% endfor %}
-          <button class="btn btn-primary w-100">Đăng nhập</button>
-        </form>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|first }}</div>{% endif %}
+          </div>
+        {% endfor %}
+        <button class="btn btn-primary btn-lg w-100 mt-2">Đăng nhập</button>
+      </form>
 
-        <p class="mt-3 mb-0 text-center small">
-          Chưa có tài khoản?
-          <a href="{% url 'accounts:register' %}">Đăng ký</a>
-        </p>
-      </div>
+      <p class="mt-4 mb-0 text-center small text-body-secondary">
+        Chưa có tài khoản? <a href="{% url 'accounts:register' %}" class="fw-semibold">Tạo tài khoản</a>
+      </p>
     </div>
   </div>
 </div>
