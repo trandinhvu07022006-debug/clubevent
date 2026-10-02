@@ -203,7 +203,7 @@ class HybridAITests(TestCase):
     """
     Tầng AI của trợ lý (chỉ chạy khi tầng luật không nhận ra ý định).
 
-    Không test NỘI DUNG AI viết (mỗi lần một khác) — chỉ test phần tích hợp:
+    Không test NỘI DUNG AI viết (mỗi lần một khác) - chỉ test phần tích hợp:
     khi nào gọi AI, lỗi thì fallback ra sao, dữ liệu gửi đi có an toàn không,
     link có bị AI bịa không. AI luôn được mock, không gọi API thật.
     """
@@ -242,7 +242,7 @@ class HybridAITests(TestCase):
 
     @patch("aiassist.services._ask_ai")
     def test_known_intent_never_calls_ai(self, mock_ai):
-        """8 ý định có sẵn LUÔN đi tầng luật — chính xác, không tốn quota."""
+        """8 ý định có sẵn LUÔN đi tầng luật - chính xác, không tốn quota."""
         result = answer("Còn vé không?")
         self.assertEqual(result["source"], "rules")
         mock_ai.assert_not_called()
@@ -311,7 +311,7 @@ class HybridAITests(TestCase):
 
     @patch("aiassist.services._ask_ai")
     def test_api_ai_budget_per_session(self, mock_ai):
-        """Tối đa AI_LIMIT câu trả lời AI mỗi cửa sổ — hết lượt thì về luật."""
+        """Tối đa AI_LIMIT câu trả lời AI mỗi cửa sổ - hết lượt thì về luật."""
         from .views import AI_LIMIT
         mock_ai.return_value = {"answer": "trả lời AI", "event_ids": []}
         url = reverse("aiassist:chat_api")

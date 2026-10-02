@@ -40,7 +40,7 @@
           <div class="progress-bar {% if summary.budget_percent > 100 %}bg-danger{% elif summary.budget_percent > 85 %}bg-warning{% endif %}" style="width: {% if summary.budget_percent > 100 %}100{% else %}{{ summary.budget_percent }}{% endif %}%"></div>
         </div>
       {% else %}
-        <div class="num">—</div>
+        <div class="num">-</div>
         <div class="lbl">Chưa đặt ngân sách dự kiến · <a href="{% url 'events:update' event.pk %}">đặt ngay</a></div>
       {% endif %}
     </div>
@@ -86,7 +86,7 @@
                   {% if e.receipt %}<a href="{{ e.receipt.url }}" target="_blank" rel="noopener" class="small ms-1"><i class="bi bi-receipt"></i> hoá đơn</a>{% endif %}
                 </td>
                 <td class="small">{{ e.get_category_display }}</td>
-                <td class="small">{{ e.paid_by.full_name|default:"—" }}</td>
+                <td class="small">{{ e.paid_by.full_name|default:"-" }}</td>
                 <td class="text-end fw-semibold text-nowrap">{{ e.amount|vnd }}đ</td>
                 <td class="text-end text-nowrap">
                   <a href="{% url 'organizing:expense_update' e.pk %}" class="btn btn-sm btn-outline-secondary" aria-label="Sửa"><i class="bi bi-pencil"></i></a>

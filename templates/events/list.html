@@ -4,7 +4,7 @@
 
 {% block topbar %}
 <div class="d-flex flex-wrap flex-lg-nowrap align-items-center gap-2 gap-lg-3 w-100 justify-content-lg-center my-2 my-lg-0">
-  {% comment %} Segmented control (app.css mục 17) — màu lấy từ token, KHÔNG dùng class nền sáng cố định. {% endcomment %}
+  {% comment %} Segmented control (app.css mục 17) - màu lấy từ token, KHÔNG dùng class nền sáng cố định. {% endcomment %}
   <nav class="segmented" aria-label="Lọc theo trạng thái">
     <a href="?{% if keyword %}q={{ keyword|urlencode }}&{% endif %}{% if current_category %}category={{ current_category }}&{% endif %}{% if current_when %}when={{ current_when }}{% endif %}"
        class="segmented-item {% if not current_status %}active{% endif %}"
@@ -34,7 +34,7 @@
 {% endblock %}
 
 {% block content %}
-{% comment %} CSS gọn chỉ dùng cho trang này — không đụng vào app.css. {% endcomment %}
+{% comment %} CSS gọn chỉ dùng cho trang này - không đụng vào app.css. {% endcomment %}
 <style>
   .search-box { min-width: 230px; }
 
@@ -64,7 +64,7 @@
   }
   .ev-card:hover .date-badge .m { color: var(--brand-strong); }
 
-  /* Banner hero — CHỈ ở trang chủ: 1 ảnh on-brand + lớp phủ tối để chữ luôn rõ. */
+  /* Banner hero - CHỈ ở trang chủ: 1 ảnh on-brand + lớp phủ tối để chữ luôn rõ. */
   .home-hero {
     position: relative; overflow: hidden;
     border-radius: var(--bs-border-radius-xl);
@@ -93,7 +93,7 @@
   }
 </style>
 
-{% comment %} 1. HERO trang chủ — banner ảnh gọn (chỉ trang này), on-brand. {% endcomment %}
+{% comment %} 1. HERO trang chủ - banner ảnh gọn (chỉ trang này), on-brand. {% endcomment %}
 <header class="home-hero mb-4">
   <div>
     <span class="kicker">Sự kiện</span>

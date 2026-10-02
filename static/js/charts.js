@@ -21,7 +21,7 @@ const IS_DARK = document.documentElement.getAttribute("data-bs-theme") === "dark
 
 const VIZ = Object.assign(
     {
-        // Thang xanh mực 6 bậc — nhạt tới đậm, dùng chung cho cả 2 theme.
+        // Thang xanh mực 6 bậc - nhạt tới đậm, dùng chung cho cả 2 theme.
         tone150: "#ccd5ea",
         tone250: "#a8b7dc",
         tone350: "#7e93c9",
@@ -271,7 +271,7 @@ function drawRatingDistChart() {
             datasets: [{
                 label: "Số đánh giá",
                 // 1 đến 5 sao là thang CÓ THỨ TỰ, nên dùng dải màu đậm dần.
-                // Khác với danh mục không có thứ tự (loại vé, tên sự kiện) —
+                // Khác với danh mục không có thứ tự (loại vé, tên sự kiện) -
                 // chỗ đó phải dùng một màu duy nhất.
                 data: data.counts,
                 backgroundColor: [VIZ.tone250, VIZ.tone350, VIZ.tone450,

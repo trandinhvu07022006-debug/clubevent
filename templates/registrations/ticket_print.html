@@ -48,11 +48,11 @@
       <p class="meta">{{ ticket.event.starts_at|date:"H:i - l, d/m/Y" }}<br>{{ ticket.event.location }}</p>
       <div class="grid">
         <div class="cell"><small>Người tham gia</small><b>{{ ticket.user.full_name|default:ticket.user.username }}</b></div>
-        <div class="cell"><small>MSSV</small><b>{{ ticket.user.mssv|default:"—" }}</b></div>
+        <div class="cell"><small>MSSV</small><b>{{ ticket.user.mssv|default:"-" }}</b></div>
         <div class="cell"><small>Loại vé</small><b>{{ ticket.ticket_type.name }}</b></div>
         <div class="cell"><small>Giá</small><b>{% if ticket.price %}{{ ticket.price|vnd }}đ{% else %}Miễn phí{% endif %}</b></div>
         <div class="cell"><small>Trạng thái</small><b>{{ ticket.get_status_display }}</b></div>
-        <div class="cell"><small>Mã giao dịch</small><b>{{ ticket.booking_ref|default:"—" }}</b></div>
+        <div class="cell"><small>Mã giao dịch</small><b>{{ ticket.booking_ref|default:"-" }}</b></div>
       </div>
     </div>
     <div class="stub">

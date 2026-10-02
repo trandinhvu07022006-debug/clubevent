@@ -29,7 +29,7 @@ from registrations.models import (Ticket, TicketStatus, WaitlistEntry,
 @transaction.atomic
 def cancel_event(user: User, event: Event):
     """Huỷ sự kiện, huỷ vé, huỷ danh sách chờ và báo cho người bị ảnh hưởng."""
-    # 1. LẤY DANH SÁCH NGƯỜI BỊ ẢNH HƯỞNG TRƯỚC — sau .update() là mất thông tin
+    # 1. LẤY DANH SÁCH NGƯỜI BỊ ẢNH HƯỞNG TRƯỚC - sau .update() là mất thông tin
     active = event.tickets.exclude(status=TicketStatus.CANCELLED)
     affected_user_ids = set(active.values_list("user_id", flat=True))
     # Người có vé có phí đã xác nhận -> nhắc chuyện hoàn tiền
@@ -53,7 +53,7 @@ def cancel_event(user: User, event: Event):
     AuditLog.write(user, "Huỷ sự kiện", event.name,
                    f"{len(affected_user_ids)} người giữ vé")
 
-    # 7. Báo MỖI NGƯỜI MỘT LẦN dù họ giữ 4 vé — chạy sau khi commit
+    # 7. Báo MỖI NGƯỜI MỘT LẦN dù họ giữ 4 vé - chạy sau khi commit
     title = f"Sự kiện bị huỷ: {event.name}"
     base = f"Sự kiện {event.name} đã bị huỷ. Thành thật xin lỗi bạn."
     url = event.get_absolute_url()
@@ -291,7 +291,7 @@ def events_for_calendar(user, year: int, month: int):
 
 
 def upcoming_for_user(user, limit=3):
-    """Sự kiện sắp tới mà user đang giữ vé còn hiệu lực — cho khối 'Sắp tới'."""
+    """Sự kiện sắp tới mà user đang giữ vé còn hiệu lực - cho khối 'Sắp tới'."""
     if not user.is_authenticated:
         return []
     return list(Event.objects.filter(

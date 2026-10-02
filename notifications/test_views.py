@@ -62,7 +62,7 @@ class BellTests(TestCase):
 
 
 class SmokeTests(TestCase):
-    """Mọi trang chính trả 200 với đúng vai trò — bắt lỗi template sớm."""
+    """Mọi trang chính trả 200 với đúng vai trò - bắt lỗi template sớm."""
 
     def setUp(self):
         now = timezone.now()

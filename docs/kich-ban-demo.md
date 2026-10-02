@@ -13,7 +13,7 @@ Chuẩn bị trước buổi demo, các "khoảnh khắc wow" và cách xử lý
 3. Mở sẵn **2 trình duyệt**: một cửa sổ thường và một cửa sổ ẩn danh, để đăng
    nhập 2 tài khoản cùng lúc.
 4. Điện thoại mở sẵn trang check-in. **Camera chỉ bật được trên HTTPS hoặc
-   `localhost`** — mở qua `http://<IP LAN>:8000` thì nút camera sẽ ẩn. Cách
+   `localhost`** - mở qua `http://<IP LAN>:8000` thì nút camera sẽ ẩn. Cách
    chính: chạy `ngrok http 8000`, mở link `https://...ngrok...` trên điện
    thoại (thêm tên miền ngrok vào `ALLOWED_HOSTS` và `CSRF_TRUSTED_ORIGINS`).
    Dự phòng: ô nhập mã tay luôn chạy được.
@@ -32,7 +32,7 @@ Chuẩn bị trước buổi demo, các "khoảnh khắc wow" và cách xử lý
 | 5 | A | Bấm **AI gợi ý công việc**, tick chọn vài việc, lưu | "AI chỉ gợi ý, Trưởng BTC vẫn quyết định. Nếu AI lỗi, hệ thống dùng danh sách mặc định" |
 | 6 | C | Vẫn `truongbtc`: bấm **Giao việc** → việc chung CLB "Chuẩn bị báo cáo tổng kết", mức **Gấp**, giao cho `admin`. Đăng nhập `admin` (cửa sổ ẩn danh) → bấm **chuông** → mở thông báo | "Ban chủ nhiệm giao được việc chung của CLB, không chỉ việc sự kiện, và giao cho cả Ban chủ nhiệm. Người nhận có thông báo trong app + email; việc có nhãn Gấp màu đỏ, xếp trên các việc thường" |
 | 6b | B | Đăng nhập `btc1`, mở **Việc của tôi**, đổi một việc thành Xong; `truongbtc` mở tab **Tôi đã giao** thấy tiến độ | "Tiến độ tự cập nhật, việc quá hạn tô đỏ, người giao theo dõi được" |
-| 7 | D | `thanhvien` đặt 2 vé sự kiện Acoustic Night. Rồi thử đặt thêm 5 vé | "Bị chặn vì giới hạn 4 vé mỗi người — đây là test giá trị biên TC07-3" |
+| 7 | D | `thanhvien` đặt 2 vé sự kiện Acoustic Night. Rồi thử đặt thêm 5 vé | "Bị chặn vì giới hạn 4 vé mỗi người - đây là test giá trị biên TC07-3" |
 | 8 | **C** | **Mở sự kiện Workshop (còn 1 chỗ) trên 2 trình duyệt, cùng bấm Đăng ký** | **"Chỉ 1 người thành công. Vì `SELECT ... FOR UPDATE` khoá dòng loại vé, giao dịch thứ hai phải chờ rồi mới đọc được số chỗ đã cập nhật"** |
 | 9 | B | Đăng nhập `btc1`, vào **Xác nhận thanh toán**, xác nhận vé vừa đặt | "Vé chuyển từ Chờ thanh toán sang Đã xác nhận, giờ mới check-in được" |
 | 10 | E | Quét QR trên điện thoại: lần 1 hợp lệ (xanh), **quét lại lần 2 báo Đã sử dụng (vàng)**, nhập mã sai báo Không hợp lệ (đỏ) | "Ba kết quả đúng đặc tả UC10. Mã vé là UUID ngẫu nhiên nên không đoán được" |

@@ -20,7 +20,7 @@ def shrink_image(upload, max_px, quality=82):
     mỗi ảnh còn vài trăm KB.
 
     Ảnh PNG có nền trong suốt giữ nguyên định dạng PNG. Ảnh động (GIF) và mọi
-    trường hợp không đọc được thì trả lại nguyên file — không bao giờ làm hỏng
+    trường hợp không đọc được thì trả lại nguyên file - không bao giờ làm hỏng
     việc tải lên.
     """
     # Chỉ xử lý file MỚI tải lên; sửa form mà giữ ảnh cũ thì bỏ qua

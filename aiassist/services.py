@@ -1,5 +1,5 @@
 """
-Tích hợp AI — 2 chức năng:
+Tích hợp AI - 2 chức năng:
   1. suggest_tasks()      : gợi ý danh sách công việc chuẩn bị sự kiện
   2. summarize_feedback() : tóm tắt phản hồi sau sự kiện
 
@@ -7,7 +7,7 @@ Nguyên tắc thiết kế:
   - API key đọc từ biến môi trường, KHÔNG hard-code (settings.AI_API_KEY).
   - Luôn có FALLBACK: AI lỗi, hết quota hay timeout thì hệ thống vẫn chạy,
     chỉ hiện thông báo để người dùng tự nhập tay. Đây là fault tolerance
-    (lập trình thứ lỗi) — một tiêu chí của phần mềm tốt.
+    (lập trình thứ lỗi) - một tiêu chí của phần mềm tốt.
   - Bắt AI trả JSON để parse được, kèm bước làm sạch vì model hay bọc kết
     quả trong khối ```json.
   - Không gửi kèm tên hay MSSV sang dịch vụ bên thứ ba (yêu cầu phi chức
@@ -56,7 +56,7 @@ def _is_daily_quota(error_body: str) -> bool:
 def _http_error_message(code: int, model: str = "", daily: bool = False) -> str:
     """
     Thông báo lỗi theo ĐÚNG nguyên nhân. Trước đây mọi mã lỗi đều báo "hết
-    quota hoặc sai API key", kể cả khi máy chủ AI chỉ đang quá tải — dễ làm
+    quota hoặc sai API key", kể cả khi máy chủ AI chỉ đang quá tải - dễ làm
     người dùng đi sửa key vô ích.
     """
     model = model or settings.AI_MODEL
@@ -65,7 +65,7 @@ def _http_error_message(code: int, model: str = "", daily: bool = False) -> str:
                 f"Kiểm tra AI_API_KEY trong file .env.")
     if code == 404:
         return (f"Không tìm thấy model '{model}' (mã 404). Model có thể đã bị "
-                f"nhà cung cấp ngừng — đổi tên model trong file .env.")
+                f"nhà cung cấp ngừng - đổi tên model trong file .env.")
     if code == 400:
         return "Yêu cầu gửi tới AI không hợp lệ (mã 400). Kiểm tra tên model trong file .env."
     if code == 429 and daily:
@@ -123,7 +123,7 @@ def _ask_ai(prompt: str, model: str | None = None) -> dict | list:
     Gửi prompt tới AI, trả về dict đã parse từ JSON.
 
     `model` bỏ trống thì dùng settings.AI_MODEL. Trợ lý chat truyền model
-    riêng (AI_ASSISTANT_MODEL) — xem ask_assistant().
+    riêng (AI_ASSISTANT_MODEL) - xem ask_assistant().
 
     Mọi lỗi (mạng, quota, JSON sai định dạng) đều gom về AIError để view chỉ
     cần bắt một loại lỗi.
@@ -267,7 +267,7 @@ def suggest_tasks(event: Event, count: int = 8) -> tuple[list[dict], bool, str]:
 
 
 def _clean_tasks(tasks, days_left: int) -> list[dict]:
-    """Lọc và chuẩn hoá dữ liệu AI trả về — không tin dữ liệu bên ngoài."""
+    """Lọc và chuẩn hoá dữ liệu AI trả về - không tin dữ liệu bên ngoài."""
     result = []
     for item in (tasks or []):
         if not isinstance(item, dict):
@@ -339,7 +339,7 @@ def summarize_feedback(event: Event) -> tuple[FeedbackSummary | None, str]:
 
 
 # ---------------------------------------------------------------------------
-# Chức năng 3: trợ lý hỏi đáp — nhánh AI cho câu hỏi ngoài 8 ý định có sẵn
+# Chức năng 3: trợ lý hỏi đáp - nhánh AI cho câu hỏi ngoài 8 ý định có sẵn
 # ---------------------------------------------------------------------------
 # Kỹ thuật: "grounding" (neo vào dữ liệu). AI KHÔNG được tự biết gì về CLB:
 # mọi thông tin nó dùng đều do server lấy từ CSDL và đưa vào prompt, kèm lệnh
@@ -386,7 +386,7 @@ def build_assistant_context() -> tuple[str, set[int]]:
     """
     Dữ liệu nền gửi cho AI: các sự kiện CÔNG KHAI (bỏ bản nháp DRAFT).
     Ưu tiên sự kiện sắp diễn ra, sau đó tới vài sự kiện vừa kết thúc.
-    Trả về (đoạn văn bản, tập mã sự kiện đã đưa vào) — tập mã dùng để kiểm tra
+    Trả về (đoạn văn bản, tập mã sự kiện đã đưa vào) - tập mã dùng để kiểm tra
     lại event_ids AI trả về, không cho AI bịa ra sự kiện không có.
     """
     from django.utils import timezone
@@ -437,7 +437,7 @@ def ask_assistant(question: str) -> dict:
     """
     Hỏi AI một câu KHÔNG thuộc 8 ý định có sẵn.
 
-    Trả về {"answer": str, "event_ids": [int]} — event_ids đã được lọc, chỉ
+    Trả về {"answer": str, "event_ids": [int]} - event_ids đã được lọc, chỉ
     giữ mã có thật trong dữ liệu nền. Lỗi thì ném AIError (nơi gọi tự fallback).
     """
     from django.utils import timezone
@@ -463,7 +463,7 @@ def ask_assistant(question: str) -> dict:
     if len(answer) > ASSISTANT_MAX_ANSWER:
         answer = answer[:ASSISTANT_MAX_ANSWER].rsplit(" ", 1)[0] + "…"
 
-    # AI có thể trả chuỗi, số lạ, mã không tồn tại — chỉ giữ số nguyên hợp lệ
+    # AI có thể trả chuỗi, số lạ, mã không tồn tại - chỉ giữ số nguyên hợp lệ
     # nằm trong dữ liệu nền, bỏ trùng, giữ thứ tự.
     raw_ids = data.get("event_ids") or []
     if not isinstance(raw_ids, list):

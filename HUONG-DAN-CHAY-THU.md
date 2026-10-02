@@ -72,7 +72,7 @@ Muốn đưa dữ liệu về như ban đầu: tắt cửa sổ đen, xoá file 
 2. Xem IP máy tính: gõ `ipconfig`, lấy dòng **IPv4 Address** (vd `192.168.1.5`).
 3. Trên điện thoại mở `http://192.168.1.5:8000`.
 
-Lưu ý: **quét QR bằng camera** cần HTTPS nên sẽ không bật được theo cách này —
+Lưu ý: **quét QR bằng camera** cần HTTPS nên sẽ không bật được theo cách này -
 dùng ô nhập mã vé thay thế. Đây là giới hạn của trình duyệt, không phải lỗi.
 
 ## Báo lỗi
@@ -83,7 +83,7 @@ GitHub), hoặc nhắn trực tiếp cho nhóm. Ghi giúp:
 
 - **Tài khoản** đang dùng và **trang** (link trên thanh địa chỉ).
 - **Các bước** đã làm.
-- **Mong đợi** điều gì — **thực tế** xảy ra gì.
+- **Mong đợi** điều gì - **thực tế** xảy ra gì.
 - **Ảnh chụp màn hình**; nếu cửa sổ đen có chữ đỏ báo lỗi, chụp cả phần đó.
 - Máy và trình duyệt (vd Windows 10 + Chrome, iPhone + Safari).
 

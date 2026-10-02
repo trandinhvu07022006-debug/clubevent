@@ -1,4 +1,4 @@
-# Giải thích code — tài liệu ôn bảo vệ
+# Giải thích code - tài liệu ôn bảo vệ
 
 Mỗi mục: **luồng chạy → file cần đọc → vì sao làm vậy → câu hỏi hay gặp + đáp án.**
 Cách ôn hiệu quả: mở đúng file, đọc hàm được nêu, tự trả lời câu hỏi TRƯỚC khi
@@ -18,16 +18,16 @@ lập HTTP; cùng một hàm dùng lại cho web, API JSON và lệnh định k�
 từ cả view huỷ vé lẫn lệnh `run_periodic`.
 
 **Lỗi nghiệp vụ** ném exception riêng (`BookingError`, `FeedbackError`), view
-bắt và hiện `messages.error` — người dùng thấy câu tiếng Việt, không thấy trang lỗi.
+bắt và hiện `messages.error` - người dùng thấy câu tiếng Việt, không thấy trang lỗi.
 
 > **Hỏi:** Sao không viết logic thẳng trong view cho nhanh?
 > **Đáp:** View gắn với HTTP nên khó test và không tái sử dụng được. Ví dụ danh
 > sách chờ phải chạy cả khi người dùng huỷ vé (có request) lẫn khi lệnh định kỳ
-> huỷ vé quá hạn (không có request) — logic chỉ viết một lần trong service.
+> huỷ vé quá hạn (không có request) - logic chỉ viết một lần trong service.
 
 ---
 
-## 2. Đặt vé và race condition — `registrations/services.py::book_tickets`
+## 2. Đặt vé và race condition - `registrations/services.py::book_tickets`
 
 **Luồng:** khoá dòng loại vé (`select_for_update`) → kiểm tra sự kiện mở, hạn
 đăng ký, giới hạn 4 vé/người, số chỗ → `_issue_tickets` trừ `sold` và tạo vé →
@@ -40,10 +40,10 @@ chỗ và tạo vé cùng thành công hoặc cùng huỷ.
 
 **Vì sao có cột `sold`** thay vì đếm bảng vé: chỉ cần khoá 1 dòng loại vé.
 
-**SQLite:** `config/settings.py` đặt `transaction_mode=IMMEDIATE` — mỗi giao
+**SQLite:** `config/settings.py` đặt `transaction_mode=IMMEDIATE` - mỗi giao
 dịch giành quyền ghi ngay từ đầu, nên người sau xếp hàng và nhận "hết chỗ"
 (không đặt thì người sau nhận lỗi "database is locked"). MySQL khoá đúng dòng,
-SQLite khoá cả file — kết quả nghiệp vụ như nhau.
+SQLite khoá cả file - kết quả nghiệp vụ như nhau.
 
 > **Hỏi:** Test race condition viết thế nào?
 > **Đáp:** `RaceConditionTests` dùng `TransactionTestCase` + 2 thread cùng đặt
@@ -57,7 +57,7 @@ SQLite khoá cả file — kết quả nghiệp vụ như nhau.
 
 ---
 
-## 3. Mã giao dịch nhóm + VietQR — `registrations/vietqr.py`
+## 3. Mã giao dịch nhóm + VietQR - `registrations/vietqr.py`
 
 **Vấn đề:** 1 lần đặt 4 vé có 4 mã vé 12 ký tự, nhưng nội dung chuyển khoản chỉ
 ~25 ký tự. **Giải pháp:** mọi vé của 1 lần đặt chung `booking_ref` 8 ký tự; nội
@@ -74,7 +74,7 @@ cả nhóm, chỉ những vé còn "Chờ thanh toán", ghi 1 dòng nhật ký.
 > **Hỏi:** Hệ thống có tự biết người dùng đã chuyển tiền không?
 > **Đáp:** Không. Hệ thống không đọc được tài khoản ngân hàng, BTC đối chiếu sao
 > kê rồi bấm xác nhận. Tự động hoá cần dịch vụ webhook ngân hàng (Casso, SePay)
-> — đã ghi ở mục Giai đoạn 3 của kế hoạch.
+> - đã ghi ở mục Giai đoạn 3 của kế hoạch.
 
 > **Hỏi:** Làm sao biết chuỗi QR đúng chuẩn?
 > **Đáp:** Test `crc16_ccitt("123456789") == "29B1"` là giá trị kiểm chuẩn của
@@ -82,7 +82,7 @@ cả nhóm, chỉ những vé còn "Chờ thanh toán", ghi 1 dòng nhật ký.
 
 ---
 
-## 4. Danh sách chờ — `promote_from_waitlist`
+## 4. Danh sách chờ - `promote_from_waitlist`
 
 **Luồng:** loại vé hết chỗ → người dùng "Vào danh sách chờ" (mỗi lượt = 1 vé).
 Khi `sold` giảm (huỷ vé, vé quá hạn thanh toán bị huỷ) → ngay trong cùng
@@ -106,7 +106,7 @@ chuyển tiếp cho người sau. Không cần thêm trạng thái "đã mời".
 
 ---
 
-## 5. Thông báo — `notifications/services.py`
+## 5. Thông báo - `notifications/services.py`
 
 **Một cửa vào duy nhất:** `notify()` tạo thông báo trong app + gửi email; lỗi
 email chỉ ghi log, **không bao giờ** làm hỏng nghiệp vụ chính.
@@ -125,12 +125,12 @@ của người khác (IDOR); trước khi chuyển trang kiểm tra URL nội b�
 redirect). Khách chưa đăng nhập không phát sinh truy vấn thông báo nào.
 
 > **Hỏi:** Test chuyện rollback thì không gửi mail thế nào?
-> **Đáp:** `test_no_notification_when_booking_rolls_back` — đặt vé lỗi trong
+> **Đáp:** `test_no_notification_when_booking_rolls_back` - đặt vé lỗi trong
 > `captureOnCommitCallbacks(execute=True)`, kiểm tra 0 thông báo, 0 mail.
 
 ---
 
-## 6. Tác vụ định kỳ — `events/management/commands/run_periodic.py`
+## 6. Tác vụ định kỳ - `events/management/commands/run_periodic.py`
 
 Chạy mỗi 15 phút: huỷ vé quá hạn → dọn danh sách chờ hết hạn → nhắc lịch 24h →
 xoá thông báo cũ. Mỗi bước bọc try/except riêng, một bước lỗi không chặn bước sau.
@@ -140,7 +140,7 @@ trong cùng transaction có khoá dòng sự kiện. Chạy lệnh 2 lần, hay 
 song song, cũng chỉ 1 lượt email. Cửa sổ "trong 24h tới" thay vì "đúng 24h" để
 lịch chạy trễ không bỏ sót.
 
-**Hạn thanh toán:** `min(lúc đặt + 24h, giờ diễn ra)` — đặt lúc 20h cho sự kiện
+**Hạn thanh toán:** `min(lúc đặt + 24h, giờ diễn ra)` - đặt lúc 20h cho sự kiện
 8h sáng mai thì hạn là 8h sáng, không phải 20h mai.
 
 > **Hỏi:** Sao không dùng Celery?
@@ -149,14 +149,14 @@ lịch chạy trễ không bỏ sót.
 
 ---
 
-## 7. Check-in bằng camera — `static/js/qr-scan.js`
+## 7. Check-in bằng camera - `static/js/qr-scan.js`
 
 - Camera chỉ bật được trên HTTPS hoặc `localhost` → không đủ điều kiện thì ẩn
   nút, dùng ô nhập mã (luôn chạy được).
 - Giải mã: `BarcodeDetector` của trình duyệt nếu có, không thì thư viện `jsQR`.
 - Chặn quét lặp cùng 1 mã trong 3 giây (camera đọc 1 vé nhiều lần mỗi giây).
 - Mã không đúng dạng 12 ký tự hex → báo "không phải mã vé", không gọi server.
-- Dữ liệu từ server gán bằng `textContent`, **không** ghép vào `innerHTML` —
+- Dữ liệu từ server gán bằng `textContent`, **không** ghép vào `innerHTML` -
   tên người dùng do họ tự đặt, ghép vào HTML là lỗ hổng XSS nhắm vào máy BTC.
 - Tiến độ cập nhật mỗi 5 giây (polling), dừng khi tab ẩn; nhiều cửa check-in
   thấy chung một con số.
@@ -166,10 +166,10 @@ lịch chạy trễ không bỏ sót.
 
 ---
 
-## 8. Giấy chứng nhận — `events/services.py::cert_token`
+## 8. Giấy chứng nhận - `events/services.py::cert_token`
 
 **Điều kiện:** sự kiện đã diễn ra và người dùng có vé đã check-in.
-**Mã xác thực:** chữ ký HMAC của Django (`signing.Signer`) trên mã vé — không cần
+**Mã xác thực:** chữ ký HMAC của Django (`signing.Signer`) trên mã vé - không cần
 bảng mới, không làm giả được nếu không có `SECRET_KEY`.
 **Trang xác thực công khai:** mọi lý do không hợp lệ đều cùng 1 câu (không lộ
 thông tin), chỉ hiện họ tên, MSSV đã che, tên sự kiện.
@@ -177,21 +177,21 @@ thông tin), chỉ hiện họ tên, MSSV đã che, tên sự kiện.
 (font tiếng Việt đã self-host hiển thị chuẩn, khỏi thêm thư viện).
 
 > **Hỏi:** Đổi `SECRET_KEY` thì sao?
-> **Đáp:** Mọi chứng nhận đã cấp mất hiệu lực xác thực — đã ghi cảnh báo trong README.
+> **Đáp:** Mọi chứng nhận đã cấp mất hiệu lực xác thực - đã ghi cảnh báo trong README.
 
 ---
 
-## 9. File lịch `.ics` — `event_ics`
+## 9. File lịch `.ics` - `event_ics`
 
 Tự sinh theo RFC 5545, không thêm thư viện. 3 bẫy đã xử lý: xuống dòng phải là
-CRLF; thoát ký tự `, ; \`; gập dòng dài hơn **75 byte** (không phải 75 ký tự —
+CRLF; thoát ký tự `, ; \`; gập dòng dài hơn **75 byte** (không phải 75 ký tự -
 tiếng Việt có dấu chiếm 2–3 byte) mà không cắt giữa một ký tự.
 
 ---
 
-## 10. Giao việc và ngân sách — `organizing/`
+## 10. Giao việc và ngân sách - `organizing/`
 
-- **Giao việc (Ban chủ nhiệm = Trưởng BTC + Admin):** `task_assign` — chọn sự
+- **Giao việc (Ban chủ nhiệm = Trưởng BTC + Admin):** `task_assign` - chọn sự
   kiện hoặc để trống (= việc chung CLB), người nhận là bất kỳ ai trong BTC kể
   cả Ban chủ nhiệm. Chỉ báo khi người phụ trách **thực sự đổi**, không báo khi
   tự giao cho mình. Tab "Tôi đã giao" lọc theo `created_by`.
@@ -199,12 +199,12 @@ tiếng Việt có dấu chiếm 2–3 byte) mà không cắt giữa một ký t
   `Expense` ghi tay. Chỉ Trưởng BTC trở lên xem (dữ liệu tài chính).
 
 > **Hỏi:** Thành viên BTC gõ thẳng URL `/congviec/giao-viec/` thì sao?
-> **Đáp:** 403 — phân quyền kiểm tra ở server bằng decorator `lead_required`,
+> **Đáp:** 403 - phân quyền kiểm tra ở server bằng decorator `lead_required`,
 > không chỉ ẩn nút.
 
 ---
 
-## 11. Bảo mật — tổng hợp để trả lời nhanh
+## 11. Bảo mật - tổng hợp để trả lời nhanh
 
 | Rủi ro | Cách chặn | Ở đâu |
 |---|---|---|

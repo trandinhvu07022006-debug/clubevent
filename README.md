@@ -1,12 +1,12 @@
 # Hệ thống hỗ trợ tổ chức sự kiện cho câu lạc bộ sinh viên
 
-Đồ án môn **Công nghệ phần mềm** — Django 5 + MySQL.
+Đồ án môn **Công nghệ phần mềm** - Django 5 + MySQL.
 
 Hệ thống hỗ trợ trọn vòng đời một sự kiện CLB: chuẩn bị (phân công công việc
 BTC) → mở đăng ký / bán vé → check-in → thu phản hồi và thống kê. Có tích hợp
 AI để gợi ý công việc và tóm tắt phản hồi, cùng một trợ lý tra cứu chạy nội bộ.
 
-Dự án đã sẵn sàng deploy lên host thật — xem `docs/huong-dan-deploy.md`.
+Dự án đã sẵn sàng deploy lên host thật - xem `docs/huong-dan-deploy.md`.
 
 ---
 
@@ -76,7 +76,7 @@ Mật khẩu chung: **`demo1234`**
 | Sự kiện | Trạng thái | Dùng để demo |
 |---|---|---|
 | Acoustic Night #5 | Mở đăng ký, còn nhiều chỗ | Đặt vé, giới hạn 4 vé, công việc BTC |
-| Workshop Guitar | Mở đăng ký, **còn đúng 1 chỗ** | **Race condition** — 2 người cùng đặt chỗ cuối |
+| Workshop Guitar | Mở đăng ký, **còn đúng 1 chỗ** | **Race condition** - 2 người cùng đặt chỗ cuối |
 | Minishow Tròn | Đã diễn ra | Thống kê, phản hồi, AI tóm tắt, ngân sách, giấy chứng nhận (`thanhvien` đã check-in) |
 | Giao lưu Guitar liên CLB | Mở đăng ký, **hết vé** | Danh sách chờ (đã có 3 người chờ) |
 
@@ -99,7 +99,7 @@ Nạp lại từ đầu: `python manage.py seed_demo --reset`
 
 ## 2. Cấu hình AI (không bắt buộc)
 
-Hệ thống chạy bình thường khi không có AI — sẽ dùng danh sách công việc mặc
+Hệ thống chạy bình thường khi không có AI - sẽ dùng danh sách công việc mặc
 định thay cho gợi ý AI. Muốn bật AI thật thì thêm vào `.env`:
 
 ```
@@ -148,7 +148,7 @@ dựng HTTP request.
 
 | File | Nội dung |
 |---|---|
-| `registrations/services.py` | Đặt vé có transaction, check-in — phần kỹ thuật quan trọng nhất |
+| `registrations/services.py` | Đặt vé có transaction, check-in - phần kỹ thuật quan trọng nhất |
 | `accounts/permissions.py` | Phân quyền kiểm tra ở server |
 | `events/models.py` | Máy trạng thái sự kiện (`ALLOWED_TRANSITIONS`) |
 | `aiassist/services.py` | Gọi AI có fallback khi lỗi |
@@ -165,17 +165,17 @@ python manage.py test registrations   # chỉ test đặt vé và check-in
 python manage.py test aiassist        # chỉ test AI và trợ lý tra cứu
 ```
 
-Test chạy hơi lâu (khoảng 30 giây) vì bcrypt băm mật khẩu chậm có chủ đích —
+Test chạy hơi lâu (khoảng 30 giây) vì bcrypt băm mật khẩu chậm có chủ đích -
 đó là tính năng bảo mật, không phải lỗi.
 
 Mã test khớp với bảng test case trong báo cáo (`TC07-x`, `TC10-x`) để điền
 RTM. Test đáng chú ý:
 
-- `RaceConditionTests` — 2 thread cùng đặt chỗ cuối, đúng 1 người thành công.
-- `CheckInTests` — 3 kết quả check-in theo đặc tả UC10.
-- `UrlPermissionTests` — gõ URL không đúng quyền thì bị 403.
-- `SuggestTasksFallbackTests` — AI lỗi thì hệ thống vẫn chạy.
-- `AnswerTests` — trợ lý tra cứu, gồm cả test không được lộ vé của người khác.
+- `RaceConditionTests` - 2 thread cùng đặt chỗ cuối, đúng 1 người thành công.
+- `CheckInTests` - 3 kết quả check-in theo đặc tả UC10.
+- `UrlPermissionTests` - gõ URL không đúng quyền thì bị 403.
+- `SuggestTasksFallbackTests` - AI lỗi thì hệ thống vẫn chạy.
+- `AnswerTests` - trợ lý tra cứu, gồm cả test không được lộ vé của người khác.
 
 ---
 

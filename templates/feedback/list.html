@@ -37,7 +37,7 @@
       <div class="h4 mb-0">
         {% if stat.rating_avg %}
           <i class="bi bi-star-fill star-rating"></i> {{ stat.rating_avg }}
-        {% else %}—{% endif %}
+        {% else %}-{% endif %}
       </div>
       <div class="small text-muted">{{ stat.rating_count }} đánh giá</div>
     </div></div>
@@ -74,7 +74,7 @@
           <div class="text-center py-4">
             <div class="display-5 fw-semibold">{{ type_chart.values.0 }}</div>
             <div class="text-muted">
-              vé — {{ type_chart.labels.0 }}
+              vé - {{ type_chart.labels.0 }}
             </div>
             <p class="small text-muted mt-3 mb-0">
               Sự kiện chỉ có một loại vé nên không cần biểu đồ so sánh.
@@ -129,19 +129,19 @@
         <div class="col-md-6">
           <div class="p-3 bg-body rounded-3 h-100 border">
             <h6 class="fw-bold text-success-emphasis mb-2"><i class="bi bi-hand-thumbs-up"></i> Được khen</h6>
-            <p class="mb-0 small text-body">{{ summary.positive|default:"—" }}</p>
+            <p class="mb-0 small text-body">{{ summary.positive|default:"-" }}</p>
           </div>
         </div>
         <div class="col-md-6">
           <div class="p-3 bg-body rounded-3 h-100 border">
             <h6 class="fw-bold text-danger-emphasis mb-2"><i class="bi bi-bullseye"></i> Cần cải thiện</h6>
-            <p class="mb-0 small text-body">{{ summary.negative|default:"—" }}</p>
+            <p class="mb-0 small text-body">{{ summary.negative|default:"-" }}</p>
           </div>
         </div>
         <div class="col-12">
           <div class="p-3 bg-body rounded-3 shadow-sm border border-primary-subtle">
             <h6 class="fw-bold text-primary-emphasis mb-2"><i class="bi bi-lightbulb"></i> Đề xuất hành động</h6>
-            <p class="mb-0 text-body">{{ summary.suggestion|linebreaksbr|default:"—" }}</p>
+            <p class="mb-0 text-body">{{ summary.suggestion|linebreaksbr|default:"-" }}</p>
           </div>
         </div>
       </div>

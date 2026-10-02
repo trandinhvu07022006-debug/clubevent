@@ -56,7 +56,7 @@ def _ai_allowed(request):
 
 
 def _record_ai_use(request):
-    """Chỉ tính lượt khi AI THẬT SỰ trả lời — câu hỏi đi nhánh luật không tốn lượt."""
+    """Chỉ tính lượt khi AI THẬT SỰ trả lời - câu hỏi đi nhánh luật không tốn lượt."""
     stamps = _ai_timestamps(request)
     stamps.append(time.time())
     request.session["chat_ai_timestamps"] = stamps
@@ -68,7 +68,7 @@ def chat_api(request):
     Nhận câu hỏi, trả câu trả lời dạng JSON.
 
     Chỉ nhận POST vì đây là hành động gửi dữ liệu, và POST thì Django bắt
-    buộc kiểm tra CSRF token — chặn được việc trang web khác gọi thay bạn.
+    buộc kiểm tra CSRF token - chặn được việc trang web khác gọi thay bạn.
     Có rate limit để chặn spam.
     """
     if _is_rate_limited(request):

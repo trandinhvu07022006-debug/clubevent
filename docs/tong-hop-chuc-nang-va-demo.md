@@ -1,4 +1,4 @@
-# Tổng hợp chức năng, điểm mạnh và chuẩn bị demo — KMG Club
+# Tổng hợp chức năng, điểm mạnh và chuẩn bị demo - KMG Club
 
 Tài liệu dùng cho 2 việc: **viết báo cáo** (phần 1, 2 đưa vào chương 3 và
 chương 8) và **chuẩn bị buổi demo** (phần 3). Mọi con số ở đây đều đo được
@@ -20,7 +20,7 @@ vai trò thấp hơn.
 | F1.3 | Hồ sơ cá nhân, ảnh đại diện (tự thu nhỏ), đổi mật khẩu | Mọi người |
 | F1.4 | Quên mật khẩu qua email (link sống 2 giờ, tối đa 5 lần/giờ) | Mọi người |
 | F1.5 | Quản lý tài khoản: tìm kiếm, gán vai trò, khoá / mở khoá | Admin |
-| F0.1 | Phân quyền kiểm tra ở server — gõ thẳng URL vượt quyền bị chặn 403 | Hệ thống |
+| F0.1 | Phân quyền kiểm tra ở server - gõ thẳng URL vượt quyền bị chặn 403 | Hệ thống |
 | F0.2 | Nhật ký thao tác (gán vai trò, xác nhận thanh toán, check-in, huỷ sự kiện…) | Admin |
 
 ### M2. Sự kiện
@@ -34,7 +34,7 @@ vai trò thấp hơn.
 | F2.5 | Danh sách sự kiện: lọc danh mục + trạng thái + sắp tới/đã qua + tìm kiếm (kết hợp được) | Mọi người |
 | F2.6 | Lịch sự kiện theo tháng | Mọi người |
 | F7.4 | Thêm vào lịch điện thoại / Google Calendar (file `.ics`) | Mọi người |
-| — | Chia sẻ link sự kiện; khối "Sự kiện sắp tới của bạn" ở trang chủ | Mọi người |
+| - | Chia sẻ link sự kiện; khối "Sự kiện sắp tới của bạn" ở trang chủ | Mọi người |
 
 ### M3. Công việc Ban tổ chức
 
@@ -72,7 +72,7 @@ vai trò thấp hơn.
 
 | Mã | Chức năng | Ai dùng |
 |---|---|---|
-| F6.1 | Gửi đánh giá 1–5 sao — chỉ người đã check-in, trong 7 ngày, mỗi người 1 lần | Thành viên |
+| F6.1 | Gửi đánh giá 1–5 sao - chỉ người đã check-in, trong 7 ngày, mỗi người 1 lần | Thành viên |
 | F6.2 | AI tóm tắt phản hồi: điểm khen, điểm chê, đề xuất (không gửi tên/MSSV cho AI) | Trưởng BTC |
 | F6.3 | Thống kê từng sự kiện + biểu đồ (vé theo loại, phân bố số sao) | Trưởng BTC |
 | F6.4 | Thống kê tổng hợp nhiều sự kiện: tỉ lệ check-in, doanh thu, điểm đánh giá | Trưởng BTC |
@@ -103,7 +103,7 @@ vai trò thấp hơn.
 
 ---
 
-## Phần 2. Điểm mạnh — kèm bằng chứng
+## Phần 2. Điểm mạnh - kèm bằng chứng
 
 Khi trình bày hoặc viết báo cáo, **mỗi điểm mạnh đi kèm một bằng chứng**.
 
@@ -122,7 +122,7 @@ Khi trình bày hoặc viết báo cáo, **mỗi điểm mạnh đi kèm một b
 | 11 | **Minh bạch**: có khai báo dùng AI, bảng lỗi đã tìm và sửa, tài liệu giải thích code | `docs/khai-bao-su-dung-ai.md`, `docs/giai-thich-code.md` |
 
 **Nói thật về giới hạn** (giảng viên đánh giá cao điều này):
-- Hệ thống **không tự biết** người dùng đã chuyển khoản — BTC vẫn đối chiếu sao kê.
+- Hệ thống **không tự biết** người dùng đã chuyển khoản - BTC vẫn đối chiếu sao kê.
 - Camera quét QR cần HTTPS; khi không có thì dùng ô nhập mã.
 - Chưa kiểm thử tải lớn; quy mô thiết kế cho một CLB (vài trăm người).
 - Thông báo cập nhật khi tải lại trang (không đẩy tức thời).
@@ -166,13 +166,13 @@ mở rộng). Nguyên tắc:
 
 | Sự cố | Xử lý tại chỗ |
 |---|---|
-| Mất mạng | Vẫn chạy bình thường (không dùng CDN); chỉ AI tóm tắt / gợi ý chuyển sang danh sách mặc định — **nói ra đây là thiết kế có chủ đích** |
-| Camera không bật | Dùng ô nhập mã vé — cùng kết quả 3 màu |
+| Mất mạng | Vẫn chạy bình thường (không dùng CDN); chỉ AI tóm tắt / gợi ý chuyển sang danh sách mặc định - **nói ra đây là thiết kế có chủ đích** |
+| Camera không bật | Dùng ô nhập mã vé - cùng kết quả 3 màu |
 | Dữ liệu bị rối sau vài lần thử | `python manage.py seed_demo --reset` (khoảng 5 giây) |
 | Web không lên | Chuyển máy dự phòng hoặc chiếu video |
 | Quên mật khẩu tài khoản demo | Tất cả đều là `demo1234` |
 
-### 3.4. Câu hỏi giảng viên hay hỏi — trả lời ngắn
+### 3.4. Câu hỏi giảng viên hay hỏi - trả lời ngắn
 
 | Câu hỏi | Ý chính trả lời |
 |---|---|

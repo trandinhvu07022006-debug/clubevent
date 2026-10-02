@@ -1,6 +1,6 @@
 """
 Test hồi quy cho các lỗi tìm ra khi rà soát chất lượng code cũ.
-Mỗi test ứng với một lỗi đã sửa — chạy lại để lỗi không quay lại.
+Mỗi test ứng với một lỗi đã sửa - chạy lại để lỗi không quay lại.
 """
 import json
 

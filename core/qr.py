@@ -8,7 +8,7 @@ def qr_data_uri(text):
     Sinh mã QR dạng data URI để nhúng thẳng vào thẻ <img>, không cần lưu file.
 
     Nếu máy chưa cài thư viện qrcode thì trả None, template sẽ hiện mã chữ
-    thay thế — vẫn check-in được bằng cách nhập tay.
+    thay thế - vẫn check-in được bằng cách nhập tay.
     """
     try:
         import qrcode

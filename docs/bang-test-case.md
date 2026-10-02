@@ -144,7 +144,7 @@ quota.
 | T1.4.6 | Gửi 6 yêu cầu trong 1 giờ | Chỉ 5 mail | `test_t146_rate_limit` |
 | T1.4.7 | Email viết hoa | Vẫn nhận mail | `test_t147_case_insensitive_email` |
 
-## Mã giao dịch nhóm + VietQR (F4.7) — `registrations/test_features.py`
+## Mã giao dịch nhóm + VietQR (F4.7) - `registrations/test_features.py`
 
 | Mã | Tình huống | Kết quả mong đợi | Hàm test |
 |---|---|---|---|
@@ -156,7 +156,7 @@ quota.
 | T4.7.6 | Nhóm có 1 vé đã huỷ | Chỉ xác nhận vé còn PENDING | `test_t4_7_6_confirm_booking_skips_cancelled` |
 | T4.7.7 | Thiếu `BANK_BIN` | Trang vé render bình thường, không có QR | `test_t4_7_7_my_tickets_renders_without_bank` |
 | T4.7.8 | Data migration | Không còn vé nào `booking_ref == ""` | `test_t4_7_8_data_migration_leaves_no_empty_ref` |
-| Thủ công | Quét VietQR bằng app ngân hàng thật | App hiện đúng STK, tên, số tiền, nội dung | — (phải thử trước khi demo) |
+| Thủ công | Quét VietQR bằng app ngân hàng thật | App hiện đúng STK, tên, số tiền, nội dung | - (phải thử trước khi demo) |
 
 ## Thông báo theo nghiệp vụ (F7.1)
 
@@ -184,7 +184,7 @@ quota.
 | T4.8.9 | Huỷ vé sau hạn đăng ký | Không cấp cho ai | `test_t4_8_9_no_promotion_after_deadline` |
 | T4.8.10 | Huỷ sự kiện | Mọi lượt chờ → CANCELLED, có thông báo | `test_t4_8_10_cancel_event_cancels_waitlist` |
 | T4.8.11 | `sold` sau mọi kịch bản | Bằng số vé còn hiệu lực thật | `assert_sold_consistent` (gọi trong các test trên) |
-| T4.8.12 | 2 luồng cùng huỷ vé đồng thời | Chưa tự động hoá — chạy thủ công trên MySQL | — |
+| T4.8.12 | 2 luồng cùng huỷ vé đồng thời | Chưa tự động hoá - chạy thủ công trên MySQL | - |
 
 ## Hạn thanh toán (B2), check-in (F5.3, F5.4)
 
@@ -196,7 +196,7 @@ quota.
 | T5.4.1 | Tiến độ sau check-in | `done/total`, theo loại vé, lượt gần nhất | `test_t5_4_1_progress_by_type_and_recent` |
 | T5.4.2 | Thành viên gọi API tiến độ | 403 | `test_t5_4_2_member_blocked` |
 
-## Nhắc lịch (F7.2) — `events/test_features.py`
+## Nhắc lịch (F7.2) - `events/test_features.py`
 
 | Mã | Tình huống | Kết quả mong đợi | Hàm test |
 |---|---|---|---|
@@ -206,7 +206,7 @@ quota.
 | T7.2.4 | Vé PENDING | Không nhắc | `test_t7_2_4_pending_ticket_not_reminded` |
 | T7.2.5 | Người có 3 vé | 1 mail | `test_t7_2_5_three_tickets_one_mail` |
 
-## Chuông thông báo (F7.3) — `notifications/test_views.py`
+## Chuông thông báo (F7.3) - `notifications/test_views.py`
 
 | Mã | Tình huống | Kết quả mong đợi | Hàm test |
 |---|---|---|---|
@@ -247,7 +247,7 @@ quota.
 | NS.2 | Thành viên vào trang ngân sách | 403 | `test_member_forbidden` |
 | NS.3 | Trưởng BTC thêm/xoá khoản chi, xuất CSV | Chạy đúng | `test_lead_crud_and_csv` |
 
-## Rà soát chất lượng — lỗi hồi quy (`core/test_quality.py`)
+## Rà soát chất lượng - lỗi hồi quy (`core/test_quality.py`)
 
 | Mã | Lỗi đã sửa | Kết quả mong đợi | Hàm test |
 |---|---|---|---|

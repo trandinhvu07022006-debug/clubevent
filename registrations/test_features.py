@@ -150,7 +150,7 @@ class BookingRefTests(Base):
 
     def test_t4_7_8_data_migration_leaves_no_empty_ref(self):
         # Vé tạo qua service luôn có mã; vé "cũ" tạo tay với ref rỗng thì
-        # migration 0003 sẽ điền — kiểm tra hàm điền trực tiếp.
+        # migration 0003 sẽ điền - kiểm tra hàm điền trực tiếp.
         from importlib import import_module
 
         from django.apps import apps

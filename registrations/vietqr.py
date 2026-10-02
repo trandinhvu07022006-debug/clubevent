@@ -5,7 +5,7 @@ Chuỗi VietQR theo chuẩn EMVCo: mỗi trường = ID 2 số + độ dài 2 s�
 App ngân hàng nào ở Việt Nam cũng quét được, tự điền STK, số tiền, nội dung.
 
 Thiếu cấu hình ngân hàng trong .env (BANK_BIN, BANK_ACCOUNT, BANK_ACCOUNT_NAME)
-thì mọi hàm trả None và giao diện ẩn phần VietQR — không bao giờ lỗi.
+thì mọi hàm trả None và giao diện ẩn phần VietQR - không bao giờ lỗi.
 """
 from django.conf import settings
 

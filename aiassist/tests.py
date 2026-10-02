@@ -126,7 +126,7 @@ class SuggestTasksFallbackTests(TestCase):
 
 class SummarizeFeedbackTests(TestCase):
     """
-    Tóm tắt phản hồi bằng AI — test phần tích hợp và yêu cầu quyền riêng tư.
+    Tóm tắt phản hồi bằng AI - test phần tích hợp và yêu cầu quyền riêng tư.
 
     Không test nội dung tóm tắt (AI mỗi lần một khác), chỉ test:
       - AI chạy được thì lưu FeedbackSummary vào DB, đếm đúng số phản hồi.
@@ -235,7 +235,7 @@ class RetryTests(TestCase):
     Lỗi TẠM THỜI (429, 5xx) được thử lại; lỗi CẤU HÌNH (401, 404) báo ngay.
 
     Bối cảnh: khi cấu hình AI thật, Gemini trả 503 ở lần gọi đầu rồi lần sau
-    lại thành công — không có thử lại thì người dùng thấy lỗi dù mọi thứ đúng.
+    lại thành công - không có thử lại thì người dùng thấy lỗi dù mọi thứ đúng.
     """
 
     @patch("aiassist.services._call_gemini",
@@ -278,7 +278,7 @@ class RetryTests(TestCase):
     def test_429_daily_quota_not_retried(self, mock_sleep):
         """
         429 THEO NGÀY (gói miễn phí ~20 lượt/ngày/model): thử lại vô ích, chỉ
-        bắt người dùng chờ thêm — báo ngay và nói rõ là hết lượt trong ngày.
+        bắt người dùng chờ thêm - báo ngay và nói rõ là hết lượt trong ngày.
         """
         import io
         import urllib.error

@@ -1,5 +1,5 @@
 """
-Tầng SERVICE cho M4 + M5 — nơi chứa toàn bộ quy tắc nghiệp vụ.
+Tầng SERVICE cho M4 + M5 - nơi chứa toàn bộ quy tắc nghiệp vụ.
 
 Vì sao tách riêng khỏi view:
   - View chỉ nhận request và trả response, không chứa logic.
@@ -222,7 +222,7 @@ def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]
             raise BookingError("Loại vé này đã hết chỗ.")
         raise BookingError(f"Chỉ còn {remaining} chỗ cho loại vé này.")
 
-    # (5) Trừ chỗ và tạo vé — vẫn trong cùng transaction.
+    # (5) Trừ chỗ và tạo vé - vẫn trong cùng transaction.
     # Cả lần đặt dùng chung MỘT mã giao dịch (F4.7) để chuyển khoản 1 lần.
     tickets = _issue_tickets(user, ticket_type, quantity, _new_booking_ref())
 
@@ -435,7 +435,7 @@ def check_in(staff: User, code: str,
     except Ticket.DoesNotExist:
         return CHECKIN_INVALID, None, f"Mã vé {code} không tồn tại."
 
-    # Vé của sự kiện khác — lỗi hay gặp khi BTC mở sai trang check-in
+    # Vé của sự kiện khác - lỗi hay gặp khi BTC mở sai trang check-in
     if event is not None and ticket.event_id != event.id:
         return (CHECKIN_INVALID, ticket,
                 f"Vé này thuộc sự kiện '{ticket.event.name}', không phải sự kiện đang check-in.")
@@ -494,7 +494,7 @@ def release_expired_tickets() -> int:
     """
     Huỷ các vé Chờ thanh toán quá hạn và trả lại chỗ.
 
-    Hạn thanh toán = min(lúc đặt + 24h, giờ diễn ra) — xem Ticket.payment_deadline.
+    Hạn thanh toán = min(lúc đặt + 24h, giờ diễn ra) - xem Ticket.payment_deadline.
     Chỗ trả ra được cấp ngay cho người đầu danh sách chờ (F4.8).
     Một người bị huỷ nhiều vé cùng sự kiện chỉ nhận MỘT thông báo.
 

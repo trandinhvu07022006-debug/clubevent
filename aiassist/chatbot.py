@@ -1,9 +1,9 @@
 """
 Trợ lý tra cứu: HỎI ĐÁP THEO Ý ĐỊNH, KẾT HỢP AI CÓ DỮ LIỆU NỀN (hybrid).
 
-QUAN TRỌNG khi viết báo cáo và khi bảo vệ — mô tả đúng kiến trúc 2 tầng:
+QUAN TRỌNG khi viết báo cáo và khi bảo vệ - mô tả đúng kiến trúc 2 tầng:
 
-TẦNG 1 — LUẬT (lõi, luôn chạy trước):
+TẦNG 1 - LUẬT (lõi, luôn chạy trước):
   Nhận diện ý định bằng so khớp từ khoá, truy vấn CSDL, trả lời theo mẫu câu.
   Mọi câu hỏi về sự kiện sắp tới, số chỗ, vé của tôi, việc của tôi, cách đăng
   ký/check-in/huỷ vé đều đi tầng này. Ưu điểm giữ nguyên:
@@ -11,9 +11,9 @@ TẦNG 1 — LUẬT (lõi, luôn chạy trước):
     - Không bịa thông tin (không hallucination), không tốn quota.
     - Dữ liệu cá nhân (vé, công việc) CHỈ đi tầng này, không bao giờ gửi cho AI.
 
-TẦNG 2 — AI (chỉ khi tầng 1 không nhận ra ý định):
+TẦNG 2 - AI (chỉ khi tầng 1 không nhận ra ý định):
   Gửi câu hỏi cho LLM KÈM dữ liệu công khai lấy từ CSDL (sự kiện, loại vé, quy
-  định) và lệnh chỉ được trả lời theo dữ liệu đó — kỹ thuật "grounding".
+  định) và lệnh chỉ được trả lời theo dữ liệu đó - kỹ thuật "grounding".
   Câu trả lời được gắn nhãn "AI" trên giao diện. Link do server tạo từ mã sự
   kiện đã kiểm tra, AI không tự viết URL. Xem aiassist/services.py::ask_assistant.
 
@@ -22,7 +22,7 @@ KHÔNG CÓ AI (chưa cấu hình key, mất mạng, hết lượt, lỗi...) th�
 
 Cách nhận diện ý định:
   1. Chuẩn hoá câu hỏi: hạ chữ thường và BỎ DẤU tiếng Việt, để "còn vé không"
-     và "con ve khong" đều khớp — người dùng gõ nhanh hay không bỏ dấu đều được.
+     và "con ve khong" đều khớp - người dùng gõ nhanh hay không bỏ dấu đều được.
   2. Mỗi ý định có một bộ từ khoá. Ý định nào khớp nhiều từ khoá nhất thì thắng.
   3. Không ý định nào khớp thì chuyển sang tầng AI (nếu dùng được).
 """
@@ -175,7 +175,7 @@ def answer(question, user=None, allow_ai=True):
     intent = detect_intent(question)
 
     if intent is None:
-        # Chỉ tới đây mới gọi AI — 8 ý định có sẵn LUÔN đi nhánh luật.
+        # Chỉ tới đây mới gọi AI - 8 ý định có sẵn LUÔN đi nhánh luật.
         if allow_ai and normalize(question):
             ai_result = _answer_with_ai(question)
             if ai_result is not None:
@@ -202,7 +202,7 @@ def answer(question, user=None, allow_ai=True):
 def _answer_with_ai(question):
     """
     Nhánh AI. Trả về dict trả lời, hoặc None nếu AI không dùng được (chưa có
-    key, lỗi mạng, quá tải...) — khi đó answer() quay về câu "chưa hiểu".
+    key, lỗi mạng, quá tải...) - khi đó answer() quay về câu "chưa hiểu".
 
     Link do SERVER tạo từ mã sự kiện đã được kiểm tra, AI không tự viết URL.
     """
@@ -235,7 +235,7 @@ def _upcoming_events(user):
     lines = ["Các sự kiện đang mở đăng ký:"]
     links = []
     for e in events:
-        lines.append(f"• {e.name} — {timezone.localtime(e.starts_at):%H:%M %d/%m} "
+        lines.append(f"• {e.name} - {timezone.localtime(e.starts_at):%H:%M %d/%m} "
                      f"tại {e.location}")
         links.append({"label": e.name, "url": reverse("events:detail", args=[e.pk])})
     return {"text": "\n".join(lines), "links": links}
@@ -260,7 +260,7 @@ def _seats_left(user):
         detail = ", ".join(
             f"{t.name}: {'hết chỗ' if t.is_sold_out else str(t.remaining) + ' chỗ'}"
             for t in types)
-        lines.append(f"• {e.name} — {detail}")
+        lines.append(f"• {e.name} - {detail}")
         links.append({"label": f"Đăng ký {e.name}", "url": reverse("events:detail", args=[e.pk])})
 
     if not lines:
@@ -284,7 +284,7 @@ def _my_tickets(user):
 
     lines = [f"Bạn đang có {len(tickets)} vé:"]
     for t in tickets:
-        lines.append(f"• {t.event.name} — mã {t.code} — {t.get_status_display()}")
+        lines.append(f"• {t.event.name} - mã {t.code} - {t.get_status_display()}")
     pending = sum(1 for t in tickets if t.status == TicketStatus.PENDING)
     if pending:
         lines.append(f"\nCó {pending} vé chờ thanh toán. Thanh toán xong báo BTC "
@@ -313,13 +313,13 @@ def _my_tasks(user):
     lines = [f"Bạn còn {len(tasks)} việc chưa xong:"]
     overdue = 0
     for t in tasks:
-        when = (f" — hạn {timezone.localtime(t.deadline):%H:%M %d/%m}"
+        when = (f" - hạn {timezone.localtime(t.deadline):%H:%M %d/%m}"
                 if t.deadline else "")
         late = ""
         if t.is_overdue:
             overdue += 1
             late = " (QUÁ HẠN)"
-        lines.append(f"• {t.title}{when}{late} — {t.scope_label}")
+        lines.append(f"• {t.title}{when}{late} - {t.scope_label}")
     if overdue:
         lines.append(f"\nTrong đó {overdue} việc đã quá hạn.")
     return {"text": "\n".join(lines),

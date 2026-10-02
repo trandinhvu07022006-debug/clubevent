@@ -6,7 +6,7 @@ môi trường. Việc còn lại chỉ là chọn host và điền biến môi 
 
 ---
 
-## 0. Trước khi deploy — hiểu rõ mình đang làm gì
+## 0. Trước khi deploy - hiểu rõ mình đang làm gì
 
 Chạy `python manage.py runserver` là web server chỉ tồn tại **trên máy đó**,
 địa chỉ `127.0.0.1` nghĩa là "chính máy đang gõ lệnh". Gửi địa chỉ đó cho
@@ -36,7 +36,7 @@ trang chính thức trước khi đăng ký**, đừng tin bảng này như số
 
 **Đề xuất: chọn PythonAnywhere.** Không ngủ và không mất ảnh là hai thứ ảnh
 hưởng trực tiếp tới việc giảng viên tự vào xem. Đổi lại chức năng AI sẽ tự
-chuyển sang danh sách mặc định — ghi rõ điều đó trong báo cáo, nó chứng minh
+chuyển sang danh sách mặc định - ghi rõ điều đó trong báo cáo, nó chứng minh
 cơ chế thứ lỗi mình thiết kế có tác dụng thật.
 
 Trợ lý tra cứu (chatbot) chạy tốt trên mọi host vì không gọi API ra ngoài.
@@ -77,7 +77,7 @@ pip install -r requirements.txt
 ### 2.3 Tạo database MySQL
 
 Vào tab **Databases**, đặt mật khẩu MySQL, rồi tạo database tên `clubevent`.
-Tên đầy đủ sẽ có dạng `<tàikhoản>$clubevent` — nhớ tên này.
+Tên đầy đủ sẽ có dạng `<tàikhoản>$clubevent` - nhớ tên này.
 
 ### 2.4 Tạo file .env trên server
 
@@ -159,7 +159,7 @@ ngày. Mỗi bước lỗi riêng không chặn bước sau.
 
 Khuyến nghị chạy **mỗi 15 phút** (nhắc lịch và cấp vé từ danh sách chờ mới
 kịp thời). Tab **Tasks** của PythonAnywhere bản miễn phí chỉ cho chạy hằng
-ngày — vẫn dùng được, chỉ là chậm hơn:
+ngày - vẫn dùng được, chỉ là chậm hơn:
 
 ```
 cd ~/clubevent && ./venv/bin/python manage.py run_periodic
@@ -183,12 +183,12 @@ Trong `.env` trên server:
 - `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend` và các biến
   `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (Gmail: dùng App
   Password, không dùng mật khẩu thật). Không cấu hình thì email chỉ in ra log.
-- `SITE_URL=https://ten-mien-that` — link trong email và QR trên giấy chứng
+- `SITE_URL=https://ten-mien-that` - link trong email và QR trên giấy chứng
   nhận dùng địa chỉ này.
 - `BANK_BIN`, `BANK_NAME`, `BANK_ACCOUNT`, `BANK_ACCOUNT_NAME` để hiện mã VietQR
   trên trang "Vé của tôi". **Quét thử bằng app ngân hàng thật trước khi dùng.**
 
-**Không đổi `SECRET_KEY` sau khi đã cấp giấy chứng nhận** — mã xác thực chứng
+**Không đổi `SECRET_KEY` sau khi đã cấp giấy chứng nhận** - mã xác thực chứng
 nhận được ký bằng khoá này, đổi khoá là mọi chứng nhận cũ báo "không xác thực được".
 
 ---
@@ -265,7 +265,7 @@ Chạy lần lượt, tất cả phải đạt:
 | Trang 404 | Gõ một URL bừa | Hiện trang 404 riêng |
 | Biểu đồ | Mở `/thongke/` | Thấy biểu đồ, không phải khung trắng |
 | Trợ lý | Mở `/troly/`, hỏi "còn vé không" | Trả lời có số chỗ |
-| AI | Mở bảng công việc, bấm AI gợi ý | Có gợi ý, **hoặc** báo dùng danh sách mặc định — cả hai đều đúng |
+| AI | Mở bảng công việc, bấm AI gợi ý | Có gợi ý, **hoặc** báo dùng danh sách mặc định - cả hai đều đúng |
 | HTTPS | Nhìn thanh địa chỉ | Có ổ khoá |
 
 Nếu mất CSS: chưa chạy `collectstatic`, hoặc quên đặt `DEBUG=False`.

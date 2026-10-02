@@ -7,5 +7,5 @@ trang không liên quan gì tới tài khoản mà app nào cũng dùng, nên go
 đây cho đúng chỗ.
 
 `core` cố ý KHÔNG phải một Django app (không có models, không đăng ký vào
-INSTALLED_APPS) — nó chỉ là package tiện ích thuần Python.
+INSTALLED_APPS) - nó chỉ là package tiện ích thuần Python.
 """

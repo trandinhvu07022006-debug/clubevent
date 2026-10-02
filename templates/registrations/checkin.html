@@ -29,7 +29,7 @@
               <div class="text-muted small mb-1">Mã vé</div>
               <div class="checkin-code fs-4 mb-2">{{ ticket.code }}</div>
               <div class="fw-bold fs-5">{{ ticket.user.full_name }}</div>
-              <div class="text-muted mb-2">MSSV: {{ ticket.user.mssv|default:"—" }}</div>
+              <div class="text-muted mb-2">MSSV: {{ ticket.user.mssv|default:"-" }}</div>
               <span class="badge bg-secondary px-3 py-2 fs-6">{{ ticket.ticket_type.name }}</span>
             </div>
           {% endif %}
