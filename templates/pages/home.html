@@ -50,7 +50,8 @@
                 <div class="d-flex justify-content-between small mb-1"><span class="text-body-secondary">Đã đăng ký</span><strong>{{ ev.total_sold }}/{{ ev.total_quota }}</strong></div>
                 <div class="bar-thin mb-3"><span style="width: {% widthratio ev.total_sold ev.total_quota 100 %}%"></span></div>
               {% endif %}
-              <a href="{% url 'events:detail' ev.pk %}" class="btn btn-primary w-100">{% if ev.is_registerable %}Đặt vé ngay{% else %}Xem chi tiết{% endif %}</a>
+              {% comment %} Hết chỗ mà ghi "Đặt vé ngay" là nói sai: trang chi tiết chỉ còn nút vào danh sách chờ. {% endcomment %}
+              <a href="{% url 'events:detail' ev.pk %}" class="btn btn-primary w-100">{% if ev.is_registerable and ev.seats_left %}Đặt vé ngay{% elif ev.is_registerable and ev.total_quota %}Hết chỗ - vào danh sách chờ{% else %}Xem chi tiết{% endif %}</a>
             </div>
           {% else %}
             <img src="{% static 'img/scene-2.jpg' %}" alt="">
