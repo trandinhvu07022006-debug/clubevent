@@ -8,6 +8,7 @@ urlpatterns = [
     path("dangky/<int:event_id>/", views.book, name="book"),
     path("cua-toi/", views.my_tickets, name="my_tickets"),
     path("<int:pk>/in/", views.ticket_print, name="print"),
+    path("<int:pk>/chuyen/", views.transfer, name="transfer"),
     path("cho/<int:ticket_type_id>/", views.waitlist_join, name="waitlist_join"),
     path("cho/<int:pk>/roi/", views.waitlist_leave, name="waitlist_leave"),
     path("<int:pk>/huy/", views.cancel, name="cancel"),

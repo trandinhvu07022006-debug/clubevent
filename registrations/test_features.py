@@ -37,7 +37,9 @@ def assert_sold_consistent(testcase, ticket_type):
 class Base(TestCase):
     def setUp(self):
         now = timezone.now()
-        mk = User.objects.create_user
+        # Khách đã xác minh email (F1.7), nếu không sẽ bị chặn đặt vé
+        def mk(**kw):
+            return User.objects.create_user(email_verified_at=now, **kw)
         self.staff = mk(username="btc", password="x", full_name="BTC",
                         email="btc@x.vn", role=Role.STAFF)
         self.a = mk(username="a", password="x", full_name="An", email="a@x.vn", mssv="A1")

@@ -12,6 +12,7 @@ class NotificationKind(models.TextChoices):
     TASK_ASSIGNED    = "TASK", "Được giao việc"
     TASK_DUE         = "TASK_DUE", "Nhắc hạn công việc"
     APPLICATION      = "APPLY", "Kết quả ứng tuyển"
+    TICKET_TRANSFER  = "TICKET_TRF", "Chuyển nhượng vé"
 
 class Notification(models.Model):
     user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
@@ -45,4 +46,5 @@ class Notification(models.Model):
             NotificationKind.TASK_ASSIGNED: "bi-list-task",
             NotificationKind.TASK_DUE: "bi-hourglass-split",
             NotificationKind.APPLICATION: "bi-person-plus",
+            NotificationKind.TICKET_TRANSFER: "bi-arrow-left-right",
         }.get(self.kind, "bi-bell")

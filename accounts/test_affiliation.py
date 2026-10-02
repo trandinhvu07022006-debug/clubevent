@@ -30,7 +30,8 @@ class RegisterAffiliationTests(TestCase):
 
     def test_public_registers_without_mssv(self):
         r = self.post(affiliation="PUBLIC")
-        self.assertRedirects(r, reverse("pages:dashboard"))
+        # Khách mới đăng ký được chuyển sang nhập mã OTP xác minh email (F1.7)
+        self.assertRedirects(r, reverse("accounts:verify_email"))
         u = User.objects.get(username="moi")
         self.assertEqual((u.affiliation, u.mssv, u.role), ("PUBLIC", None, Role.GUEST))
 

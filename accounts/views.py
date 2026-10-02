@@ -1,4 +1,7 @@
 """View cho M1 - Tài khoản & phân quyền."""
+from urllib.parse import urlencode
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -8,6 +11,7 @@ import time
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.pagination import paginate
@@ -16,6 +20,7 @@ from registrations.services import attended_events, user_stats
 from .forms import LoginForm, ProfileForm, RegisterForm, RoleForm, AppPasswordResetForm
 from .models import AuditLog, User
 from .permissions import admin_required
+from .services import OTPError, resend_wait_seconds, send_email_otp, verify_email_otp
 
 
 class AppLoginView(LoginView):
@@ -38,8 +43,64 @@ def register(request):
         user = form.save()
         login(request, user)
         messages.success(request, "Đăng ký thành công. Chào mừng bạn đến với KMG Club!")
+        if user.needs_email_verification:
+            # F1.7 - gửi mã luôn, người dùng chỉ việc mở mail và nhập
+            try:
+                send_email_otp(user)
+            except OTPError as e:
+                messages.warning(request, str(e))
+            return redirect("accounts:verify_email")
         return redirect("pages:dashboard")
     return render(request, "accounts/register.html", {"form": form})
+
+
+def _safe_next(request, default="pages:dashboard"):
+    """Chỉ cho quay về URL trong site, chặn open redirect qua tham số next."""
+    url = request.POST.get("next") or request.GET.get("next") or ""
+    if url and url_has_allowed_host_and_scheme(url, {request.get_host()},
+                                               request.is_secure()):
+        return url
+    return default
+
+
+@login_required
+def verify_email(request):
+    """
+    F1.7 - Nhập mã OTP xác minh email. Hai nút cùng một form:
+    action=send (gửi / gửi lại mã) và action=verify (kiểm tra mã).
+    """
+    user = request.user
+    next_url = _safe_next(request)
+    if not user.needs_email_verification:
+        # Bấm "Gửi lại mã" ở tab cũ sau khi đã xác minh: báo rõ thay vì
+        # chuyển trang im lặng (trông như không gửi được mã)
+        if user.email_verified_at:
+            messages.info(request, "Email của bạn đã được xác minh, không cần nhập mã nữa.")
+        return redirect(next_url)
+
+    if request.method == "POST":
+        try:
+            if request.POST.get("action") == "send":
+                send_email_otp(user)
+                messages.success(request, f"Đã gửi mã xác minh tới {user.email}.")
+            else:
+                verify_email_otp(user, request.POST.get("code", ""))
+                messages.success(request, "Xác minh email thành công. Bạn đã có thể đặt vé.")
+                return redirect(next_url)
+        except OTPError as e:
+            messages.error(request, str(e))
+        # PRG: tránh F5 gửi lại POST (gửi thêm mã / tính thêm 1 lần sai)
+        url = request.path
+        if request.POST.get("next"):
+            url += "?" + urlencode({"next": request.POST["next"]})
+        return redirect(url)
+
+    return render(request, "accounts/verify_email.html", {
+        "next": request.GET.get("next", ""),
+        "has_code": user.email_otps.filter(used_at__isnull=True).exists(),
+        "wait": resend_wait_seconds(user),
+        "ttl": settings.OTP_TTL_MINUTES,
+    })
 
 
 @login_required

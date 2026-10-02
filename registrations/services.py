@@ -20,13 +20,13 @@ from django.db.models import Count, Q, Sum
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import AuditLog
+from accounts.models import AuditLog, User as UserModel, canonical_email
 from events.models import EventStatus, TicketType
 from notifications.models import NotificationKind
 from notifications.services import notify_on_commit
 
-from .models import (Ticket, TicketStatus, WaitlistEntry, WaitlistStatus,
-                     make_booking_ref)
+from .models import (Ticket, TicketStatus, TicketTransfer, WaitlistEntry,
+                     WaitlistStatus, make_booking_ref, make_ticket_code)
 from .vietqr import payment_info, transfer_content
 
 if TYPE_CHECKING:
@@ -38,6 +38,19 @@ if TYPE_CHECKING:
 
 class BookingError(Exception):
     """Lỗi nghiệp vụ khi đặt vé. View bắt lỗi này và hiện thông báo cho user."""
+
+
+class EmailNotVerified(BookingError):
+    """F1.7 - Khách chưa xác minh email. View bắt riêng để chuyển sang trang nhập mã."""
+
+
+def _require_verified(user) -> None:
+    """
+    F1.7 - Chống gom vé bằng nhiều tài khoản ảo: Khách phải xác minh email
+    (OTP) mới được đặt vé hoặc vào danh sách chờ.
+    """
+    if user.needs_email_verification:
+        raise EmailNotVerified("Vui lòng xác minh email bằng mã OTP trước khi đặt vé.")
 
 
 ACTIVE_STATUSES = (TicketStatus.PENDING, TicketStatus.CONFIRMED,
@@ -188,6 +201,7 @@ def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]
     """
     if quantity < 1:
         raise BookingError("Số lượng vé phải lớn hơn 0.")
+    _require_verified(user)
 
     # (1) KHOÁ DÒNG loại vé. Mọi kiểm tra bên dưới đọc dữ liệu đã được khoá.
     try:
@@ -406,11 +420,14 @@ def pending_bookings(keyword: str = "") -> list[dict]:
 CHECKIN_OK = "OK"
 CHECKIN_USED = "USED"
 CHECKIN_INVALID = "INVALID"
+# F5.5 - Vé hợp lệ nhưng sự kiện yêu cầu đối chiếu giấy tờ: CHƯA cho vào,
+# chờ BTC xem thẻ SV / CCCD rồi bấm xác nhận (gọi lại với id_confirmed=True)
+CHECKIN_VERIFY = "VERIFY"
 
 
 @transaction.atomic
-def check_in(staff: User, code: str,
-             event: Event | None = None) -> tuple[str, Ticket | None, str]:
+def check_in(staff: User, code: str, event: Event | None = None,
+             id_confirmed: bool = False) -> tuple[str, Ticket | None, str]:
     """
     Quét hoặc nhập mã vé để check-in.
 
@@ -419,6 +436,8 @@ def check_in(staff: User, code: str,
       - CHECKIN_USED    : vé này đã check-in trước đó rồi
       - CHECKIN_INVALID : sai mã, chưa thanh toán, vé đã huỷ, hoặc vé của
                           sự kiện khác
+      - CHECKIN_VERIFY  : sự kiện bật vé ghi danh, vé hợp lệ nhưng BTC phải
+                          đối chiếu giấy tờ rồi gọi lại với id_confirmed=True
 
     `select_for_update` ở đây chặn trường hợp 2 máy cùng quét 1 mã trong
     cùng thời điểm, nếu không thì cả hai đều báo hợp lệ.
@@ -433,6 +452,12 @@ def check_in(staff: User, code: str,
                   .select_related("event", "ticket_type", "user")
                   .get(code=code))
     except Ticket.DoesNotExist:
+        # F4.10 - mã cũ của vé đã chuyển nhượng: báo rõ để BTC biết đây có
+        # thể là vé mua lại qua ảnh QR
+        if TicketTransfer.objects.filter(old_code=code).exists():
+            return (CHECKIN_INVALID, None,
+                    f"Mã {code} đã hết hiệu lực vì vé đã được chuyển nhượng "
+                    f"cho người khác. Người giữ vé mới có mã khác.")
         return CHECKIN_INVALID, None, f"Mã vé {code} không tồn tại."
 
     # Vé của sự kiện khác - lỗi hay gặp khi BTC mở sai trang check-in
@@ -450,14 +475,36 @@ def check_in(staff: User, code: str,
     if ticket.status == TicketStatus.PENDING:
         return CHECKIN_INVALID, ticket, "Vé chưa được xác nhận thanh toán."
 
+    # F5.5 - vé ghi danh: dừng lại cho BTC đối chiếu giấy tờ trước
+    if ticket.event.require_id_check and not id_confirmed:
+        return (CHECKIN_VERIFY, ticket,
+                "Đối chiếu thẻ sinh viên / CCCD với tên trên vé trước khi cho vào.")
+
     # Tới đây vé đang ở Đã xác nhận -> cho vào
     ticket.status = TicketStatus.CHECKED_IN
     ticket.checked_in_at = timezone.now()
     ticket.checked_in_by = staff
     ticket.save(update_fields=["status", "checked_in_at", "checked_in_by"])
     AuditLog.write(staff, "Check-in", ticket.code,
-                   f"{ticket.user} - {ticket.event.name}")
+                   f"{ticket.user} - {ticket.event.name}"
+                   + (" - đã đối chiếu giấy tờ" if id_confirmed else ""))
     return CHECKIN_OK, ticket, f"Hợp lệ. Mời {ticket.user.full_name} vào."
+
+
+def reject_id_check(staff: User, code: str, event: Event) -> tuple[str, str]:
+    """
+    F5.5 - Giấy tờ không khớp tên trên vé: không cho vào, ghi nhật ký để
+    truy vết (vé có thể bị mua lại / tài khoản ảo). Vé giữ nguyên trạng thái,
+    chủ vé thật vẫn vào được nếu tới sau với đúng giấy tờ.
+    """
+    ticket = (Ticket.objects.select_related("user")
+              .filter(code=(code or "").strip().upper(), event=event).first())
+    if ticket is None:
+        return CHECKIN_INVALID, "Không tìm thấy vé."
+    AuditLog.write(staff, "Từ chối check-in", ticket.code,
+                   f"Giấy tờ không khớp {ticket.user} - {event.name}")
+    name = ticket.user.full_name or ticket.user.username
+    return CHECKIN_INVALID, f"Đã từ chối: giấy tờ không khớp tên {name}."
 
 
 def checkin_progress_data(event: Event) -> dict:
@@ -484,6 +531,109 @@ def checkin_progress_data(event: Event) -> dict:
         "recent": [{"name": t.user.full_name or t.user.username,
                     "at": _local(t.checked_in_at, "%H:%M")} for t in recent],
     }
+
+
+# ---------------------------------------------------------------------------
+# F4.10 - CHUYỂN NHƯỢNG VÉ
+# ---------------------------------------------------------------------------
+def transfer_block_reason(ticket: Ticket) -> str:
+    """Lý do vé KHÔNG chuyển được ("" = chuyển được). Dùng cả cho giao diện."""
+    if ticket.status != TicketStatus.CONFIRMED:
+        return "Chỉ chuyển được vé đã xác nhận và chưa check-in."
+    limit = ticket.event.starts_at - timezone.timedelta(
+        hours=settings.TRANSFER_BEFORE_HOURS)
+    if timezone.now() >= limit:
+        return (f"Chỉ chuyển được vé trước giờ diễn ra ít nhất "
+                f"{settings.TRANSFER_BEFORE_HOURS} giờ.")
+    if ticket.transfers.count() >= settings.MAX_TRANSFERS_PER_TICKET:
+        return "Vé này đã được chuyển nhượng, không chuyển tiếp được nữa."
+    return ""
+
+
+def _find_recipient(identifier: str):
+    """Người nhận theo tên đăng nhập hoặc email (so theo dạng chuẩn)."""
+    identifier = (identifier or "").strip()
+    if not identifier:
+        return None
+    if "@" in identifier:
+        found = UserModel.objects.filter(
+            email_canonical=canonical_email(identifier)).first()
+        if found:
+            return found
+    return UserModel.objects.filter(username__iexact=identifier).first()
+
+
+@transaction.atomic
+def transfer_ticket(user: User, ticket_id: int, recipient: str) -> Ticket:
+    """
+    Chủ vé chuyển 1 vé cho tài khoản khác. Vé đổi chủ và được cấp mã mới,
+    mã/QR cũ mất hiệu lực ngay.
+
+    Đây là "lối đi hợp pháp" cho nhu cầu thật (mua giúp bạn, bận đột xuất).
+    Kết hợp với vé ghi danh (F5.5), vé mua lại qua ảnh QR không vào cửa
+    được, còn chuyển qua hệ thống thì bị giới hạn số lần và có nhật ký.
+    """
+    try:
+        ticket = (Ticket.objects.select_for_update()
+                  .select_related("event", "ticket_type").get(pk=ticket_id, user=user))
+    except Ticket.DoesNotExist:
+        raise BookingError("Không tìm thấy vé của bạn.")
+    reason = transfer_block_reason(ticket)
+    if reason:
+        raise BookingError(reason)
+
+    to_user = _find_recipient(recipient)
+    if to_user is None:
+        raise BookingError("Không tìm thấy tài khoản người nhận. Kiểm tra lại "
+                           "tên đăng nhập hoặc email.")
+    if to_user.pk == user.pk:
+        raise BookingError("Không thể chuyển vé cho chính mình.")
+    # Khoá dòng người nhận: 2 vé cùng chuyển tới 1 người đồng thời không
+    # được vượt giới hạn số vé
+    to_user = UserModel.objects.select_for_update().get(pk=to_user.pk)
+    if to_user.is_locked:
+        raise BookingError("Tài khoản người nhận đang bị khoá.")
+    if to_user.needs_email_verification:
+        raise BookingError("Người nhận chưa xác minh email. Nhờ họ đăng nhập và "
+                           "xác minh email trước rồi chuyển lại.")
+    event = ticket.event
+    limit = settings.MAX_TICKETS_PER_USER_PER_EVENT
+    if _active_count(to_user, event) + 1 > limit:
+        raise BookingError(f"Người nhận đã có đủ {limit} vé cho sự kiện này.")
+
+    old_code = ticket.code
+    ticket.user = to_user
+    ticket.code = make_ticket_code()
+    ticket.save(update_fields=["user", "code"])
+    TicketTransfer.objects.create(ticket=ticket, from_user=user, to_user=to_user,
+                                  old_code=old_code)
+    AuditLog.write(user, "Chuyển nhượng vé", old_code,
+                   f"{user} -> {to_user} - {event.name} - mã mới {ticket.code}")
+
+    my_tickets_url = reverse("registrations:my_tickets")
+    giver = user.full_name or user.username
+    taker = to_user.full_name or to_user.username
+    title = f"Bạn được chuyển 1 vé: {event.name}"
+    lead = f"{giver} đã chuyển cho bạn 1 vé sự kiện {event.name}."
+    notify_on_commit(
+        to_user, NotificationKind.TICKET_TRANSFER, title, lead,
+        url=my_tickets_url, email_template="notice",
+        context={"title": title, "message": lead,
+                 "details": [("Sự kiện", event.name),
+                             ("Thời gian", _local(event.starts_at)),
+                             ("Địa điểm", event.location),
+                             ("Loại vé", ticket.ticket_type.name),
+                             ("Mã vé", ticket.code)],
+                 "note": ("Sự kiện có đối chiếu giấy tờ: mang thẻ sinh viên hoặc "
+                          "CCCD đúng tên tài khoản của bạn.")
+                         if event.require_id_check else "",
+                 "cta_url": my_tickets_url, "cta_label": "Xem vé của tôi"},
+    )
+    notify_on_commit(
+        user, NotificationKind.TICKET_TRANSFER, f"Đã chuyển vé: {event.name}",
+        f"Bạn đã chuyển vé {old_code} cho {taker}. Mã vé cũ không còn hiệu lực.",
+        url=my_tickets_url)
+    return ticket
 
 
 # ---------------------------------------------------------------------------
@@ -561,6 +711,7 @@ def join_waitlist(user: User, ticket_type_id: int) -> WaitlistEntry:
     Mọi join cho cùng loại vé phải xếp hàng chờ khoá dòng TicketType, nên
     kiểm tra "đã chờ chưa" rồi mới tạo là an toàn trên cả MySQL.
     """
+    _require_verified(user)
     try:
         tt = (TicketType.objects.select_for_update().select_related("event")
               .get(pk=ticket_type_id))

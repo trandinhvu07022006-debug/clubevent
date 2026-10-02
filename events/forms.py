@@ -16,7 +16,8 @@ class EventForm(forms.ModelForm):
     class Meta:
         model = Event
         fields = ("name", "category", "description", "location", "starts_at",
-                  "ends_at", "register_deadline", "capacity", "budget", "cover")
+                  "ends_at", "register_deadline", "capacity", "budget", "cover",
+                  "require_id_check")
         widgets = {
             "name": forms.TextInput(attrs=CTRL),
             "category": forms.Select(attrs={"class": "form-select"}),
@@ -28,6 +29,7 @@ class EventForm(forms.ModelForm):
             "capacity": forms.NumberInput(attrs={**CTRL, "min": 1}),
             "budget": forms.NumberInput(attrs={**CTRL, "min": 0, "step": 10000}),
             "cover": forms.ClearableFileInput(attrs={"class": "form-control"}),
+            "require_id_check": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
     def clean_cover(self):

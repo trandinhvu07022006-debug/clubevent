@@ -87,6 +87,12 @@ class Event(models.Model):
                                    verbose_name="Người tạo")
     # F7.2 - đánh dấu đã gửi nhắc lịch, chặn gửi trùng khi lệnh chạy lại
     reminder_sent_at = models.DateTimeField("Đã nhắc lịch lúc", null=True, blank=True)
+    # F5.5 - Vé ghi danh: BTC đối chiếu giấy tờ với tên trên vé trước khi cho
+    # vào. Vé gom bằng tài khoản ảo / bán lại qua ảnh QR sẽ không vào được.
+    require_id_check = models.BooleanField(
+        "Vé ghi danh - đối chiếu giấy tờ khi check-in", default=False,
+        help_text="Nên bật cho show đông, dễ bị phe vé. Người tham gia phải mang "
+                  "thẻ sinh viên hoặc CCCD trùng tên trên vé.")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

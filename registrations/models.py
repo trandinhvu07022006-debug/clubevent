@@ -165,3 +165,29 @@ class WaitlistEntry(models.Model):
             | models.Q(created_at=self.created_at, id__lt=self.id)
         ).count()
         return ahead + 1
+
+
+class TicketTransfer(models.Model):
+    """
+    F4.10 - Lịch sử chuyển nhượng vé.
+
+    Mỗi lần chuyển, vé được cấp MÃ MỚI: ảnh QR cũ người bán đã gửi đi không
+    còn dùng được. Giữ lại mã cũ để quầy check-in báo đúng lý do khi có
+    người mang mã cũ tới.
+    """
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE,
+                               related_name="transfers", verbose_name="Vé")
+    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                  related_name="tickets_given", verbose_name="Người chuyển")
+    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name="tickets_received", verbose_name="Người nhận")
+    old_code = models.CharField("Mã vé cũ", max_length=12, db_index=True)
+    created_at = models.DateTimeField("Chuyển lúc", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Chuyển nhượng vé"
+        verbose_name_plural = "Chuyển nhượng vé"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.old_code}: {self.from_user} -> {self.to_user}"

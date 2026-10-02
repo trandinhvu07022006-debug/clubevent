@@ -314,6 +314,20 @@ PAYMENT_DEADLINE_HOURS = 24          # F4.5 - vé chờ thanh toán quá 24h th�
 CANCEL_BEFORE_HOURS = 24             # F4.3 - huỷ vé trước giờ diễn ra 24h
 FEEDBACK_WINDOW_DAYS = 7             # F6.1 - gửi đánh giá trong 7 ngày
 
+# F1.7 - Khách phải xác minh email bằng mã OTP trước khi đặt vé, để một
+# người không tạo hàng loạt tài khoản ảo gom vé đi bán lại. Host chưa cấu
+# hình SMTP thì tắt bằng REQUIRE_EMAIL_OTP=False, nếu không Khách không
+# nhận được mã và không đặt vé được.
+REQUIRE_EMAIL_OTP = env_bool("REQUIRE_EMAIL_OTP", True)
+OTP_TTL_MINUTES = 10                 # mã hết hạn sau 10 phút
+OTP_MAX_ATTEMPTS = 5                 # nhập sai 5 lần thì mã bị huỷ
+OTP_RESEND_SECONDS = 60              # gửi lại mã cách nhau ít nhất 60 giây
+OTP_MAX_PER_HOUR = 5                 # tối đa 5 mã mỗi giờ mỗi tài khoản
+
+# F4.10 - Chuyển nhượng vé chính thức (thay cho bán lại bằng ảnh QR)
+TRANSFER_BEFORE_HOURS = 3            # chỉ chuyển được trước giờ diễn ra 3 giờ
+MAX_TRANSFERS_PER_TICKET = 1         # mỗi vé chỉ chuyển 1 lần, chặn phe vé xoay vòng
+
 # --- Tích hợp AI ---
 AI_PROVIDER = env("AI_PROVIDER", "gemini")   # gemini | openai | mock
 AI_API_KEY = env("AI_API_KEY", "")           # để trong .env, không commit

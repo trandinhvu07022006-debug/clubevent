@@ -4,7 +4,7 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, Pass
 
 from core.images import shrink_image
 
-from .models import Affiliation, Role, User
+from .models import Affiliation, Role, User, canonical_email
 
 # Class CSS Bootstrap gắn chung cho mọi input
 CTRL = {"class": "form-control"}
@@ -80,6 +80,11 @@ class RegisterForm(AffiliationMixin, UserCreationForm):
         email = self.cleaned_data["email"].strip().lower()
         if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("Email này đã được đăng ký.")
+        # F1.8 - "abc+1@gmail.com", "a.bc@gmail.com"... cùng hộp thư với "abc@gmail.com"
+        if User.objects.filter(email_canonical=canonical_email(email)).exists():
+            raise forms.ValidationError(
+                "Hộp thư này đã có tài khoản (cùng địa chỉ, chỉ khác dấu chấm "
+                "hoặc phần sau dấu +). Hãy đăng nhập bằng tài khoản đó.")
         return email
 
     def save(self, commit=True):

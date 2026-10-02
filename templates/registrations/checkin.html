@@ -11,6 +11,9 @@
       <span class="kicker">Check-in</span>
       <h1 class="h3 fw-bold mb-1">{{ event.name }}</h1>
       <p class="text-muted mb-0">{{ event.starts_at|date:"H:i · d/m/Y" }} · {{ event.location }}</p>
+      {% if event.require_id_check %}
+        <span class="badge bg-info-subtle text-info-emphasis mt-2"><i class="bi bi-person-vcard"></i> Vé ghi danh: đối chiếu giấy tờ từng người</span>
+      {% endif %}
     </div>
 
     <!-- Kết quả -->
@@ -20,6 +23,7 @@
         <div class="card-body p-4">
           <h2 class="fw-bold mb-2 checkin-verdict">
             {% if result == 'OK' %}<i class="bi bi-check-circle-fill"></i> HỢP LỆ
+            {% elif result == 'VERIFY' %}<i class="bi bi-person-vcard-fill"></i> ĐỐI CHIẾU GIẤY TỜ
             {% elif result == 'USED' %}<i class="bi bi-exclamation-triangle-fill"></i> ĐÃ SỬ DỤNG
             {% else %}<i class="bi bi-x-circle-fill"></i> KHÔNG HỢP LỆ{% endif %}
           </h2>
@@ -29,9 +33,25 @@
               <div class="text-muted small mb-1">Mã vé</div>
               <div class="checkin-code fs-4 mb-2">{{ ticket.code }}</div>
               <div class="fw-bold fs-5">{{ ticket.user.full_name }}</div>
-              <div class="text-muted mb-2">MSSV: {{ ticket.user.mssv|default:"-" }}</div>
+              <div class="text-muted">MSSV: {{ ticket.user.mssv|default:"-" }}</div>
+              <div class="text-muted mb-2">{{ ticket.user.get_affiliation_display }}{% if ticket.user.school %} · {{ ticket.user.school }}{% endif %}</div>
               <span class="badge bg-secondary px-3 py-2 fs-6">{{ ticket.ticket_type.name }}</span>
             </div>
+            {% if result == 'VERIFY' %}
+              {% comment %} F5.5 - BTC xem thẻ SV / CCCD rồi quyết định {% endcomment %}
+              <div class="d-flex gap-2 mt-3">
+                <form method="post" class="flex-fill">
+                  {% csrf_token %}
+                  <input type="hidden" name="code" value="{{ ticket.code }}">
+                  <button name="decision" value="confirm" class="btn btn-success btn-lg w-100 fw-bold"><i class="bi bi-check-lg"></i> Khớp - cho vào</button>
+                </form>
+                <form method="post" class="flex-fill">
+                  {% csrf_token %}
+                  <input type="hidden" name="code" value="{{ ticket.code }}">
+                  <button name="decision" value="reject" class="btn btn-outline-danger btn-lg w-100 fw-bold"><i class="bi bi-x-lg"></i> Không khớp</button>
+                </form>
+              </div>
+            {% endif %}
           {% endif %}
         </div>
       </div>

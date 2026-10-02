@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Chuyển nhượng vé{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1 class="h4 card-title mb-1"><i class="bi bi-arrow-left-right text-primary"></i> Chuyển nhượng vé</h1>
+        <p class="text-muted mb-3">{{ ticket.event.name }} · {{ ticket.event.starts_at|date:"H:i d/m/Y" }}</p>
+
+        <div class="bg-body-tertiary rounded-3 p-3 mb-3 small">
+          <div class="d-flex justify-content-between"><span class="text-muted">Loại vé</span><strong>{{ ticket.ticket_type.name }}</strong></div>
+          <div class="d-flex justify-content-between"><span class="text-muted">Mã vé hiện tại</span><strong class="checkin-code">{{ ticket.code }}</strong></div>
+        </div>
+
+        {% if blocked %}
+          <div class="alert alert-secondary mb-3">{{ blocked }}</div>
+          <a href="{% url 'registrations:my_tickets' %}" class="btn btn-outline-secondary w-100">Quay lại vé của tôi</a>
+        {% else %}
+          <div class="alert alert-warning small">
+            <strong>Lưu ý trước khi chuyển:</strong>
+            <ul class="mb-0 ps-3">
+              <li>Vé sẽ thuộc về tài khoản người nhận và được cấp <strong>mã mới</strong>. Mã / ảnh QR hiện tại hết hiệu lực ngay.</li>
+              <li>Mỗi vé chỉ chuyển được <strong>1 lần</strong>, trước giờ diễn ra ít nhất {{ before_hours }} giờ. Không hoàn tác được.</li>
+              {% if ticket.event.require_id_check %}
+                <li>Sự kiện có <strong>đối chiếu giấy tờ</strong>: người nhận phải mang thẻ SV / CCCD đúng tên tài khoản của họ.</li>
+              {% endif %}
+              <li>Người nhận cần có tài khoản KMG Club đã xác minh email.</li>
+            </ul>
+          </div>
+          <form method="post" onsubmit="return confirm('Chuyển vé này? Thao tác không hoàn tác được.')">
+            {% csrf_token %}{% once_token %}
+            <label class="form-label fw-semibold" for="recipient">Tên đăng nhập hoặc email người nhận</label>
+            <input type="text" id="recipient" name="recipient" value="{{ recipient }}" class="form-control mb-3"
+                   autocomplete="off" required autofocus>
+            <button class="btn btn-primary w-100">Chuyển vé</button>
+          </form>
+          <a href="{% url 'registrations:my_tickets' %}" class="btn btn-link w-100 mt-1">Huỷ</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

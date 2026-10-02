@@ -181,6 +181,10 @@
           
           <div class="d-flex flex-wrap gap-3 mb-3">
             <div class="bg-light-subtle rounded px-3 py-2 border">
+              <span class="d-block text-muted small mb-1">Người giữ vé</span>
+              <span class="fw-semibold">{{ user.full_name|default:user.username }}</span>
+            </div>
+            <div class="bg-light-subtle rounded px-3 py-2 border">
               <span class="d-block text-muted small mb-1">Loại vé</span>
               <span class="fw-semibold">{{ ticket.ticket_type.name }}</span>
             </div>
@@ -193,6 +197,13 @@
               <span class="fw-bold text-success font-monospace checkin-code">{{ ticket.code }}</span>
             </div>
           </div>
+
+          {% if ticket.event.require_id_check and ticket.status == 'CONFIRMED' %}
+            <div class="alert alert-info d-flex align-items-center gap-2 py-2 px-3 mb-3 small">
+              <i class="bi bi-person-vcard fs-5"></i>
+              <span><strong>Vé ghi danh:</strong> mang thẻ sinh viên hoặc CCCD đúng tên trên vé để BTC đối chiếu khi vào cửa.</span>
+            </div>
+          {% endif %}
 
           {% if ticket.status == 'PENDING' %}
             <div class="alert alert-warning d-flex align-items-center gap-2 py-2 px-3 mb-3 border-warning-subtle">
@@ -213,6 +224,9 @@
               </form>
             {% endif %}
             <a href="{% url 'events:detail' ticket.event.pk %}" class="btn btn-sm btn-outline-secondary px-4 rounded-pill fw-medium">Xem sự kiện</a>
+            {% if ticket.can_transfer %}
+              <a href="{% url 'registrations:transfer' ticket.pk %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium"><i class="bi bi-arrow-left-right"></i> Chuyển vé</a>
+            {% endif %}
             {% if ticket.is_active %}
               <a href="{% url 'registrations:print' ticket.pk %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" target="_blank" rel="noopener"><i class="bi bi-printer"></i> In vé</a>
               {% if ticket.status != 'CHECKED_IN' %}

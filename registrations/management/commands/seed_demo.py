@@ -154,7 +154,10 @@ class Command(BaseCommand):
             user, created = User.objects.get_or_create(
                 username=username,
                 defaults={"full_name": full_name, "mssv": mssv, "role": role,
-                          "email": f"{username}@example.com"},
+                          "email": f"{username}@example.com",
+                          # Tài khoản demo coi như đã xác minh để đặt vé ngay;
+                          # muốn demo OTP thì tự tạo tài khoản mới.
+                          "email_verified_at": timezone.now()},
             )
             if created:
                 user.set_password(PASSWORD)
@@ -551,7 +554,8 @@ class Command(BaseCommand):
                 user, created = User.objects.get_or_create(
                     username=username,
                     defaults={"full_name": full_name, "mssv": mssv, "role": Role.GUEST,
-                              "email": f"{username}@example.com"})
+                              "email": f"{username}@example.com",
+                              "email_verified_at": timezone.now()})
                 if created:
                     user.set_password(PASSWORD)
                     user.save()

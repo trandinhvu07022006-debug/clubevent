@@ -33,7 +33,7 @@
   var DEDUPE_MS = 3000;             // camera đọc 1 vé nhiều lần/giây -> bỏ qua lặp
   var RESULT_HOLD_MS = 1800;
 
-  var state = "IDLE";               // IDLE | SCANNING | BUSY
+  var state = "IDLE";               // IDLE | SCANNING | BUSY | VERIFY
   var stream = null;
   var detector = null;
   var lastCode = "", lastTime = 0, lastDecode = 0;
@@ -48,29 +48,56 @@
     return e;
   }
 
-  function beep(ok) {
+  function beep(freq, seconds) {
     if (!audioCtx) return;
     try {
       var o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.frequency.value = ok ? 880 : 220;
+      o.frequency.value = freq;
       g.gain.value = 0.15;
       o.connect(g); g.connect(audioCtx.destination);
-      o.start(); o.stop(audioCtx.currentTime + (ok ? 0.12 : 0.3));
+      o.start(); o.stop(audioCtx.currentTime + seconds);
     } catch (e) {}
   }
 
   function feedback(result) {
-    var ok = result === "OK";
-    if (navigator.vibrate) navigator.vibrate(ok ? 120 : [80, 60, 80]);
-    beep(ok);
+    if (result === "OK") {
+      if (navigator.vibrate) navigator.vibrate(120);
+      beep(880, 0.12);
+    } else if (result === "VERIFY") {
+      // Âm trung tính: chưa phải lỗi, chỉ là cần BTC nhìn giấy tờ
+      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+      beep(600, 0.2);
+    } else {
+      if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+      beep(220, 0.3);
+    }
   }
 
   // ----------------------------------------------------------- hiện kết quả
   var VERDICT = {
     OK: { cls: "success", icon: "bi-check-circle-fill", label: "HỢP LỆ" },
     USED: { cls: "warning", icon: "bi-exclamation-triangle-fill", label: "ĐÃ SỬ DỤNG" },
-    INVALID: { cls: "danger", icon: "bi-x-circle-fill", label: "KHÔNG HỢP LỆ" }
+    INVALID: { cls: "danger", icon: "bi-x-circle-fill", label: "KHÔNG HỢP LỆ" },
+    VERIFY: { cls: "info", icon: "bi-person-vcard-fill", label: "ĐỐI CHIẾU GIẤY TỜ" }
   };
+
+  // F5.5 - Hai nút quyết định sau khi BTC xem thẻ SV / CCCD
+  function decisionButtons(code) {
+    var row = el("div", "d-flex gap-2 mt-3");
+    var ok = el("button", "btn btn-success btn-lg flex-fill fw-bold");
+    ok.type = "button";
+    ok.appendChild(el("i", "bi bi-check-lg"));
+    ok.appendChild(document.createTextNode(" Khớp - cho vào"));
+    var no = el("button", "btn btn-outline-danger btn-lg flex-fill fw-bold");
+    no.type = "button";
+    no.appendChild(el("i", "bi bi-x-lg"));
+    no.appendChild(document.createTextNode(" Không khớp"));
+    ok.addEventListener("click", function () { submitCode(code, !!stream, "confirm"); });
+    no.addEventListener("click", function () { submitCode(code, !!stream, "reject"); });
+    row.appendChild(ok);
+    row.appendChild(no);
+    return row;
+  }
 
   function renderResult(result, message, ticket) {
     var v = VERDICT[result] || VERDICT.INVALID;
@@ -88,21 +115,27 @@
       box.appendChild(el("div", "text-muted small mb-1", "Mã vé"));
       box.appendChild(el("div", "checkin-code fs-4 mb-2", ticket.code));
       box.appendChild(el("div", "fw-bold fs-5", ticket.user_name));
-      if (ticket.mssv) box.appendChild(el("div", "text-muted mb-2", "MSSV: " + ticket.mssv));
+      if (ticket.mssv) box.appendChild(el("div", "text-muted", "MSSV: " + ticket.mssv));
+      if (ticket.affiliation) {
+        box.appendChild(el("div", "text-muted mb-2", ticket.affiliation +
+                           (ticket.school ? " · " + ticket.school : "")));
+      }
       box.appendChild(el("span", "badge bg-secondary px-3 py-2 fs-6", ticket.ticket_type));
       body.appendChild(box);
+      if (result === "VERIFY") body.appendChild(decisionButtons(ticket.code));
     }
     card.appendChild(body);
     resultBox.replaceChildren(card);
   }
 
   // --------------------------------------------------------- gửi mã lên server
-  function submitCode(code, fromCamera) {
+  function submitCode(code, fromCamera, decision) {
     state = "BUSY";
+    var waitingDecision = false;
     return fetch(scanUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
-      body: JSON.stringify({ code: code }),
+      body: JSON.stringify({ code: code, decision: decision || "" }),
       credentials: "same-origin"
     }).then(function (res) {
       if (!res.ok && res.status !== 400) throw new Error("HTTP " + res.status);
@@ -111,10 +144,13 @@
       renderResult(data.result, data.note || data.error, data.ticket);
       feedback(data.result);
       refreshProgress();
+      waitingDecision = data.result === "VERIFY";
     }).catch(function () {
       renderResult("INVALID", "Mất kết nối, thử lại.", null);
       feedback("INVALID");
     }).then(function () {
+      // Đang chờ BTC bấm Khớp / Không khớp: camera tạm dừng quét vé khác
+      if (waitingDecision) { state = "VERIFY"; return; }
       // Không bao giờ kẹt ở BUSY, kể cả khi lỗi mạng
       setTimeout(function () {
         state = stream ? "SCANNING" : "IDLE";

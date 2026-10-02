@@ -201,6 +201,17 @@
                   <p class="small text-muted mb-3">
                     Bạn đang có <strong>{{ my_ticket_count }}</strong> vé cho sự kiện này (tối đa {{ max_tickets }}, tính cả lượt chờ).
                   </p>
+                  {% if event.require_id_check %}
+                    <div class="alert alert-info small">
+                      <i class="bi bi-person-vcard"></i> <strong>Vé ghi danh:</strong> khi vào cửa BTC đối chiếu thẻ sinh viên / CCCD với tên trên vé. Muốn nhường vé, hãy dùng chức năng <em>Chuyển vé</em> trong "Vé của tôi"; vé mua lại qua ảnh QR sẽ không vào được.
+                    </div>
+                  {% endif %}
+                  {% if user.needs_email_verification %}
+                    <div class="alert alert-warning small">
+                      <i class="bi bi-shield-exclamation"></i> Tài khoản Khách cần <strong>xác minh email</strong> bằng mã OTP trước khi đặt vé.
+                      <a href="{% url 'accounts:verify_email' %}?next={{ request.path|urlencode }}" class="alert-link">Xác minh ngay</a>
+                    </div>
+                  {% endif %}
                   {% if has_available %}
                   <form method="post" action="{% url 'registrations:book' event.pk %}">
                     {% csrf_token %}{% once_token %}

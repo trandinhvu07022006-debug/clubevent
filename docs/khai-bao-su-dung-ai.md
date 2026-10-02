@@ -112,9 +112,27 @@ Lỗi do AI gây ra và được test bắt: khi thêm webhook, AI vô tình là
 `@require_POST` của nút xác nhận tay; test bảo mật `GetMustNotChangeDataTests`
 báo lỗi, đã sửa trước khi commit.
 
+### 3.3. Phiên 02/10/2026 (đợt 7: chống gom vé)
+
+| Việc | Ai làm |
+|---|---|
+| Đề xuất xác minh OTP để chặn gom vé bằng nhiều tài khoản | Nhóm |
+| Code xác minh email bằng OTP (F1.7) và một hộp thư một tài khoản (F1.8) | AI |
+| Cấu hình Gmail SMTP (App Password), thử nhận mã ở hộp thư thật | Nhóm, AI hỗ trợ thao tác |
+| Chỉ ra OTP email vẫn bị vượt bằng nhiều tài khoản Gmail ảo | Nhóm |
+| Đề xuất vé ghi danh (F5.5) và chuyển nhượng vé (F4.10) | AI đề xuất, nhóm duyệt |
+| Code vé ghi danh, chuyển nhượng vé và 39 test mới | AI |
+| Báo lỗi "bấm Gửi lại mã không có thư mới" khi dùng thử | Nhóm (AI sửa) |
+| Cập nhật báo cáo, chụp ảnh minh hoạ, đo lại số test và độ phủ | AI, theo yêu cầu của nhóm |
+
+Lỗi do AI gây ra và được test bắt: bản đầu của hàm kiểm tra mã OTP ném lỗi bên
+trong `@transaction.atomic`, nên số lần nhập sai bị rollback và kẻ dò mã được
+thử vô hạn. Test `test_wrong_code_counts_attempts_then_burns` báo lỗi ngay lần
+chạy đầu, đã sửa trước khi commit.
+
 ## 4. Nhóm kiểm soát phần AI viết như thế nào
 
-- Mọi thay đổi chỉ vào Git khi **toàn bộ test đạt** (hiện 239 test).
+- Mọi thay đổi chỉ vào Git khi **toàn bộ test đạt** (hiện 373 test).
 - Chức năng thanh toán được kiểm chứng bằng **giao dịch thật**, không chỉ test tự động.
 - Mỗi thành viên chạy lại test và kịch bản demo của module mình, đọc
   `docs/giai-thich-code.md` và tự trả lời các câu hỏi bảo vệ trong đó.

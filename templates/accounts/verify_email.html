@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Xác minh email{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1 class="h4 card-title mb-2"><i class="bi bi-shield-check text-primary"></i> Xác minh email</h1>
+        <p class="text-muted">
+          {% if has_code %}
+            Nhập mã 6 số vừa được gửi tới <strong>{{ user.email }}</strong>. Mã có hiệu lực trong {{ ttl }} phút. Không thấy thư thì xem cả mục Spam.
+          {% else %}
+            Bấm <strong>Gửi mã</strong> để nhận mã 6 số qua <strong>{{ user.email }}</strong>.
+          {% endif %}
+        </p>
+
+        {% if has_code %}
+          <form method="post" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="verify">
+            <input type="hidden" name="next" value="{{ next }}">
+            <label class="form-label" for="otp-code">Mã xác minh</label>
+            <input type="text" id="otp-code" name="code" class="form-control form-control-lg text-center fw-bold mb-3"
+                   inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7"
+                   placeholder="••••••" required autofocus style="letter-spacing: .5em;">
+            <button class="btn btn-primary w-100">Xác minh</button>
+          </form>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="send">
+          <input type="hidden" name="next" value="{{ next }}">
+          <button id="otp-resend" data-wait="{{ wait }}" class="btn {% if has_code %}btn-link w-100 text-decoration-none{% else %}btn-primary w-100{% endif %}"
+                  {% if wait %}disabled{% endif %}>
+            {% if has_code %}Gửi lại mã{% else %}Gửi mã{% endif %}<span class="js-wait">{% if wait %} (chờ {{ wait }} giây){% endif %}</span>
+          </button>
+        </form>
+
+        <p class="small text-muted mt-3 mb-0">
+          <i class="bi bi-info-circle"></i> Mỗi tài khoản Khách cần xác minh email một lần trước khi đặt vé, để hạn chế việc tạo nhiều tài khoản ảo gom vé đi bán lại.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Đếm ngược thời gian chờ gửi lại mã, hết giờ thì mở lại nút
+  (function () {
+    var btn = document.getElementById("otp-resend");
+    var left = parseInt(btn.dataset.wait, 10) || 0;
+    if (!left) return;
+    var label = btn.querySelector(".js-wait");
+    var timer = setInterval(function () {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(timer);
+        label.textContent = "";
+        btn.disabled = false;
+      } else {
+        label.textContent = " (chờ " + left + " giây)";
+      }
+    }, 1000);
+  })();
+</script>
+{% endblock %}

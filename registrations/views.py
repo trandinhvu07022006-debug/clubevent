@@ -15,19 +15,33 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.permissions import lead_required, staff_required
+from accounts.services import OTPError, send_email_otp
 from core import once
 from core.pagination import paginate
 from core.qr import qr_data_uri
 from events.models import Event, TicketType
 
 from .models import Ticket, TicketStatus, WaitlistEntry, WaitlistStatus
-from .services import (CHECKIN_OK, CHECKIN_USED, BookingError,
-                       auto_confirm_transfer, book_tickets,
+from .services import (CHECKIN_OK, CHECKIN_USED, CHECKIN_VERIFY, BookingError,
+                       EmailNotVerified, auto_confirm_transfer, book_tickets,
                        cancel_ticket, check_in, checkin_progress_data,
                        confirm_booking, confirm_payment, event_waitlist,
                        join_waitlist, leave_waitlist, participants,
-                       pending_bookings)
+                       pending_bookings, reject_id_check,
+                       transfer_block_reason, transfer_ticket)
 from .vietqr import payment_info, transfer_content
+
+
+def _to_verify(request, event_id):
+    """F1.7 - Gửi mã OTP rồi chuyển sang trang nhập mã, xong quay lại sự kiện."""
+    try:
+        send_email_otp(request.user)
+        messages.info(request, f"Đã gửi mã xác minh tới {request.user.email}. "
+                               f"Nhập mã để tiếp tục đặt vé.")
+    except OTPError as e:
+        messages.warning(request, str(e))
+    next_url = reverse("events:detail", args=[event_id])
+    return redirect(f"{reverse('accounts:verify_email')}?{urlencode({'next': next_url})}")
 
 
 @login_required
@@ -51,6 +65,8 @@ def book(request, event_id):
 
     try:
         tickets = book_tickets(request.user, ticket_type_id, quantity)
+    except EmailNotVerified:
+        return _to_verify(request, event_id)
     except BookingError as e:
         # Lỗi nghiệp vụ: hết chỗ, vượt giới hạn, quá hạn...
         messages.error(request, str(e))
@@ -98,6 +114,8 @@ def my_tickets(request):
         ticket.qr = (qr_data_uri(ticket.code)
                      if ticket.is_active and ticket.status != TicketStatus.PENDING
                      else None)
+        ticket.can_transfer = (ticket.status == TicketStatus.CONFIRMED
+                               and not transfer_block_reason(ticket))
 
     # F4.7 - nhóm vé chờ thanh toán theo mã giao dịch
     payments = {}
@@ -139,6 +157,30 @@ def ticket_print(request, pk):
     })
 
 
+@login_required
+def transfer(request, pk):
+    """F4.10 - Chuyển nhượng vé cho tài khoản khác (mã vé đổi mới)."""
+    ticket = get_object_or_404(
+        Ticket.objects.select_related("event", "ticket_type"),
+        pk=pk, user=request.user)
+    if request.method == "POST":
+        if not once.consume(request):
+            return redirect("registrations:my_tickets")
+        try:
+            t = transfer_ticket(request.user, ticket.pk, request.POST.get("recipient", ""))
+            messages.success(request, f"Đã chuyển vé cho {t.user.full_name or t.user.username}. "
+                                      f"Mã vé cũ {ticket.code} không còn hiệu lực.")
+            return redirect("registrations:my_tickets")
+        except BookingError as e:
+            messages.error(request, str(e))
+    return render(request, "registrations/transfer.html", {
+        "ticket": ticket,
+        "blocked": transfer_block_reason(ticket),
+        "recipient": request.POST.get("recipient", ""),
+        "before_hours": settings.TRANSFER_BEFORE_HOURS,
+    })
+
+
 @require_POST
 @login_required
 def waitlist_join(request, ticket_type_id):
@@ -150,6 +192,8 @@ def waitlist_join(request, ticket_type_id):
             request,
             f"Đã vào danh sách chờ '{tt.name}'. Bạn đang ở vị trí thứ "
             f"{entry.position}. Khi có người huỷ, hệ thống tự cấp vé và báo cho bạn.")
+    except EmailNotVerified:
+        return _to_verify(request, tt.event_id)
     except BookingError as e:
         messages.error(request, str(e))
     return redirect("events:detail", pk=tt.event_id)
@@ -254,6 +298,9 @@ def payment_confirm(request, pk):
     return redirect("registrations:payment_list")
 
 
+CSS_CLASS = {CHECKIN_OK: "success", CHECKIN_USED: "warning", CHECKIN_VERIFY: "info"}
+
+
 @staff_required
 def checkin(request, event_id):
     """
@@ -265,7 +312,12 @@ def checkin(request, event_id):
 
     if request.method == "POST":
         code = request.POST.get("code", "")
-        result, ticket, note = check_in(request.user, code, event=event)
+        if request.POST.get("decision") == "reject":
+            result, note = reject_id_check(request.user, code, event)
+        else:
+            result, ticket, note = check_in(
+                request.user, code, event=event,
+                id_confirmed=request.POST.get("decision") == "confirm")
 
     progress = checkin_progress_data(event)
 
@@ -274,8 +326,7 @@ def checkin(request, event_id):
         "result": result,
         "ticket": ticket,
         "note": note,
-        "css_class": {CHECKIN_OK: "success", CHECKIN_USED: "warning"}.get(
-            result, "danger"),
+        "css_class": CSS_CLASS.get(result, "danger"),
         **progress,
     })
 
@@ -289,29 +340,38 @@ def checkin_scan(request, event_id):
     try:
         data = json.loads(request.body)
         code = data.get("code", "") if isinstance(data, dict) else None
+        decision = data.get("decision", "") if isinstance(data, dict) else ""
     except (json.JSONDecodeError, UnicodeDecodeError):
         code = None
     if not isinstance(code, str):
         return JsonResponse({"result": "INVALID", "error": "Dữ liệu không hợp lệ.",
                              "note": "Dữ liệu không hợp lệ."}, status=400)
 
-    result, ticket, note = check_in(request.user, code, event=event)
+    if decision == "reject":
+        result, note = reject_id_check(request.user, code, event)
+        ticket = None
+    else:
+        result, ticket, note = check_in(request.user, code, event=event,
+                                        id_confirmed=decision == "confirm")
 
     # Thông tin người tham gia để BTC đối chiếu tại cửa
     ticket_data = None
     if ticket:
+        u = ticket.user
         ticket_data = {
             "code": ticket.code,
-            "user_name": ticket.user.full_name or ticket.user.username,
-            "mssv": ticket.user.mssv or "",
+            "user_name": u.full_name or u.username,
+            "mssv": u.mssv or "",
+            "affiliation": u.get_affiliation_display(),
+            "school": u.school,
             "ticket_type": ticket.ticket_type.name,
         }
-        
+
     return JsonResponse({
         "result": result,
         "note": note,
         "ticket": ticket_data,
-        "css_class": {CHECKIN_OK: "success", CHECKIN_USED: "warning"}.get(result, "danger"),
+        "css_class": CSS_CLASS.get(result, "danger"),
     })
 
 
