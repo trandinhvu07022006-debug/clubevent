@@ -3,12 +3,19 @@
 {% block title %}{% if round %}Sửa đợt tuyển{% else %}Mở đợt tuyển{% endif %}{% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb" class="small mb-2">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'recruitment:review_list' %}">Tuyển thành viên</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{% if round %}Sửa đợt tuyển{% else %}Mở đợt tuyển{% endif %}</li>
+  </ol>
+</nav>
+
 <div class="row justify-content-center">
   <div class="col-lg-8">
     <header class="page-header">
       <span class="kicker">Tuyển thành viên</span>
       <h1 class="h3 fw-bold mb-1">{% if round %}Sửa {{ round.name }}{% else %}Mở đợt tuyển mới{% endif %}</h1>
-      <p class="text-muted mb-0">Trong khoảng thời gian mở, Khách thấy nút "Nộp đơn" và menu hiện nhãn <span class="badge text-bg-success">Đang mở</span>.</p>
+      <p class="text-body-secondary mb-0">Trong khoảng thời gian mở, Khách thấy nút "Nộp đơn" và menu hiện nhãn <span class="badge text-bg-success">Đang mở</span>.</p>
     </header>
     <div class="card shadow-sm">
       <div class="card-body p-4">

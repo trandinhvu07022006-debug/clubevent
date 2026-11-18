@@ -17,7 +17,7 @@
               {% if user.email_verified_at %}
                 <span class="badge bg-success-subtle text-success-emphasis"><i class="bi bi-patch-check"></i> Email đã xác minh</span>
               {% elif user.needs_email_verification %}
-                <a href="{% url 'accounts:verify_email' %}" class="badge bg-warning-subtle text-warning-emphasis text-decoration-none"><i class="bi bi-shield-exclamation"></i> Chưa xác minh email</a>
+                <a href="{% url 'accounts:verify_email' %}?next={% url 'accounts:profile' %}" class="badge bg-warning-subtle text-warning-emphasis text-decoration-none" title="Bấm để xác minh email"><i class="bi bi-shield-exclamation"></i> Chưa xác minh email</a>
               {% endif %}
               <span class="text-xs ms-1">Tham gia từ {{ user.created_at|date:"m/Y" }}</span>
             </p>

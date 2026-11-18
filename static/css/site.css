@@ -433,3 +433,35 @@ a.onboard-step:hover .label { color: var(--brand-text); }
 }
 .who-option:has(input:checked) { border-color: var(--brand); background: rgba(var(--brand-rgb), .07); }
 .who-option input { width: 1.05rem; height: 1.05rem; accent-color: var(--brand); flex: 0 0 auto; }
+
+/* ---- 10. TIỆN ÍCH CHO CHỨC NĂNG MỚI (OTP & CHUYỂN VÉ) --------------------- */
+.otp-card {
+  max-width: 480px; margin: 0 auto;
+  border-radius: var(--bs-border-radius-xl); background: var(--app-surface);
+  border: 1px solid var(--app-border); box-shadow: var(--app-shadow-sm);
+  padding: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem);
+}
+.otp-input-field {
+  font-family: var(--app-mono-font, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: 1.85rem !important; font-weight: 800 !important;
+  letter-spacing: .45em !important; text-align: center;
+  padding: .75rem 1rem !important; border-radius: var(--bs-border-radius-lg) !important;
+  border: 2px solid var(--app-border) !important; background: var(--app-surface) !important;
+  color: var(--bs-body-color) !important;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.otp-input-field:focus {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 .25rem rgba(var(--brand-rgb), .18) !important;
+}
+
+.ticket-summary-box {
+  position: relative; overflow: hidden;
+  border-radius: var(--bs-border-radius-lg); background: var(--app-surface-2);
+  border: 1px solid var(--app-border); padding: 1.15rem 1.25rem;
+}
+.ticket-summary-box::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--brand);
+}
+

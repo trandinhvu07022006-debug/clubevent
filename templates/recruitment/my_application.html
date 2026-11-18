@@ -7,7 +7,7 @@
   <div class="page-header-row">
     <div>
       <h1 class="h3 fw-bold">Đơn ứng tuyển của tôi</h1>
-      <p class="text-muted">Theo dõi trạng thái đơn qua từng bước. Mỗi khi có thay đổi bạn sẽ nhận thông báo và email.</p>
+      <p class="text-body-secondary mb-0">Theo dõi trạng thái đơn qua từng bước. Mỗi khi có thay đổi bạn sẽ nhận thông báo và email.</p>
     </div>
     {% if round and not user.is_club_member %}
       <div class="page-header-actions"><a href="{% url 'recruitment:home' %}" class="btn btn-outline-primary">Đợt đang mở: {{ round.name|truncatechars:30 }}</a></div>

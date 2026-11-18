@@ -3,12 +3,19 @@
 {% block title %}Nộp đơn ứng tuyển{% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb" class="small mb-2">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'recruitment:home' %}">Tuyển thành viên</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Nộp đơn</li>
+  </ol>
+</nav>
+
 <div class="row justify-content-center">
   <div class="col-lg-8">
     <header class="page-header">
       <span class="kicker">Tuyển thành viên · {{ round.name }}</span>
       <h1 class="h3 fw-bold mb-1">Nộp đơn ứng tuyển</h1>
-      <p class="text-muted mb-0">Hạn nộp: <strong>{{ round.closes_at|date:"H:i, d/m/Y" }}</strong>. Mỗi đợt nộp 1 đơn. Kết quả và lịch casting gửi qua thông báo + email <strong>{{ user.email|default:"(bạn chưa có email - thêm ở Hồ sơ)" }}</strong>.</p>
+      <p class="text-body-secondary mb-0">Hạn nộp: <strong>{{ round.closes_at|date:"H:i, d/m/Y" }}</strong>. Mỗi đợt nộp 1 đơn. Kết quả và lịch casting gửi qua thông báo + email <strong>{{ user.email|default:"(bạn chưa có email - thêm ở Hồ sơ)" }}</strong>.</p>
     </header>
 
     <div class="card shadow-sm">

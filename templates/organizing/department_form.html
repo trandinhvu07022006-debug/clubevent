@@ -3,12 +3,19 @@
 {% block title %}{% if dept %}Sửa {{ dept.name }}{% else %}Tạo Ban{% endif %}{% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb" class="small mb-2">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'organizing:department_list' %}">Các Ban</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{% if dept %}Sửa {{ dept.name }}{% else %}Tạo Ban mới{% endif %}</li>
+  </ol>
+</nav>
+
 <div class="row justify-content-center">
   <div class="col-lg-8">
     <header class="page-header">
       <span class="kicker">Tổ chức</span>
       <h1 class="h3 fw-bold mb-1">{% if dept %}Sửa {{ dept.name }}{% else %}Tạo Ban mới{% endif %}</h1>
-      <p class="text-muted mb-0">Trưởng ban được giao việc cho người trong Ban mình. Thành viên Ban nhận được thông báo khi có việc giao cho cả Ban.</p>
+      <p class="text-body-secondary mb-0">Trưởng ban được giao việc cho người trong Ban mình. Thành viên Ban nhận được thông báo khi có việc giao cho cả Ban.</p>
     </header>
 
     <div class="card shadow-sm">

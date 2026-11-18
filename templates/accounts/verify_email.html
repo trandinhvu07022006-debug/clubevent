@@ -1,46 +1,75 @@
 {% extends "base.html" %}
-{% block title %}Xác minh email{% endblock %}
+{% block title %}Xác minh email · {{ club.name }}{% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb" class="small mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'accounts:profile' %}">Tài khoản</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Xác minh email</li>
+  </ol>
+</nav>
+
 <div class="row justify-content-center">
-  <div class="col-md-5">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h1 class="h4 card-title mb-2"><i class="bi bi-shield-check text-primary"></i> Xác minh email</h1>
-        <p class="text-muted">
-          {% if has_code %}
-            Nhập mã 6 số vừa được gửi tới <strong>{{ user.email }}</strong>. Mã có hiệu lực trong {{ ttl }} phút. Không thấy thư thì xem cả mục Spam.
-          {% else %}
-            Bấm <strong>Gửi mã</strong> để nhận mã 6 số qua <strong>{{ user.email }}</strong>.
-          {% endif %}
-        </p>
+  <div class="col-lg-6 col-md-8">
+    <div class="otp-card text-center">
+      <div class="dept-icon lg mx-auto mb-3">
+        <i class="bi bi-shield-check"></i>
+      </div>
+      
+      <span class="kicker">Bảo mật tài khoản</span>
+      <h1 class="h4 fw-bold mb-2">Xác minh địa chỉ email</h1>
+      
+      <div class="d-inline-flex align-items-center gap-2 badge bg-primary-subtle text-primary-emphasis px-3 py-2 fs-6 rounded-pill mb-3">
+        <i class="bi bi-envelope-check"></i> {{ user.email }}
+      </div>
 
+      <p class="text-body-secondary small mb-4">
         {% if has_code %}
-          <form method="post" class="mb-3">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="verify">
-            <input type="hidden" name="next" value="{{ next }}">
-            <label class="form-label" for="otp-code">Mã xác minh</label>
-            <input type="text" id="otp-code" name="code" class="form-control form-control-lg text-center fw-bold mb-3"
-                   inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7"
-                   placeholder="••••••" required autofocus style="letter-spacing: .5em;">
-            <button class="btn btn-primary w-100">Xác minh</button>
-          </form>
+          Nhập mã 6 số vừa được gửi tới hộp thư của bạn. Mã có hiệu lực trong <strong>{{ ttl }} phút</strong>. Nếu không thấy thư, hãy kiểm tra thêm mục Spam / Thư rác.
+        {% else %}
+          Bấm <strong>Gửi mã</strong> bên dưới để nhận mã xác minh 6 số qua email.
         {% endif %}
+      </p>
 
-        <form method="post">
+      {% if has_code %}
+        <form method="post" class="mb-3 text-start">
           {% csrf_token %}
-          <input type="hidden" name="action" value="send">
+          <input type="hidden" name="action" value="verify">
           <input type="hidden" name="next" value="{{ next }}">
-          <button id="otp-resend" data-wait="{{ wait }}" class="btn {% if has_code %}btn-link w-100 text-decoration-none{% else %}btn-primary w-100{% endif %}"
-                  {% if wait %}disabled{% endif %}>
-            {% if has_code %}Gửi lại mã{% else %}Gửi mã{% endif %}<span class="js-wait">{% if wait %} (chờ {{ wait }} giây){% endif %}</span>
+          <label class="form-label fw-semibold small text-body-secondary text-center w-100 mb-2" for="otp-code">
+            Nhập mã xác minh 6 số
+          </label>
+          <input type="text" id="otp-code" name="code" class="form-control otp-input-field mb-3"
+                 inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7"
+                 placeholder="••••••" required autofocus>
+          <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm">
+            <i class="bi bi-check2-circle me-1"></i> Xác minh
           </button>
         </form>
+      {% endif %}
 
-        <p class="small text-muted mt-3 mb-0">
-          <i class="bi bi-info-circle"></i> Mỗi tài khoản Khách cần xác minh email một lần trước khi đặt vé, để hạn chế việc tạo nhiều tài khoản ảo gom vé đi bán lại.
-        </p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="send">
+        <input type="hidden" name="next" value="{{ next }}">
+        <button id="otp-resend" data-wait="{{ wait }}" class="btn {% if has_code %}btn-outline-secondary w-100{% else %}btn-primary btn-lg w-100 fw-bold shadow-sm{% endif %}"
+                {% if wait %}disabled{% endif %}>
+          <i class="bi bi-arrow-repeat me-1"></i>
+          {% if has_code %}Gửi lại mã{% else %}Gửi mã{% endif %}<span class="js-wait">{% if wait %} (chờ {{ wait }} giây){% endif %}</span>
+        </button>
+      </form>
+
+      <div class="alert alert-info d-flex gap-2 text-start p-3 mt-4 mb-0 small rounded-3">
+        <i class="bi bi-shield-lock-fill fs-5 flex-shrink-0 text-primary"></i>
+        <div>
+          <strong>Vì sao cần xác minh?</strong> Mỗi tài khoản Khách cần xác minh email một lần trước khi đặt vé nhằm đảm bảo nhận thông báo vé và ngăn chặn tình trạng tài khoản ảo gom vé đầu cơ.
+        </div>
+      </div>
+
+      <div class="mt-4 pt-2 border-top">
+        <a href="{% if next %}{{ next }}{% else %}{% url 'accounts:profile' %}{% endif %}" class="small text-body-secondary text-decoration-none">
+          <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
       </div>
     </div>
   </div>
@@ -52,6 +81,7 @@
   // Đếm ngược thời gian chờ gửi lại mã, hết giờ thì mở lại nút
   (function () {
     var btn = document.getElementById("otp-resend");
+    if (!btn) return;
     var left = parseInt(btn.dataset.wait, 10) || 0;
     if (!left) return;
     var label = btn.querySelector(".js-wait");

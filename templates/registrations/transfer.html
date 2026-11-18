@@ -1,43 +1,97 @@
 {% extends "base.html" %}
 {% load ui %}
-{% block title %}Chuyển nhượng vé{% endblock %}
+{% block title %}Chuyển nhượng vé · {{ ticket.event.name }}{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-6 col-lg-5">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h1 class="h4 card-title mb-1"><i class="bi bi-arrow-left-right text-primary"></i> Chuyển nhượng vé</h1>
-        <p class="text-muted mb-3">{{ ticket.event.name }} · {{ ticket.event.starts_at|date:"H:i d/m/Y" }}</p>
+<nav aria-label="breadcrumb" class="small mb-2">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'registrations:my_tickets' %}">Vé của tôi</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Chuyển nhượng vé</li>
+  </ol>
+</nav>
 
-        <div class="bg-body-tertiary rounded-3 p-3 mb-3 small">
-          <div class="d-flex justify-content-between"><span class="text-muted">Loại vé</span><strong>{{ ticket.ticket_type.name }}</strong></div>
-          <div class="d-flex justify-content-between"><span class="text-muted">Mã vé hiện tại</span><strong class="checkin-code">{{ ticket.code }}</strong></div>
+<header class="page-header mb-4">
+  <span class="kicker">Đăng ký vé</span>
+  <h1 class="h3 fw-bold mb-1">Chuyển nhượng vé</h1>
+  <p class="text-body-secondary mb-0">
+    Đổi chủ sở hữu vé cho thành viên khác trước khi sự kiện diễn ra. Mã vé cũ sẽ hết hiệu lực ngay lập tức.
+  </p>
+</header>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6 col-md-8">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body p-4">
+        <!-- Thông tin vé chuyển nhượng -->
+        <div class="ticket-summary-box mb-4">
+          <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+            <div>
+              <div class="text-uppercase kicker text-primary mb-1">Vé sự kiện</div>
+              <h2 class="h5 fw-bold mb-1 text-truncate">{{ ticket.event.name }}</h2>
+              <div class="small text-body-secondary">
+                <i class="bi bi-clock me-1"></i>{{ ticket.event.starts_at|date:"H:i, d/m/Y" }}
+                {% if ticket.event.location %} · <i class="bi bi-geo-alt me-1"></i>{{ ticket.event.location }}{% endif %}
+              </div>
+            </div>
+            <span class="badge bg-secondary-subtle text-secondary-emphasis fs-6">{{ ticket.ticket_type.name }}</span>
+          </div>
+
+          <hr class="my-2 border-secondary-subtle">
+
+          <div class="d-flex justify-content-between align-items-center small pt-1">
+            <span class="text-body-secondary">Mã vé hiện tại (sắp đổi)</span>
+            <span class="checkin-code fw-bold fs-6">{{ ticket.code }}</span>
+          </div>
         </div>
 
         {% if blocked %}
-          <div class="alert alert-secondary mb-3">{{ blocked }}</div>
-          <a href="{% url 'registrations:my_tickets' %}" class="btn btn-outline-secondary w-100">Quay lại vé của tôi</a>
+          <div class="alert alert-warning d-flex align-items-center gap-3 mb-4 rounded-3">
+            <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+            <div>
+              <strong>Không thể chuyển vé:</strong>
+              <div>{{ blocked }}</div>
+            </div>
+          </div>
+          <a href="{% url 'registrations:my_tickets' %}" class="btn btn-outline-secondary w-100 py-2 fw-medium">
+            <i class="bi bi-arrow-left me-1"></i> Quay lại vé của tôi
+          </a>
         {% else %}
-          <div class="alert alert-warning small">
-            <strong>Lưu ý trước khi chuyển:</strong>
-            <ul class="mb-0 ps-3">
-              <li>Vé sẽ thuộc về tài khoản người nhận và được cấp <strong>mã mới</strong>. Mã / ảnh QR hiện tại hết hiệu lực ngay.</li>
-              <li>Mỗi vé chỉ chuyển được <strong>1 lần</strong>, trước giờ diễn ra ít nhất {{ before_hours }} giờ. Không hoàn tác được.</li>
+          <div class="alert alert-warning small rounded-3 p-3 mb-4">
+            <div class="d-flex align-items-center gap-2 fw-bold mb-2 text-warning-emphasis">
+              <i class="bi bi-shield-exclamation fs-5"></i> Lưu ý quan trọng trước khi chuyển vé:
+            </div>
+            <ul class="mb-0 ps-3 d-flex flex-column gap-1">
+              <li>Vé sẽ được chuyển sang tài khoản người nhận và được <strong>cấp mã vé mới</strong>. Mã / ảnh QR hiện tại của bạn sẽ <strong>hết hiệu lực ngay lập tức</strong>.</li>
+              <li>Mỗi vé chỉ được phép chuyển nhượng <strong>1 lần duy nhất</strong>, trước giờ sự kiện bắt đầu ít nhất <strong>{{ before_hours }} giờ</strong>. Thao tác này <strong>không thể hoàn tác</strong>.</li>
               {% if ticket.event.require_id_check %}
-                <li>Sự kiện có <strong>đối chiếu giấy tờ</strong>: người nhận phải mang thẻ SV / CCCD đúng tên tài khoản của họ.</li>
+                <li>Sự kiện có áp dụng <strong>Đối chiếu giấy tờ</strong>: người nhận vé khi đến cổng phải xuất trình thẻ sinh viên hoặc CCCD trùng khớp với thông tin tài khoản của họ.</li>
               {% endif %}
-              <li>Người nhận cần có tài khoản KMG Club đã xác minh email.</li>
+              <li>Người nhận bắt buộc phải có tài khoản KMG Club và đã <strong>xác minh email</strong> thành công.</li>
             </ul>
           </div>
-          <form method="post" onsubmit="return confirm('Chuyển vé này? Thao tác không hoàn tác được.')">
+
+          <form method="post" novalidate onsubmit="return confirm('Bạn có chắc chắn muốn chuyển vé này? Thao tác không thể hoàn tác.');">
             {% csrf_token %}{% once_token %}
-            <label class="form-label fw-semibold" for="recipient">Tên đăng nhập hoặc email người nhận</label>
-            <input type="text" id="recipient" name="recipient" value="{{ recipient }}" class="form-control mb-3"
-                   autocomplete="off" required autofocus>
-            <button class="btn btn-primary w-100">Chuyển vé</button>
+            <div class="mb-3">
+              <label class="form-label fw-bold" for="recipient">
+                <i class="bi bi-person-check text-primary me-1"></i> Tên đăng nhập hoặc địa chỉ email người nhận <span class="text-danger">*</span>
+              </label>
+              <input type="text" id="recipient" name="recipient" value="{{ recipient }}"
+                     class="form-control form-control-lg mb-2"
+                     placeholder="VD: nguyenvana hoặc email@example.com"
+                     autocomplete="off" required autofocus>
+              <div class="form-text">
+                Nhập chính xác username hoặc email đã đăng ký tài khoản của người nhận.
+              </div>
+            </div>
+
+            <button class="btn btn-primary btn-lg w-100 py-2 fw-bold shadow-sm mb-2">
+              <i class="bi bi-arrow-left-right me-1"></i> Chuyển vé
+            </button>
+            <a href="{% url 'registrations:my_tickets' %}" class="btn btn-link w-100 text-body-secondary text-decoration-none">
+              Huỷ, quay lại vé của tôi
+            </a>
           </form>
-          <a href="{% url 'registrations:my_tickets' %}" class="btn btn-link w-100 mt-1">Huỷ</a>
         {% endif %}
       </div>
     </div>

@@ -10,7 +10,7 @@
     <div class="text-center mb-4">
       <span class="kicker">Check-in</span>
       <h1 class="h3 fw-bold mb-1">{{ event.name }}</h1>
-      <p class="text-muted mb-0">{{ event.starts_at|date:"H:i · d/m/Y" }} · {{ event.location }}</p>
+      <p class="text-body-secondary mb-0">{{ event.starts_at|date:"H:i · d/m/Y" }} · {{ event.location }}</p>
       {% if event.require_id_check %}
         <span class="badge bg-info-subtle text-info-emphasis mt-2"><i class="bi bi-person-vcard"></i> Vé ghi danh: đối chiếu giấy tờ từng người</span>
       {% endif %}
@@ -30,11 +30,11 @@
           <div class="fs-5 mb-3">{{ note }}</div>
           {% if ticket %}
             <div class="bg-body bg-opacity-50 p-3 rounded-3 text-start">
-              <div class="text-muted small mb-1">Mã vé</div>
+              <div class="text-body-secondary small mb-1">Mã vé</div>
               <div class="checkin-code fs-4 mb-2">{{ ticket.code }}</div>
               <div class="fw-bold fs-5">{{ ticket.user.full_name }}</div>
-              <div class="text-muted">MSSV: {{ ticket.user.mssv|default:"-" }}</div>
-              <div class="text-muted mb-2">{{ ticket.user.get_affiliation_display }}{% if ticket.user.school %} · {{ ticket.user.school }}{% endif %}</div>
+              <div class="text-body-secondary">MSSV: {{ ticket.user.mssv|default:"-" }}</div>
+              <div class="text-body-secondary mb-2">{{ ticket.user.get_affiliation_display }}{% if ticket.user.school %} · {{ ticket.user.school }}{% endif %}</div>
               <span class="badge bg-secondary px-3 py-2 fs-6">{{ ticket.ticket_type.name }}</span>
             </div>
             {% if result == 'VERIFY' %}
@@ -64,7 +64,7 @@
         <button type="button" id="btn-camera" class="btn btn-outline-primary mb-3">
           <i class="bi bi-camera"></i> Bật camera quét QR
         </button>
-        <p id="camera-note" class="small text-muted" hidden></p>
+        <p id="camera-note" class="small text-body-secondary" hidden></p>
         <div id="camera-box" class="mb-3 rounded-3 overflow-hidden bg-black" hidden>
           <video id="qr-video" class="w-100 d-block" autoplay muted playsinline></video>
         </div>
@@ -89,7 +89,7 @@
     <div class="card shadow-sm mb-4 border-0 sticky-lg-top sticky-offset">
       <div class="card-body p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <span class="text-muted fw-bold small text-uppercase">Tiến độ vào cổng</span>
+          <span class="text-body-secondary fw-bold small text-uppercase">Tiến độ vào cổng</span>
           <span class="badge bg-primary rounded-pill fs-6" id="progress-text">{{ done }} / {{ total }}</span>
         </div>
         <div class="progress seats mb-3" id="progress-wrap" role="progressbar"
@@ -108,10 +108,10 @@
         <ul class="list-group list-group-flush" id="recent-checkins">
           {% for r in recent %}
             <li class="list-group-item d-flex justify-content-between small">
-              <span class="text-truncate me-2">{{ r.name }}</span><span class="text-muted">{{ r.at }}</span>
+              <span class="text-truncate me-2">{{ r.name }}</span><span class="text-body-secondary">{{ r.at }}</span>
             </li>
           {% empty %}
-            <li class="list-group-item text-muted small">Chưa có ai check-in.</li>
+            <li class="list-group-item text-body-secondary small">Chưa có ai check-in.</li>
           {% endfor %}
         </ul>
       </div>
