@@ -200,6 +200,86 @@ def answer(question, user=None, allow_ai=True, history=None):
     return result
 
 
+def stream_answer(question, user=None, allow_ai=True, history=None):
+    """
+    Generator sinh token theo thời gian thực (Server-Sent Events).
+    Yield các dict:
+      - {"token": str, "done": False}
+      - {"done": True, "text": str, "links": list, "intent": str, "source": str}
+    """
+    intent = detect_intent(question)
+
+    if intent is None:
+        if allow_ai and normalize(question):
+            ai_result = _answer_with_ai(question, history=history)
+            if ai_result is not None:
+                text = ai_result["text"]
+                words = re.findall(r"\S+|\s+", text)
+                chunk = []
+                for w in words:
+                    chunk.append(w)
+                    if len(chunk) >= 2 or "\n" in w:
+                        yield {"token": "".join(chunk), "done": False}
+                        chunk = []
+                if chunk:
+                    yield {"token": "".join(chunk), "done": False}
+                yield {
+                    "done": True,
+                    "text": text,
+                    "links": ai_result.get("links", []),
+                    "intent": "ai",
+                    "source": "ai",
+                }
+                return
+
+        # Fallback câu chưa hiểu
+        words = re.findall(r"\S+|\s+", UNKNOWN_TEXT)
+        for w in words:
+            yield {"token": w, "done": False}
+        yield {
+            "done": True,
+            "text": UNKNOWN_TEXT,
+            "links": [],
+            "intent": "unknown",
+            "source": "rules",
+        }
+        return
+
+    is_logged_in = bool(user and user.is_authenticated)
+    if intent["login_required"] and not is_logged_in:
+        msg = "Bạn cần đăng nhập thì mình mới tra được thông tin cá nhân."
+        links = [{"label": "Đăng nhập", "url": reverse("accounts:login")}]
+        yield {"token": msg, "done": False}
+        yield {
+            "done": True,
+            "text": msg,
+            "links": links,
+            "intent": intent["code"],
+            "source": "rules",
+        }
+        return
+
+    handler = HANDLERS[intent["code"]]
+    result = handler(user)
+    text = result["text"]
+    words = re.findall(r"\S+|\s+", text)
+    chunk = []
+    for w in words:
+        chunk.append(w)
+        if len(chunk) >= 2 or "\n" in w:
+            yield {"token": "".join(chunk), "done": False}
+            chunk = []
+    if chunk:
+        yield {"token": "".join(chunk), "done": False}
+    yield {
+        "done": True,
+        "text": text,
+        "links": result.get("links", []),
+        "intent": intent["code"],
+        "source": "rules",
+    }
+
+
 def _answer_with_ai(question, history=None):
     """
     Nhánh AI. Trả về dict trả lời, hoặc None nếu AI không dùng được (chưa có

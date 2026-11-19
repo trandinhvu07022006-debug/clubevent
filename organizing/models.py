@@ -270,3 +270,32 @@ class Expense(models.Model):
 @receiver(pre_delete, sender=Expense)
 def _protect_confirmed_expense(sender, instance, using, **kwargs):
     _lock_editable_expenses(using, [instance.pk])
+
+
+class EventPostMortem(models.Model):
+    """
+    Báo cáo Tổng kết Sự kiện Tự động (Post-Mortem Executive Report) do AI phân tích.
+    Tổng hợp 4 nguồn dữ liệu: vé/tham dự, tài chính (thu-chi), tiến độ công việc, phản hồi người tham gia.
+    """
+
+    event = models.OneToOneField(Event, on_delete=models.CASCADE,
+                                 related_name="post_mortem", verbose_name="Sự kiện")
+    executive_summary = models.TextField("Tóm tắt điều hành", blank=True)
+    highlights = models.JSONField("Điểm nổi bật / Thành tựu", default=list, blank=True)
+    financial_analysis = models.TextField("Đánh giá tài chính & ngân sách", blank=True)
+    feedback_analysis = models.TextField("Phân tích phản hồi khán giả", blank=True)
+    lessons_learned = models.JSONField("Bài học kinh nghiệm", default=list, blank=True)
+    action_items = models.JSONField("Khuyến nghị cho sự kiện kế tiếp", default=list, blank=True)
+    stats_snapshot = models.JSONField("Số liệu tổng hợp tại thời điểm tạo", default=dict, blank=True)
+    markdown_content = models.TextField("Nội dung Markdown hoàn chỉnh", blank=True)
+    generated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name="+",
+                                     verbose_name="Người tạo")
+    generated_at = models.DateTimeField("Tạo lúc", auto_now=True)
+
+    class Meta:
+        verbose_name = "Báo cáo tổng kết sự kiện (AI)"
+        verbose_name_plural = "Báo cáo tổng kết sự kiện (AI)"
+
+    def __str__(self):
+        return f"Báo cáo tổng kết - {self.event.name}"

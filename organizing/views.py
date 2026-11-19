@@ -17,14 +17,15 @@ from django.views.decorators.http import require_POST
 
 from accounts.models import AuditLog, Role, User
 from accounts.permissions import lead_required, member_required, staff_required
-from aiassist.services import suggest_tasks
+from aiassist.services import generate_event_postmortem, suggest_tasks
 from core import once
 from core.images import shrink_image
 from core.security import safe_csv_row
 from events.models import Event, EventStatus
 from events.services import budget_summary
 
-from .models import Department, Expense, Task, TaskPriority, TaskStatus
+from .models import (Department, EventPostMortem, Expense, Task, TaskPriority,
+                     TaskStatus)
 from .services import (claim_task, delete_expense, departments_with_stats,
                        department_people, save_expense, save_task)
 
@@ -712,4 +713,100 @@ def budget_csv(request, event_id):
     writer.writerow(safe_csv_row(["", "Tổng thu (vé đã xác nhận)", "", summary["income"]]))
     writer.writerow(safe_csv_row(["", "Tổng chi", "", summary["spent"]]))
     writer.writerow(safe_csv_row(["", "Chênh lệch", "", summary["balance"]]))
+    return response
+
+
+@lead_required
+def event_report(request, event_id):
+    """F3.6 - Trang Dashboard Báo cáo Tổng kết Sự kiện (Post-Mortem Executive Report)."""
+    event = get_object_or_404(Event, pk=event_id)
+    post_mortem = getattr(event, "post_mortem", None)
+
+    # Nếu chưa tạo báo cáo AI, chuẩn bị sẵn bản preview các số liệu thực tế
+    stats = {}
+    if post_mortem:
+        stats = post_mortem.stats_snapshot or {}
+    else:
+        # Lấy số liệu nhanh để hiển thị các thẻ KPIs
+        from registrations.models import TicketStatus
+        reg_tickets = event.tickets.exclude(status=TicketStatus.CANCELLED)
+        total_registered = reg_tickets.count()
+        checked_in_count = event.tickets.filter(status=TicketStatus.CHECKED_IN).count()
+        attendance_rate = (checked_in_count * 100 // total_registered) if total_registered else 0
+        b_summary = budget_summary(event)
+        tasks = event.tasks.all()
+        total_tasks = tasks.count()
+        done_tasks = tasks.filter(status=TaskStatus.DONE).count()
+        task_rate = (done_tasks * 100 // total_tasks) if total_tasks else 0
+        feedbacks = event.feedbacks.all()
+        feedback_count = feedbacks.count()
+        from django.db.models import Avg
+        avg_rating_val = feedbacks.aggregate(avg=Avg("rating"))["avg"]
+        avg_rating = round(avg_rating_val, 1) if avg_rating_val is not None else 0.0
+
+        stats = {
+            "total_registered": total_registered,
+            "checked_in_count": checked_in_count,
+            "attendance_rate": attendance_rate,
+            "income": b_summary["income"],
+            "spent": b_summary["spent"],
+            "balance": b_summary["balance"],
+            "balance_status": "Thặng dư" if b_summary["balance"] > 0 else ("Hòa vốn" if b_summary["balance"] == 0 else "Thâm hụt"),
+            "total_tasks": total_tasks,
+            "done_tasks": done_tasks,
+            "task_rate": task_rate,
+            "feedback_count": feedback_count,
+            "avg_rating": avg_rating,
+        }
+
+    return render(request, "organizing/event_report.html", {
+        "event": event,
+        "post_mortem": post_mortem,
+        "stats": stats,
+    })
+
+
+@require_POST
+@lead_required
+def event_report_generate(request, event_id):
+    """F3.6 - Kích hoạt AI tổng hợp báo cáo tổng kết sự kiện từ 4 nguồn dữ liệu."""
+    event = get_object_or_404(Event, pk=event_id)
+    data, stats, md, used_ai, err = generate_event_postmortem(event)
+
+    EventPostMortem.objects.update_or_create(
+        event=event,
+        defaults={
+            "executive_summary": data.get("executive_summary", ""),
+            "highlights": data.get("highlights", []),
+            "financial_analysis": data.get("financial_analysis", ""),
+            "feedback_analysis": data.get("feedback_analysis", ""),
+            "lessons_learned": data.get("lessons_learned", []),
+            "action_items": data.get("action_items", []),
+            "stats_snapshot": stats,
+            "markdown_content": md,
+            "generated_by": request.user,
+        },
+    )
+
+    if used_ai:
+        messages.success(request, "Đã tổng hợp Báo cáo Tổng kết Sự kiện bằng AI thành công.")
+    else:
+        messages.info(request, f"Đã lập Báo cáo Tổng kết mặc định từ số liệu hệ thống ({err}).")
+
+    return redirect("organizing:report", event_id=event.pk)
+
+
+@lead_required
+def event_report_markdown(request, event_id):
+    """F3.6 - Tải về văn bản Báo cáo Tổng kết Sự kiện dạng Markdown (.md)."""
+    event = get_object_or_404(Event, pk=event_id)
+    post_mortem = getattr(event, "post_mortem", None)
+    if not post_mortem or not post_mortem.markdown_content:
+        _, _, md, _, _ = generate_event_postmortem(event)
+    else:
+        md = post_mortem.markdown_content
+
+    slug_name = slugify(event.name) or f"sukien-{event.pk}"
+    response = HttpResponse(md, content_type="text/markdown; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="Bao-cao-tong-ket-{slug_name}.md"'
     return response

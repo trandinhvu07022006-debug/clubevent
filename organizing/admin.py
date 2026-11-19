@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from finance.admin import LedgerReadOnlyAdmin
 
-from .models import Department, Expense, Task
+from .models import Department, EventPostMortem, Expense, Task
 
 
 @admin.register(Task)
@@ -26,3 +26,10 @@ class DepartmentAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
     filter_horizontal = ("members",)
     search_fields = ("name",)
+
+
+@admin.register(EventPostMortem)
+class EventPostMortemAdmin(admin.ModelAdmin):
+    list_display = ("event", "generated_by", "generated_at")
+    search_fields = ("event__name", "executive_summary")
+    readonly_fields = ("generated_at",)

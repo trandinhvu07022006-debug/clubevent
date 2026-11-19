@@ -541,6 +541,296 @@ def generate_event_content(event: Event) -> tuple[dict, bool, str]:
 
 
 # ---------------------------------------------------------------------------
+# Chức năng 6: Báo cáo Tổng kết Sự kiện Tự động (Post-Mortem Executive Report)
+# ---------------------------------------------------------------------------
+POSTMORTEM_PROMPT = """Bạn là Cố vấn Điều hành và Quản lý Sự kiện cho câu lạc bộ sinh viên Việt Nam.
+Dưới đây là số liệu tổng kết thực tế của một sự kiện đã diễn ra:
+
+THÔNG TIN SỰ KIỆN:
+- Tên sự kiện: {name}
+- Thể loại: {category}
+- Thời gian diễn ra: {start_time}
+- Địa điểm: {location}
+- Sức chứa dự kiến: {capacity} người
+
+SỐ LIỆU VÉ & THAM DỰ:
+- Lượt đăng ký: {total_registered} vé
+- Thực tế check-in tham dự: {checked_in_count} người (Tỷ lệ tham dự: {attendance_rate}%)
+
+TÀI CHÍNH & NGÂN SÁCH:
+- Tổng thu từ vé: {income} VNĐ
+- Tổng chi phí thực tế: {spent} VNĐ
+- Cân đối thu - chi: {balance} VNĐ ({balance_status})
+- Các khoản chi chính: {expense_breakdown}
+
+CÔNG VIỆC CÁC BAN:
+- Tổng số nhiệm vụ: {total_tasks}
+- Hoàn thành: {done_tasks}/{total_tasks} ({task_rate}%)
+
+Ý KIẾN ĐÁNH GIÁ:
+- Điểm đánh giá: {avg_rating}/5 sao ({feedback_count} lượt gửi)
+- Ghi chú phản hồi: {feedback_notes}
+
+YÊU CẦU: Hãy phân tích chuyên sâu và lập Bản Báo cáo Đánh giá Tổng kết (Post-Mortem Executive Report) bài bản, khách quan cho Ban Chủ nhiệm CLB.
+Chỉ trả về JSON đúng định dạng sau, không thêm lời dẫn hay markdown fence:
+{{
+  "executive_summary": "Tóm tắt điều hành 3-4 câu ngắn gọn, toàn diện về kết quả tổ chức sự kiện",
+  "highlights": ["Điểm nổi bật / thành tựu chính 1", "Điểm 2", "Điểm 3"],
+  "financial_analysis": "Đánh giá 2-3 câu về hiệu quả sử dụng ngân sách và cân đối tài chính",
+  "feedback_analysis": "Phân tích 2-3 câu về mức độ hài lòng và trải nghiệm của khán giả",
+  "lessons_learned": ["Bài học kinh nghiệm 1", "Bài học 2", "Bài học 3"],
+  "action_items": ["Khuyến nghị hành động cho sự kiện kế tiếp 1", "Khuyến nghị 2", "Khuyến nghị 3"]
+}}"""
+
+
+def _fallback_postmortem(event: Event, stats: dict) -> dict:
+    """Sinh báo cáo bài bản dựa trên các chỉ số thực tế khi không gọi được AI."""
+    att_rate = stats.get("attendance_rate", 0)
+    task_rate = stats.get("task_rate", 0)
+    bal = stats.get("balance", 0)
+    avg_r = stats.get("avg_rating", 0.0)
+
+    summary = (
+        f"Sự kiện '{event.name}' đã hoàn thành công tác tổ chức tại {event.location}. "
+        f"Chương trình ghi nhận {stats.get('checked_in_count', 0)} người tham gia thực tế "
+        f"(đạt {att_rate}% so với số lượng đăng ký), tỷ lệ hoàn thành công việc BTC đạt {task_rate}%, "
+        f"và điểm đánh giá trung bình từ khán giả đạt {avg_r}/5 sao."
+    )
+
+    highlights = [
+        f"Thu hút {stats.get('total_registered', 0)} lượt quan tâm đăng ký vé trên hệ thống CLB.",
+        f"Hoàn thành {stats.get('done_tasks', 0)}/{stats.get('total_tasks', 0)} nhiệm vụ chuẩn bị trước và trong sự kiện.",
+        f"Khán giả ghi nhận trải nghiệm tích cực với mức đánh giá trung bình {avg_r}/5 sao.",
+    ]
+    if att_rate >= 80:
+        highlights.insert(0, f"Tỷ lệ chuyển đổi check-in thực tế xuất sắc, đạt {att_rate}%.")
+
+    if bal >= 0:
+        fin_analysis = (
+            f"Tình hình tài chính cân đối an toàn: tổng thu đạt {stats.get('income', 0):,}đ, "
+            f"tổng chi phí thực tế là {stats.get('spent', 0):,}đ, mang lại thặng dư {bal:,}đ "
+            f"được kết chuyển về quỹ hoạt động chung của CLB."
+        ).replace(",", ".")
+    else:
+        fin_analysis = (
+            f"Chi phí thực tế ({stats.get('spent', 0):,}đ) vượt doanh thu bán vé ({stats.get('income', 0):,}đ) "
+            f"dẫn tới thâm hụt {abs(bal):,}đ. Cần đối soát lại các khoản chi phát sinh ngoài dự toán."
+        ).replace(",", ".")
+
+    fb_analysis = (
+        f"Khán giả đánh giá trung bình {avg_r}/5 sao qua {stats.get('feedback_count', 0)} lượt phản hồi. "
+        f"Phần lớn người tham gia hài lòng với không khí và nội dung chương trình, "
+        f"đồng thời để lại một số góp ý về khâu kiểm soát thời lượng và bố trí chỗ ngồi."
+    )
+
+    lessons = [
+        "Cần tăng cường rà soát tiến độ công việc giữa các Ban trước ngày diễn ra ít nhất 48 giờ.",
+        "Duy trì kênh nhắc hẹn qua email/thông báo để tối ưu tỷ lệ check-in thực tế của người nhận vé.",
+        "Chuẩn bị kỹ phương án kỹ thuật và âm thanh dự phòng để xử lý nhanh sự cố phát sinh.",
+    ]
+
+    actions = [
+        "Họp rút kinh nghiệm toàn thể BTC trong vòng 3 ngày sau sự kiện.",
+        "Quyết toán toàn bộ các hoá đơn, chứng từ và khoá sổ quỹ chi tiết.",
+        "Gửi thư cảm ơn kèm bản khảo sát mở rộng tới các bạn sinh viên đã tham dự.",
+    ]
+
+    return {
+        "executive_summary": summary,
+        "highlights": highlights,
+        "financial_analysis": fin_analysis,
+        "feedback_analysis": fb_analysis,
+        "lessons_learned": lessons,
+        "action_items": actions,
+    }
+
+
+def build_postmortem_markdown(event: Event, data: dict, stats: dict) -> str:
+    """Tạo văn bản Markdown chuẩn mực cho bản Báo cáo Tổng kết Sự kiện."""
+    from django.utils import timezone
+    now = timezone.localtime()
+
+    highlights_md = "\n".join(f"- {h}" for h in data.get("highlights", []))
+    lessons_md = "\n".join(f"- {l}" for l in data.get("lessons_learned", []))
+    actions_md = "\n".join(f"- {a}" for a in data.get("action_items", []))
+
+    md = f"""# BÁO CÁO TỔNG KẾT SỰ KIỆN: {event.name.upper()}
+*Thời gian lập báo cáo: {now:%H:%M ngày %d/%m/%Y}*
+*Đơn vị tổ chức: Ban Tổ chức & Ban Chuyên môn CLB*
+
+---
+
+## 1. Tóm tắt Điều hành (Executive Summary)
+{data.get('executive_summary', '')}
+
+---
+
+## 2. Bảng Chỉ số Hoạt động Cốt lõi (Key Performance Indicators)
+
+| Chỉ số | Kết quả thực tế | Ghi chú |
+| :--- | :---: | :--- |
+| **Tổng số lượt đăng ký** | **{stats.get('total_registered', 0)}** vé | Đăng ký trực tuyến qua hệ thống |
+| **Lượt check-in thực tế** | **{stats.get('checked_in_count', 0)}** người | Tỷ lệ tham dự: **{stats.get('attendance_rate', 0)}%** |
+| **Doanh thu bán vé** | **{stats.get('income', 0):,}đ** | Vé xác nhận & đã thanh toán |
+| **Tổng chi phí sự kiện** | **{stats.get('spent', 0):,}đ** | Đã ghi nhận trong sổ quỹ |
+| **Cân đối thu - chi** | **{stats.get('balance', 0):,}đ** | Trạng thái: {stats.get('balance_status', '')} |
+| **Tiến độ công việc** | **{stats.get('done_tasks', 0)}/{stats.get('total_tasks', 0)}** ({stats.get('task_rate', 0)}%) | Nhiệm vụ đã hoàn thành |
+| **Đánh giá của khán giả** | **{stats.get('avg_rating', 0.0)}/5.0** sao | Tổng hợp từ {stats.get('feedback_count', 0)} lượt phản hồi |
+
+---
+
+## 3. Điểm Nổi bật & Thành tựu Đạt được
+{highlights_md}
+
+---
+
+## 4. Đánh giá Quản lý Tài chính & Ngân sách
+{data.get('financial_analysis', '')}
+
+---
+
+## 5. Phân tích Cảm nhận & Phản hồi Khán giả
+{data.get('feedback_analysis', '')}
+
+---
+
+## 6. Bài học Kinh nghiệm (Lessons Learned)
+{lessons_md}
+
+---
+
+## 7. Khuyến nghị & Kế hoạch Hành động Tiếp theo
+{actions_md}
+
+---
+*Báo cáo được tổng hợp tự động bởi Trợ lý AI KMG kết hợp số liệu hệ thống.*
+""".replace(",", ".")
+    return md
+
+
+def generate_event_postmortem(event: Event) -> tuple[dict, dict, str, bool, str]:
+    """
+    Thu thập số liệu 4 nguồn và sinh Báo cáo Tổng kết Sự kiện bằng AI.
+    Trả về (data_dict, stats_dict, markdown_str, đã_dùng_ai, thông_báo_lỗi).
+    """
+    from django.db.models import Avg
+    from django.utils import timezone
+    from events.services import budget_summary
+    from registrations.models import TicketStatus
+    from organizing.models import TaskStatus
+
+    # 1. Số liệu Vé & Tham dự
+    reg_tickets = event.tickets.exclude(status=TicketStatus.CANCELLED)
+    total_registered = reg_tickets.count()
+    checked_in_count = event.tickets.filter(status=TicketStatus.CHECKED_IN).count()
+    attendance_rate = (checked_in_count * 100 // total_registered) if total_registered else 0
+
+    # 2. Số liệu Tài chính
+    b_summary = budget_summary(event)
+    income = b_summary["income"]
+    spent = b_summary["spent"]
+    balance = b_summary["balance"]
+    balance_status = "Thặng dư" if balance > 0 else ("Hòa vốn" if balance == 0 else "Thâm hụt")
+    by_category = b_summary.get("by_category", [])
+    expense_breakdown = ", ".join(f"{c['label']}: {c['total']:,}đ".replace(",", ".") for c in by_category[:4]) or "Không có khoản chi"
+
+    # 3. Số liệu Công việc các Ban
+    tasks = event.tasks.all()
+    total_tasks = tasks.count()
+    done_tasks = tasks.filter(status=TaskStatus.DONE).count()
+    task_rate = (done_tasks * 100 // total_tasks) if total_tasks else 0
+
+    # 4. Số liệu Đánh giá phản hồi
+    feedbacks = event.feedbacks.all()
+    feedback_count = feedbacks.count()
+    avg_rating_val = feedbacks.aggregate(avg=Avg("rating"))["avg"]
+    avg_rating = round(avg_rating_val, 1) if avg_rating_val is not None else 0.0
+
+    ai_summary = getattr(event, "ai_summary", None)
+    if ai_summary and (ai_summary.positive or ai_summary.negative):
+        feedback_notes = f"Khen: {ai_summary.positive[:200]} | Góp ý: {ai_summary.negative[:200]}"
+    elif feedback_count:
+        sample_fb = [f.content[:100] for f in feedbacks.filter(content__gt="")[:3]]
+        feedback_notes = "; ".join(sample_fb) if sample_fb else "Khán giả đánh giá tốt, không để lại góp ý chi tiết"
+    else:
+        feedback_notes = "Chưa có phản hồi từ người tham gia"
+
+    stats = {
+        "total_registered": total_registered,
+        "checked_in_count": checked_in_count,
+        "attendance_rate": attendance_rate,
+        "income": income,
+        "spent": spent,
+        "balance": balance,
+        "balance_status": balance_status,
+        "expense_breakdown": expense_breakdown,
+        "total_tasks": total_tasks,
+        "done_tasks": done_tasks,
+        "task_rate": task_rate,
+        "feedback_count": feedback_count,
+        "avg_rating": avg_rating,
+    }
+
+    start = timezone.localtime(event.starts_at)
+    cat = event.get_category_display() if hasattr(event, "get_category_display") else "CLB"
+    prompt = POSTMORTEM_PROMPT.format(
+        name=event.name,
+        category=cat,
+        start_time=start.strftime("%H:%M ngày %d/%m/%Y"),
+        location=event.location or "Hội trường CLB",
+        capacity=event.capacity or 100,
+        total_registered=total_registered,
+        checked_in_count=checked_in_count,
+        attendance_rate=attendance_rate,
+        income=f"{income:,}".replace(",", "."),
+        spent=f"{spent:,}".replace(",", "."),
+        balance=f"{balance:,}".replace(",", "."),
+        balance_status=balance_status,
+        expense_breakdown=expense_breakdown,
+        total_tasks=total_tasks,
+        done_tasks=done_tasks,
+        task_rate=task_rate,
+        avg_rating=avg_rating,
+        feedback_count=feedback_count,
+        feedback_notes=feedback_notes,
+    )
+
+    fallback = _fallback_postmortem(event, stats)
+
+    try:
+        data = _ask_ai(prompt)
+        if not isinstance(data, dict):
+            raise AIError("AI trả về sai cấu trúc JSON.")
+        
+        summary = str(data.get("executive_summary", "")).strip() or fallback["executive_summary"]
+        fin = str(data.get("financial_analysis", "")).strip() or fallback["financial_analysis"]
+        fb = str(data.get("feedback_analysis", "")).strip() or fallback["feedback_analysis"]
+        
+        raw_hl = data.get("highlights") or []
+        highlights = [str(x).strip() for x in raw_hl if str(x).strip()][:5] or fallback["highlights"]
+        
+        raw_ll = data.get("lessons_learned") or []
+        lessons = [str(x).strip() for x in raw_ll if str(x).strip()][:5] or fallback["lessons_learned"]
+        
+        raw_act = data.get("action_items") or []
+        actions = [str(x).strip() for x in raw_act if str(x).strip()][:5] or fallback["action_items"]
+
+        result_data = {
+            "executive_summary": summary,
+            "highlights": highlights,
+            "financial_analysis": fin,
+            "feedback_analysis": fb,
+            "lessons_learned": lessons,
+            "action_items": actions,
+        }
+        md = build_postmortem_markdown(event, result_data, stats)
+        return result_data, stats, md, True, ""
+    except AIError as e:
+        md = build_postmortem_markdown(event, fallback, stats)
+        return fallback, stats, md, False, str(e)
+
+
+# ---------------------------------------------------------------------------
 # Chức năng 5: trợ lý hỏi đáp - nhánh AI cho câu hỏi ngoài 8 ý định có sẵn
 # ---------------------------------------------------------------------------
 # Kỹ thuật: "grounding" (neo vào dữ liệu). AI KHÔNG được tự biết gì về CLB:

@@ -28,4 +28,7 @@ urlpatterns = [
     path("khoanchi/<int:pk>/hoadon/", views.expense_receipt, name="expense_receipt"),
     path("private-vault/<path:rel_path>", views.private_vault_receipt,
          name="private_vault_receipt"),
+    path("sukien/<int:event_id>/baocao/", views.event_report, name="report"),
+    path("sukien/<int:event_id>/baocao/tao/", views.event_report_generate, name="report_generate"),
+    path("sukien/<int:event_id>/baocao/markdown/", views.event_report_markdown, name="report_markdown"),
 ]

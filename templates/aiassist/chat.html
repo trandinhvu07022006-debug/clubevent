@@ -81,7 +81,7 @@ Bạn có thể hỏi mình về lịch trình sự kiện sắp tới, số ch�
           {% endfor %}
         </div>
         
-        <form id="chat-form" class="position-relative" data-api="{% url 'aiassist:chat_api' %}">
+        <form id="chat-form" class="position-relative" data-api="{% url 'aiassist:chat_api' %}" data-stream-api="{% url 'aiassist:chat_stream_api' %}">
           {% csrf_token %}
           <input id="chat-input" class="form-control form-control-lg rounded-pill pe-5 shadow-sm bg-body" autocomplete="off" placeholder="Nhập câu hỏi của bạn..." maxlength="500" required>
           <button type="submit" class="btn btn-primary rounded-circle position-absolute top-50 end-0 translate-middle-y me-1 shadow-sm chat-send-btn" aria-label="Gửi câu hỏi">

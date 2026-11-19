@@ -30,5 +30,8 @@
   <li class="nav-item">
     <a class="nav-link {% if request.resolver_match.url_name == 'budget' %}active{% endif %}" href="{% url 'organizing:budget' event.pk %}">Ngân sách</a>
   </li>
+  <li class="nav-item">
+    <a class="nav-link {% if request.resolver_match.url_name == 'report' %}active{% endif %}" href="{% url 'organizing:report' event.pk %}"><i class="bi bi-magic text-primary"></i> Báo cáo tổng kết</a>
+  </li>
   {% endif %}
 </ul>

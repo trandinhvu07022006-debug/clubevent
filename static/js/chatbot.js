@@ -17,6 +17,7 @@
 
     const csrf = form.querySelector("[name=csrfmiddlewaretoken]").value;
     const apiUrl = form.dataset.api || "/troly/hoi/";
+    const streamUrl = form.dataset.streamApi || "/troly/stream/";
     const sendBtn = form.querySelector("button[type=submit]");
     const suggestions = document.getElementById("chat-suggestions");
     let busy = false;
@@ -82,7 +83,7 @@
         log.setAttribute("aria-busy", value ? "true" : "false");
     }
 
-    function ask(question) {
+    async function ask(question) {
         question = (question || "").trim();
         if (!question || busy) return;          // chặn gửi trùng
         setBusy(true);
@@ -90,27 +91,100 @@
         input.value = "";
         const waiting = addTyping();
 
-        fetch(apiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
-            body: JSON.stringify({ question: question }),
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
+        try {
+            const resp = await fetch(streamUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+                body: JSON.stringify({ question: question }),
+            });
+
+            if (!resp.ok) {
+                const data = await resp.json().catch(function () { return {}; });
                 waiting.remove();
-                // data.error: server từ chối (gửi quá nhanh, dữ liệu lỗi) -
-                // hiện đúng lý do thay vì "Không có kết quả." chung chung.
+                addMessage(data.error || "Có lỗi xảy ra khi xử lý yêu cầu.", "bot");
+                return;
+            }
+
+            const ctype = resp.headers.get("content-type") || "";
+            if (!ctype.includes("text/event-stream") || !resp.body || !window.ReadableStream) {
+                const data = await resp.json();
+                waiting.remove();
                 addMessage(data.text || data.error || "Không có kết quả.", "bot",
                            data.links, data.source);
-            })
-            .catch(function () {
-                waiting.remove();
-                addMessage("Không kết nối được máy chủ. Bạn thử lại nhé.", "bot");
-            })
-            .finally(function () {
-                setBusy(false);
-                input.focus();
-            });
+                return;
+            }
+
+            waiting.remove();
+            const botBubble = document.createElement("div");
+            botBubble.className = "chat-msg chat-bot";
+            log.appendChild(botBubble);
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulated = "";
+            let finalData = null;
+            let buffer = "";
+
+            while (true) {
+                const chunk = await reader.read();
+                if (chunk.done) break;
+                buffer += decoder.decode(chunk.value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop();
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line.startsWith("data:")) {
+                        const jsonStr = line.slice(5).trim();
+                        if (!jsonStr) continue;
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            if (parsed.token) {
+                                accumulated += parsed.token;
+                                botBubble.textContent = accumulated;
+                                log.scrollTop = log.scrollHeight;
+                            }
+                            if (parsed.done) {
+                                finalData = parsed;
+                            }
+                        } catch (e) {
+                            // Bỏ qua lỗi parse từng chunk
+                        }
+                    }
+                }
+            }
+
+            if (finalData) {
+                botBubble.textContent = finalData.text || accumulated;
+                if (finalData.source === "ai") {
+                    const tag = document.createElement("div");
+                    tag.className = "chat-ai-tag";
+                    tag.textContent = "✨ Trả lời bởi AI · có thể chưa chính xác";
+                    botBubble.appendChild(tag);
+                }
+                if (finalData.links && finalData.links.length) {
+                    const box = document.createElement("div");
+                    box.className = "chat-links";
+                    finalData.links.slice(0, 4).forEach(function (l) {
+                        const a = document.createElement("a");
+                        a.href = l.url;
+                        a.className = "btn btn-sm btn-outline-primary";
+                        a.textContent = l.label;
+                        box.appendChild(a);
+                    });
+                    botBubble.appendChild(box);
+                }
+            } else if (!accumulated) {
+                botBubble.textContent = "Không có kết quả.";
+            }
+            log.scrollTop = log.scrollHeight;
+        } catch (err) {
+            waiting.remove();
+            addMessage("Không kết nối được máy chủ. Bạn thử lại nhé.", "bot");
+        } finally {
+            setBusy(false);
+            input.focus();
+        }
     }
 
     form.addEventListener("submit", function (e) {

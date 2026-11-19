@@ -16,7 +16,7 @@ from events.models import Event, EventStatus, TicketType
 from organizing.models import Task, TaskStatus
 from registrations.models import Ticket, TicketStatus
 
-from .chatbot import answer, detect_intent, normalize
+from .chatbot import answer, detect_intent, normalize, stream_answer
 from .services import AIError, build_assistant_context
 
 
@@ -352,3 +352,46 @@ class HybridAITests(TestCase):
         resp_clear = self.client.post(url, data='{"action": "clear"}', content_type="application/json")
         self.assertEqual(resp_clear.status_code, 200)
         self.assertEqual(self.client.session.get("chat_history", []), [])
+
+    def test_stream_answer_rules(self):
+        """stream_answer phát token dạng stream và kết thúc với done: True."""
+        chunks = list(stream_answer("Sắp tới có sự kiện gì?", user=self.user))
+        self.assertTrue(len(chunks) >= 2)
+        final = chunks[-1]
+        self.assertTrue(final["done"])
+        self.assertEqual(final["source"], "rules")
+        self.assertEqual(final["intent"], "upcoming_events")
+        # Toàn bộ token ghép lại khớp đúng final text
+        tokens = "".join(c["token"] for c in chunks[:-1])
+        self.assertEqual(tokens, final["text"])
+
+    @patch("aiassist.services._ask_ai")
+    def test_stream_answer_ai(self, mock_ai):
+        """stream_answer qua tầng AI phát các token mượt mà."""
+        mock_ai.return_value = {"answer": "CLB có phòng tập nhạc cụ ở tầng 3.", "event_ids": []}
+        chunks = list(stream_answer("Phòng tập nhạc cụ ở đâu vậy?", user=self.user))
+        self.assertTrue(len(chunks) >= 2)
+        final = chunks[-1]
+        self.assertTrue(final["done"])
+        self.assertEqual(final["source"], "ai")
+        self.assertEqual(final["text"], "CLB có phòng tập nhạc cụ ở tầng 3.")
+
+    @patch("aiassist.services._ask_ai")
+    def test_chat_stream_api_response(self, mock_ai):
+        """Endpoint SSE trả về text/event-stream và lưu lịch sử vào session."""
+        mock_ai.return_value = {"answer": "Có giữ xe máy miễn phí.", "event_ids": []}
+        url = reverse("aiassist:chat_stream_api")
+        resp = self.client.post(url, data='{"question": "Gửi xe máy ở đâu?"}', content_type="application/json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/event-stream", resp["Content-Type"])
+
+        content = b"".join(resp.streaming_content).decode("utf-8")
+        self.assertIn("data: {", content)
+        self.assertIn('"done": true', content)
+        self.assertIn("Có giữ xe máy miễn phí.", content)
+
+        # Kiểm tra session đã lưu lịch sử
+        history = self.client.session.get("chat_history", [])
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0]["role"], "user")
+        self.assertEqual(history[1]["role"], "assistant")

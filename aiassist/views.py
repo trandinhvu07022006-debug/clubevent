@@ -1,13 +1,13 @@
 """View cho trợ lý tra cứu."""
 import json
 
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from core.security import is_rate_limited, record_rate_event
 
-from .chatbot import SUGGESTIONS, answer
+from .chatbot import SUGGESTIONS, answer, stream_answer
 
 # Rate limit: tối đa 30 request/phút mỗi IP (SEC-06: lưu trong Cache, bỏ cookie vẫn bị chặn).
 RATE_LIMIT = 30
@@ -97,3 +97,58 @@ def chat_api(request):
         request.session["chat_history"] = chat_history[-6:]
         request.session.modified = True
     return JsonResponse(result)
+
+
+@require_POST
+def chat_stream_api(request):
+    """
+    Endpoint SSE trả token thời gian thực (Real-time Streaming via Server-Sent Events).
+    Cho phép hiển thị câu trả lời dạng máy gõ (typewriter) giảm độ trễ cảm nhận.
+    """
+    if _is_rate_limited(request):
+        return JsonResponse(
+            {"error": "Bạn gửi quá nhanh, vui lòng chờ một chút."},
+            status=429)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError
+        if payload.get("action") == "clear":
+            request.session["chat_history"] = []
+            request.session.modified = True
+            return JsonResponse({"status": "cleared"})
+        question = str(payload.get("question", ""))[:500]
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"error": "Dữ liệu gửi lên không hợp lệ."},
+                            status=400)
+
+    allow_ai = _ai_allowed(request)
+    chat_history = list(request.session.get("chat_history", []))
+
+    # Đảm bảo session key tồn tại trước khi mở stream để Set-Cookie được gửi đúng
+    if not request.session.session_key:
+        request.session.save()
+
+    def sse_event_stream():
+        final_result = None
+        for chunk in stream_answer(question, user=request.user, allow_ai=allow_ai, history=chat_history):
+            yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+            if chunk.get("done"):
+                final_result = chunk
+
+        if final_result:
+            if final_result.get("source") == "ai":
+                _record_ai_use(request)
+            answer_text = final_result.get("text", "")
+            if answer_text:
+                chat_history.append({"role": "user", "text": question})
+                chat_history.append({"role": "assistant", "text": answer_text})
+                request.session["chat_history"] = chat_history[-6:]
+                request.session.modified = True
+                request.session.save()
+
+    response = StreamingHttpResponse(sse_event_stream(), content_type="text/event-stream; charset=utf-8")
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"
+    return response

@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Báo cáo Tổng kết · {{ event.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .report-kpi-card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    height: 100%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .report-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  }
+  .report-section-card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+  }
+  .report-badge-ai {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    color: #fff;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  @media print {
+    .navbar, .footer, .page-header-actions, .event-tabs, #floating-chat-container, .btn-print-hide {
+      display: none !important;
+    }
+    body {
+      background: #fff !important;
+      color: #000 !important;
+    }
+    .report-section-card, .report-kpi-card {
+      border: 1px solid #ddd !important;
+      box-shadow: none !important;
+      page-break-inside: avoid;
+    }
+  }
+</style>
+
+<header class="page-header">
+  <span class="kicker">{{ event.name }}</span>
+  <div class="page-header-row d-flex flex-wrap justify-content-between align-items-end gap-3">
+    <div>
+      <h1 class="h3 fw-bold d-flex align-items-center gap-2">
+        Báo cáo Tổng kết Sự kiện
+        <span class="report-badge-ai"><i class="bi bi-robot"></i> AI Post-Mortem</span>
+      </h1>
+      <p class="text-muted mb-0">Tự động phân tích và tổng hợp 4 nguồn dữ liệu: vé & tham dự, tài chính, tiến độ công việc và phản hồi khán giả.</p>
+    </div>
+    <div class="page-header-actions d-flex flex-wrap gap-2 btn-print-hide">
+      <form method="post" action="{% url 'organizing:report_generate' event.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary fw-bold shadow-sm">
+          <i class="bi bi-arrow-repeat"></i> {% if post_mortem %}Cập nhật Báo cáo AI{% else %}Tạo Báo cáo bằng AI{% endif %}
+        </button>
+      </form>
+      {% if post_mortem %}
+        <a href="{% url 'organizing:report_markdown' event.pk %}" class="btn btn-outline-secondary fw-medium shadow-sm" title="Tải về file Markdown">
+          <i class="bi bi-download"></i> Tải Markdown
+        </a>
+        <button type="button" class="btn btn-outline-dark fw-medium shadow-sm" onclick="window.print()" title="In ra giấy hoặc lưu PDF">
+          <i class="bi bi-printer"></i> In báo cáo
+        </button>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+{% include "events/partials/event_tabs.html" %}
+
+<!-- Thống kê KPIs Cốt lõi -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="report-kpi-card">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="text-muted small fw-semibold text-uppercase">Tỷ lệ Tham dự</span>
+        <i class="bi bi-people-fill text-primary fs-5"></i>
+      </div>
+      <div class="h3 fw-bold text-primary mb-1">{{ stats.attendance_rate }}%</div>
+      <div class="small text-muted">
+        <strong>{{ stats.checked_in_count }}</strong> check-in / {{ stats.total_registered }} vé đăng ký
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="report-kpi-card">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="text-muted small fw-semibold text-uppercase">Cân đối Tài chính</span>
+        <i class="bi bi-cash-stack {% if stats.balance >= 0 %}text-success{% else %}text-danger{% endif %} fs-5"></i>
+      </div>
+      <div class="h3 fw-bold {% if stats.balance >= 0 %}text-success{% else %}text-danger{% endif %} mb-1">
+        {% if stats.balance > 0 %}+{% endif %}{{ stats.balance|vnd }}đ
+      </div>
+      <div class="small text-muted">
+        Thu: {{ stats.income|vnd }}đ · Chi: {{ stats.spent|vnd }}đ
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="report-kpi-card">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="text-muted small fw-semibold text-uppercase">Công việc BTC</span>
+        <i class="bi bi-check2-circle text-info fs-5"></i>
+      </div>
+      <div class="h3 fw-bold text-info mb-1">{{ stats.task_rate }}%</div>
+      <div class="small text-muted">
+        Hoàn thành <strong>{{ stats.done_tasks }}/{{ stats.total_tasks }}</strong> nhiệm vụ
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="report-kpi-card">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="text-muted small fw-semibold text-uppercase">Đánh giá Khán giả</span>
+        <i class="bi bi-star-fill text-warning fs-5"></i>
+      </div>
+      <div class="h3 fw-bold text-warning mb-1">{{ stats.avg_rating }}<small class="fs-6 text-muted">/5.0</small></div>
+      <div class="small text-muted">
+        Tổng hợp từ <strong>{{ stats.feedback_count }}</strong> lượt phản hồi
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if post_mortem %}
+  <!-- Tóm tắt Điều hành -->
+  <div class="report-section-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 fw-bold mb-0 d-flex align-items-center gap-2">
+        <i class="bi bi-card-text text-primary"></i> 1. Tóm tắt Điều hành (Executive Summary)
+      </h2>
+      <span class="small text-muted">Cập nhật lúc: {{ post_mortem.generated_at|date:"H:i d/m/Y" }}</span>
+    </div>
+    <div class="lead fs-6 lh-base bg-body-tertiary p-3 rounded-3 border-start border-4 border-primary">
+      {{ post_mortem.executive_summary|linebreaksbr }}
+    </div>
+  </div>
+
+  <!-- Điểm Nổi bật & Thành tựu -->
+  <div class="report-section-card">
+    <h2 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+      <i class="bi bi-trophy-fill text-warning"></i> 2. Điểm Nổi bật & Thành tựu Đạt được
+    </h2>
+    <div class="row g-2">
+      {% for h in post_mortem.highlights %}
+        <div class="col-md-6">
+          <div class="d-flex align-items-start gap-2 p-2 rounded bg-body-tertiary">
+            <i class="bi bi-check-circle-fill text-success mt-1"></i>
+            <div>{{ h }}</div>
+          </div>
+        </div>
+      {% empty %}
+        <p class="text-muted mb-0">Chưa ghi nhận điểm nổi bật.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Đánh giá Tài chính & Phân tích Khán giả -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="report-section-card h-100 mb-0">
+        <h2 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-wallet2 text-success"></i> 3. Đánh giá Quản lý Tài chính & Ngân sách
+        </h2>
+        <div class="lh-base">
+          {{ post_mortem.financial_analysis|linebreaksbr }}
+        </div>
+        {% if stats.expense_breakdown %}
+          <div class="mt-3 pt-3 border-top small text-muted">
+            <span class="fw-semibold">Các khoản chi chính:</span> {{ stats.expense_breakdown }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="report-section-card h-100 mb-0">
+        <h2 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-chat-heart-fill text-danger"></i> 4. Phân tích Cảm nhận & Phản hồi Khán giả
+        </h2>
+        <div class="lh-base">
+          {{ post_mortem.feedback_analysis|linebreaksbr }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bài học Kinh nghiệm & Khuyến nghị Hành động -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="report-section-card h-100 mb-0">
+        <h2 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-lightbulb-fill text-warning"></i> 5. Bài học Kinh nghiệm (Lessons Learned)
+        </h2>
+        <ul class="list-group list-group-flush">
+          {% for l in post_mortem.lessons_learned %}
+            <li class="list-group-item bg-transparent px-0 py-2 d-flex align-items-start gap-2">
+              <i class="bi bi-arrow-right-circle text-warning mt-1"></i>
+              <div>{{ l }}</div>
+            </li>
+          {% empty %}
+            <li class="list-group-item bg-transparent text-muted px-0">Chưa ghi nhận bài học kinh nghiệm.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="report-section-card h-100 mb-0">
+        <h2 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-compass-fill text-primary"></i> 6. Khuyến nghị & Kế hoạch Tiếp theo (Action Items)
+        </h2>
+        <ul class="list-group list-group-flush">
+          {% for a in post_mortem.action_items %}
+            <li class="list-group-item bg-transparent px-0 py-2 d-flex align-items-start gap-2">
+              <i class="bi bi-check-square-fill text-primary mt-1"></i>
+              <div>{{ a }}</div>
+            </li>
+          {% empty %}
+            <li class="list-group-item bg-transparent text-muted px-0">Chưa có khuyến nghị hành động.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+{% else %}
+  <!-- Khi chưa tạo báo cáo -->
+  <div class="report-section-card text-center py-5">
+    <div class="mb-3">
+      <i class="bi bi-magic display-3 text-primary"></i>
+    </div>
+    <h2 class="h4 fw-bold">Chưa có Báo cáo Tổng kết AI cho sự kiện này</h2>
+    <p class="text-muted mx-auto" style="max-width: 550px;">
+      Hệ thống sẽ tự động quét toàn bộ số liệu bán vé, tỷ lệ check-in, ngân sách thu - chi thực tế,
+      tiến độ công việc các Ban và phản hồi của sinh viên để AI tổng hợp thành một bản báo cáo điều hành toàn diện.
+    </p>
+    <form method="post" action="{% url 'organizing:report_generate' event.pk %}" class="mt-3">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary btn-lg fw-bold px-4 shadow">
+        <i class="bi bi-robot"></i> Tạo Báo cáo Tổng kết bằng AI ngay
+      </button>
+    </form>
+  </div>
+{% endif %}
+
+{% endblock %}
