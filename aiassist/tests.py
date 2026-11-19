@@ -73,6 +73,20 @@ class CleanTasksTests(TestCase):
         tasks = _clean_tasks(["chuỗi", 123, None, {"title": "OK"}], days_left=5)
         self.assertEqual(len(tasks), 1)
 
+    def test_cleans_priority_and_department(self):
+        depts = {"Ban Hậu cần": 1, "Ban Truyền thông": 2}
+        tasks = _clean_tasks([
+            {"title": "Thuê loa", "department": "Ban Hậu cần", "priority": "URGENT"},
+            {"title": "Đăng bài", "department": "truyền thông", "priority": "high"},
+            {"title": "Chung", "department": "Lạ", "priority": "INVALID"},
+        ], days_left=10, valid_departments=depts)
+        self.assertEqual(tasks[0]["department_id"], 1)
+        self.assertEqual(tasks[0]["priority"], "URGENT")
+        self.assertEqual(tasks[1]["department_id"], 2)
+        self.assertEqual(tasks[1]["priority"], "HIGH")
+        self.assertIsNone(tasks[2]["department_id"])
+        self.assertEqual(tasks[2]["priority"], "NORMAL")
+
 
 class SuggestTasksFallbackTests(TestCase):
     """Kiểm tra fault tolerance: AI lỗi thì hệ thống vẫn chạy."""
@@ -307,3 +321,54 @@ class RetryTests(TestCase):
             _ask_ai("x")
         from django.conf import settings
         self.assertEqual(mock_call.call_args[0][1], settings.AI_MODEL)
+
+
+class ScreenApplicationTests(TestCase):
+    """Test tính năng AI sàng lọc đơn ứng tuyển (chức năng mới GĐ 2)."""
+
+    def setUp(self):
+        from recruitment.models import Application, RecruitmentRound, SkillLevel
+        from organizing.models import Department
+        now = timezone.now()
+        self.user = User.objects.create_user(username="cand1", password="x", full_name="Ứng viên Test", mssv="SV001")
+        self.dept = Department.objects.create(name="Ban Truyền thông", slug="truyen-thong")
+        self.rnd = RecruitmentRound.objects.create(name="Đợt 1", opens_at=now - timezone.timedelta(days=1), closes_at=now + timezone.timedelta(days=5))
+        self.app = Application.objects.create(
+            round=self.rnd, user=self.user, department=self.dept,
+            strengths="Photoshop, quay video", level=SkillLevel.GOOD,
+            motivation="Em muốn đóng góp cho CLB và học hỏi thêm",
+            portfolio_url="https://behance.net/test",
+        )
+
+    @patch("aiassist.services._ask_ai")
+    def test_screen_application_success(self, mock_ask):
+        mock_ask.return_value = {
+            "score": 9,
+            "assessment": "Ứng viên có kỹ năng thiết kế tốt.",
+            "suggested_questions": ["Bạn dùng phần mềm nào thành thạo nhất?"],
+        }
+        from .services import screen_application
+        res, used_ai, error = screen_application(self.app)
+        self.assertTrue(used_ai)
+        self.assertEqual(res["score"], 9)
+        self.assertEqual(len(res["suggested_questions"]), 1)
+
+    @patch("aiassist.services._ask_ai", side_effect=AIError("Quá tải"))
+    def test_screen_application_fallback_on_error(self, mock_ask):
+        from .services import screen_application
+        res, used_ai, error = screen_application(self.app)
+        self.assertFalse(used_ai)
+        self.assertIn("Quá tải", error)
+        self.assertGreater(len(res["suggested_questions"]), 0)
+
+    @patch("aiassist.services._ask_ai")
+    def test_privacy_no_pii_in_screening_prompt(self, mock_ask):
+        mock_ask.return_value = {"score": 8, "assessment": "ok", "suggested_questions": []}
+        from .services import screen_application
+        screen_application(self.app)
+        prompt = mock_ask.call_args[0][0]
+        self.assertNotIn("Ứng viên Test", prompt)
+        self.assertNotIn("cand1", prompt)
+        self.assertNotIn("SV001", prompt)
+        self.assertIn("Ban Truyền thông", prompt)
+        self.assertIn("Photoshop, quay video", prompt)

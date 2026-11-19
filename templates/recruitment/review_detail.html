@@ -43,6 +43,32 @@
   </div>
 
   <div class="col-lg-5">
+    {% if ai_screening %}
+      <section class="panel mb-3 border border-primary-subtle shadow-sm">
+        <div class="panel-head bg-primary-subtle d-flex justify-content-between align-items-center py-2 px-3">
+          <h2 class="h6 mb-0 text-primary-emphasis d-flex align-items-center gap-2">
+            <i class="bi bi-stars"></i> Trợ lý AI gợi ý phỏng vấn
+          </h2>
+          <span class="badge bg-primary">Điểm: {{ ai_screening.score }}/10</span>
+        </div>
+        <div class="panel-body">
+          <p class="small text-body mb-2">{{ ai_screening.assessment }}</p>
+          <div class="small fw-semibold text-body-secondary mb-1">Gợi ý câu hỏi phỏng vấn / casting:</div>
+          <ol class="small mb-0 ps-3">
+            {% for q in ai_screening.suggested_questions %}
+              <li class="mb-1">{{ q }}</li>
+            {% endfor %}
+          </ol>
+        </div>
+      </section>
+    {% else %}
+      <div class="mb-3">
+        <a href="?ai=1" class="btn btn-outline-primary btn-sm w-100 shadow-sm">
+          <i class="bi bi-stars"></i> AI đánh giá hồ sơ & gợi ý câu hỏi
+        </a>
+      </div>
+    {% endif %}
+
     <section class="panel">
       <div class="panel-head"><h2><i class="bi bi-check2-square text-primary"></i> Quyết định</h2></div>
       <div class="panel-body">

@@ -161,9 +161,10 @@ UNKNOWN_TEXT = ("Mình chưa hiểu câu hỏi này. Mình trả lời được 
                 "công việc được giao, và cách đăng ký hoặc check-in.")
 
 
-def answer(question, user=None, allow_ai=True):
+def answer(question, user=None, allow_ai=True, history=None):
     """
     Trả lời một câu hỏi.
+    Nhận thêm `history` để duy trì mạch hội thoại đa lượt cho tầng AI.
 
     Trả về dict: {"text", "intent", "links": [...], "source": "rules" | "ai"}
     Phần `links` là các đường dẫn gợi ý để người dùng bấm sang trang tương ứng.
@@ -177,7 +178,7 @@ def answer(question, user=None, allow_ai=True):
     if intent is None:
         # Chỉ tới đây mới gọi AI - 8 ý định có sẵn LUÔN đi nhánh luật.
         if allow_ai and normalize(question):
-            ai_result = _answer_with_ai(question)
+            ai_result = _answer_with_ai(question, history=history)
             if ai_result is not None:
                 return ai_result
         return {"intent": "unknown", "source": "rules",
@@ -199,7 +200,7 @@ def answer(question, user=None, allow_ai=True):
     return result
 
 
-def _answer_with_ai(question):
+def _answer_with_ai(question, history=None):
     """
     Nhánh AI. Trả về dict trả lời, hoặc None nếu AI không dùng được (chưa có
     key, lỗi mạng, quá tải...) - khi đó answer() quay về câu "chưa hiểu".
@@ -209,7 +210,7 @@ def _answer_with_ai(question):
     from .services import AIError, ask_assistant
 
     try:
-        data = ask_assistant(question)
+        data = ask_assistant(question, history=history)
     except AIError:
         return None
 

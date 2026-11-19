@@ -534,6 +534,8 @@ def ai_suggest(request, event_id):
         titles = request.POST.getlist("title")
         days_list = request.POST.getlist("days_before")
         notes = request.POST.getlist("note")
+        dept_ids = request.POST.getlist("department_id")
+        priorities = request.POST.getlist("priority")
         chosen = request.POST.getlist("chosen")  # index các dòng được tick
 
         created = 0
@@ -549,8 +551,18 @@ def ai_suggest(request, event_id):
                 days_before = int(days_list[i])
             except (ValueError, IndexError):
                 days_before = 0
+
+            dept_id = None
+            if i < len(dept_ids) and dept_ids[i].isdigit():
+                dept_id = int(dept_ids[i])
+            priority = (priorities[i] if i < len(priorities)
+                        and priorities[i] in TaskPriority.values
+                        else TaskPriority.NORMAL)
+
             Task.objects.create(
                 event=event,
+                department_id=dept_id,
+                priority=priority,
                 title=title[:200],
                 description=notes[i][:500] if i < len(notes) else "",
                 deadline=event.starts_at - timezone.timedelta(days=days_before),
@@ -576,8 +588,11 @@ def ai_suggest(request, event_id):
     for t in tasks:
         t["deadline"] = event.starts_at - timezone.timedelta(days=t["days_before"])
 
+    departments = Department.objects.all()
     return render(request, "organizing/ai_suggest.html", {
         "event": event, "tasks": tasks, "used_ai": used_ai,
+        "departments": departments,
+        "priorities": TaskPriority.choices,
     })
 
 

@@ -118,6 +118,20 @@
         ask(input.value);
     });
 
+    const clearBtn = document.getElementById("chat-clear-btn");
+    if (clearBtn) {
+        clearBtn.addEventListener("click", function () {
+            if (busy) return;
+            fetch(apiUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+                body: JSON.stringify({ action: "clear" }),
+            }).then(function () {
+                log.innerHTML = '<div class="chat-msg chat-bot"><i class="bi bi-robot"></i> Chào bạn. Mình là trợ lý sự kiện KMG.<br>Bạn có thể hỏi mình về lịch trình sự kiện sắp tới, số chỗ còn lại, vé của bạn, công việc được giao, hoặc cách thức đăng ký/check-in.</div>';
+            });
+        });
+    }
+
     // Bấm câu gợi ý thì hỏi luôn. Ủy quyền sự kiện (1 listener cho cả khối)
     // và đọc câu hỏi từ data-question, không phụ thuộc khoảng trắng/icon.
     if (suggestions) {

@@ -141,8 +141,19 @@ def review_detail(request, pk):
             return redirect("recruitment:review_list")
     others = (Application.objects.filter(user=app.user).exclude(pk=app.pk)
               .select_related("round", "department"))
-    return render(request, "recruitment/review_detail.html",
-                  {"app": app, "form": form, "others": others})
+
+    ai_screening = None
+    ai_used = False
+    if request.GET.get("ai") == "1":
+        from aiassist.services import screen_application
+        ai_screening, ai_used, ai_error = screen_application(app)
+        if not ai_used and ai_error:
+            messages.warning(request, f"Không gọi được AI ({ai_error}), đang hiển thị câu hỏi gợi ý mặc định.")
+
+    return render(request, "recruitment/review_detail.html", {
+        "app": app, "form": form, "others": others,
+        "ai_screening": ai_screening, "ai_used": ai_used,
+    })
 
 
 @lead_required

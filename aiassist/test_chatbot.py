@@ -321,3 +321,34 @@ class HybridAITests(TestCase):
         self.assertEqual(sources[:AI_LIMIT], ["ai"] * AI_LIMIT)
         self.assertEqual(sources[-1], "rules")
         self.assertEqual(mock_ai.call_count, AI_LIMIT)
+
+    @patch("aiassist.services._ask_ai")
+    def test_multi_turn_history_included_in_prompt(self, mock_ai):
+        """Kiểm tra ngữ cảnh đa lượt: lịch sử trao đổi được đưa vào prompt cho AI."""
+        mock_ai.return_value = {"answer": "Có bãi gửi xe máy ngay cạnh sảnh bạn nhé.", "event_ids": [self.event.pk]}
+        history = [
+            {"role": "user", "text": "Đêm nhạc tổ chức ở đâu?"},
+            {"role": "assistant", "text": "Đêm nhạc tổ chức ở Hội trường A2."},
+        ]
+        result = answer("Hội trường A2 có chỗ gửi xe máy không bạn?", user=self.user, history=history)
+        self.assertEqual(result["source"], "ai")
+        prompt = mock_ai.call_args[0][0]
+        self.assertIn("LỊCH SỬ TRAO ĐỔI GẦN ĐÂY:", prompt)
+        self.assertIn("Đêm nhạc tổ chức ở đâu?", prompt)
+        self.assertIn("Hội trường A2", prompt)
+
+    @patch("aiassist.services._ask_ai")
+    def test_chat_api_maintains_session_history_and_clear(self, mock_ai):
+        """API chat lưu lịch sử vào session và hỗ trợ action clear."""
+        mock_ai.return_value = {"answer": "Câu trả lời mẫu", "event_ids": []}
+        url = reverse("aiassist:chat_api")
+
+        # Câu hỏi 1
+        resp1 = self.client.post(url, data='{"question": "câu 1"}', content_type="application/json")
+        self.assertEqual(resp1.status_code, 200)
+        self.assertEqual(len(self.client.session.get("chat_history", [])), 2)
+
+        # Xoá hội thoại
+        resp_clear = self.client.post(url, data='{"action": "clear"}', content_type="application/json")
+        self.assertEqual(resp_clear.status_code, 200)
+        self.assertEqual(self.client.session.get("chat_history", []), [])

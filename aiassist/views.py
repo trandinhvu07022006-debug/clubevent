@@ -82,12 +82,26 @@ def chat_api(request):
         # payload.get sẽ ném AttributeError -> lỗi 500. Chặn ở đây.
         if not isinstance(payload, dict):
             raise ValueError
+        if payload.get("action") == "clear":
+            request.session["chat_history"] = []
+            request.session.modified = True
+            return JsonResponse({"status": "cleared"})
         question = str(payload.get("question", ""))[:500]
     except (ValueError, UnicodeDecodeError):
         return JsonResponse({"error": "Dữ liệu gửi lên không hợp lệ."},
                             status=400)
 
-    result = answer(question, user=request.user, allow_ai=_ai_allowed(request))
+    chat_history = request.session.get("chat_history", [])
+    result = answer(question, user=request.user, allow_ai=_ai_allowed(request),
+                    history=chat_history)
     if result.get("source") == "ai":
         _record_ai_use(request)
+
+    # Cập nhật ngữ cảnh hội thoại đa lượt (tối đa 6 tin nhắn gần nhất)
+    answer_text = result.get("text", "")
+    if answer_text:
+        chat_history.append({"role": "user", "text": question})
+        chat_history.append({"role": "assistant", "text": answer_text})
+        request.session["chat_history"] = chat_history[-6:]
+        request.session.modified = True
     return JsonResponse(result)

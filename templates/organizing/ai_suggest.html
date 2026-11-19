@@ -5,7 +5,9 @@
 <style>
   /* Bề rộng cột cố định cho bảng gợi ý (thay cho inline style) */
   .col-w-40  { width: 40px; }
+  .col-w-110 { width: 110px; }
   .col-w-120 { width: 120px; }
+  .col-w-140 { width: 140px; }
   .col-w-170 { width: 170px; }
 </style>
 <h1 class="h4 mb-1">Gợi ý công việc</h1>
@@ -14,7 +16,7 @@
 </p>
 
 <div class="alert alert-info small">
-  Tick chọn những việc bạn muốn thêm. Có thể sửa tên và số ngày trước khi lưu -
+  Tick chọn những việc bạn muốn thêm. Có thể sửa tên, ban phụ trách, mức ưu tiên và số ngày trước khi lưu -
   hệ thống chỉ gợi ý, quyết định vẫn là của bạn.
 </div>
 
@@ -31,6 +33,8 @@
               <input type="checkbox" class="form-check-input" id="check-all" checked>
             </th>
             <th>Công việc</th>
+            <th class="col-w-140">Ban phụ trách</th>
+            <th class="col-w-110">Ưu tiên</th>
             <th class="col-w-120">Trước (ngày)</th>
             <th class="col-w-170">Deadline</th>
           </tr>
@@ -49,13 +53,30 @@
                        placeholder="Ghi chú">
               </td>
               <td>
+                <select name="department_id" class="form-select form-select-sm">
+                  <option value="">-- Việc chung --</option>
+                  {% for dept in departments %}
+                    <option value="{{ dept.pk }}" {% if task.department_id == dept.pk or task.department_name == dept.name %}selected{% endif %}>
+                      {{ dept.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <select name="priority" class="form-select form-select-sm">
+                  {% for code, label in priorities %}
+                    <option value="{{ code }}" {% if task.priority == code %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
                 <input type="number" name="days_before" value="{{ task.days_before }}"
                        min="0" class="form-control form-control-sm">
               </td>
               <td class="small text-muted">{{ task.deadline|date:"H:i d/m/Y" }}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="4" class="text-center text-muted py-4">
+            <tr><td colspan="6" class="text-center text-muted py-4">
               Không có gợi ý nào.
             </td></tr>
           {% endfor %}
