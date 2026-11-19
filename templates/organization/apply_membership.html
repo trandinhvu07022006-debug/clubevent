@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Ứng tuyển Thành viên CLB KMG{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="mb-4">
+      <span class="kmg-kicker mb-2"><i class="bi bi-stars"></i> Tuyển Thành viên KMG</span>
+      <h1 class="h3 fw-bold mb-1">Đăng ký Gia nhập CLB Âm nhạc KMG</h1>
+      <p class="text-body-secondary mb-0">
+        Quy trình xét duyệt chuẩn 2 bước: <strong>Ban chuyên môn sơ duyệt năng khiếu</strong>
+        <i class="bi bi-arrow-right mx-1"></i> <strong>Ban Chủ nhiệm phê duyệt &amp; cấp Mã thành viên KMG</strong>.
+      </p>
+    </div>
+
+    {% if has_pending %}
+    <div class="alert alert-info border-0 shadow-sm mb-4">
+      <div class="d-flex align-items-center gap-2 fw-bold mb-1">
+        <i class="bi bi-hourglass-split"></i> Hồ sơ của bạn đang trong quá trình xét duyệt
+      </div>
+      <div class="small">
+        Bạn hiện đang có đơn ứng tuyển chờ kết quả. Trong thời gian chờ đợi, bạn vẫn có thể sử dụng đầy đủ hệ thống
+        <a href="{% url 'events:list' %}" class="fw-semibold">Sự kiện &amp; Đặt vé công khai</a> của KMG.
+      </div>
+    </div>
+    {% else %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h5 fw-bold mb-3">Điền hồ sơ ứng tuyển</h2>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger small">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.primary_department.label }} <span class="text-danger">*</span></label>
+            {{ form.primary_department }}
+            {% if form.primary_department.errors %}
+              <div class="text-danger small mt-1">{{ form.primary_department.errors|striptags }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.secondary_department.label }}</label>
+            {{ form.secondary_department }}
+            {% if form.secondary_department.errors %}
+              <div class="text-danger small mt-1">{{ form.secondary_department.errors|striptags }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-7">
+            <label class="form-label fw-semibold">{{ form.declared_skills_text.label }}</label>
+            {{ form.declared_skills_text }}
+            {% if form.declared_skills_text.errors %}
+              <div class="text-danger small mt-1">{{ form.declared_skills_text.errors|striptags }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-5">
+            <label class="form-label fw-semibold">{{ form.portfolio_url.label }}</label>
+            {{ form.portfolio_url }}
+            {% if form.portfolio_url.errors %}
+              <div class="text-danger small mt-1">{{ form.portfolio_url.errors|striptags }}</div>
+            {% endif %}
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">{{ form.motivation.label }} <span class="text-danger">*</span></label>
+            {{ form.motivation }}
+            {% if form.motivation.errors %}
+              <div class="text-danger small mt-1">{{ form.motivation.errors|striptags }}</div>
+            {% endif %}
+          </div>
+          <div class="col-12 pt-2">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-send-check me-1"></i>Nộp hồ sơ ứng tuyển
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if existing_apps %}
+    <div class="kmg-card p-4">
+      <h2 class="h6 text-uppercase text-body-secondary fw-bold mb-3">Lịch sử đơn ứng tuyển của bạn</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Ngày nộp</th>
+              <th>Nguyện vọng 1</th>
+              <th>Nguyện vọng 2</th>
+              <th>Trạng thái</th>
+              <th>Phản hồi từ CLB</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for app in existing_apps %}
+            <tr>
+              <td class="small">{{ app.created_at|date:"d/m/Y H:i" }}</td>
+              <td class="fw-semibold">{{ app.primary_department.name }}</td>
+              <td class="small text-body-secondary">{{ app.secondary_department.name|default:"—" }}</td>
+              <td>
+                {% if app.status == 'APPROVED' %}
+                  <span class="badge text-bg-success">{{ app.get_status_display }}</span>
+                {% elif app.status == 'REJECTED' %}
+                  <span class="badge text-bg-danger">{{ app.get_status_display }}</span>
+                {% elif app.status == 'DEPT_SCREENED' %}
+                  <span class="badge text-bg-info">{{ app.get_status_display }}</span>
+                {% else %}
+                  <span class="badge text-bg-warning">{{ app.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td class="small text-body-secondary">
+                {{ app.decision_note|default:app.screening_note|default:"Đang chờ phản hồi" }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

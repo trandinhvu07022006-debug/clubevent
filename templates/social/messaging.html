@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Nhắn tin Nội bộ Bảo mật AES-256-GCM — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+  <div>
+    <span class="kmg-kicker mb-1"><i class="bi bi-lock-fill"></i> Zero-Admin-Read · AES-256-GCM</span>
+    <h1 class="h3 fw-bold mb-0">Nhắn tin Nội bộ Bảo mật</h1>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    {% if can_review_abuse %}
+      <a href="{% url 'social:abuse_reports' %}" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-shield-exclamation me-1"></i>Báo cáo vi phạm (`BE-07`)
+      </a>
+    {% endif %}
+    <a href="{% url 'social:feed' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-stars me-1"></i>Mạng xã hội
+    </a>
+  </div>
+</div>
+
+{% if is_advisor %}
+  <div class="alert alert-info small border-0 shadow-sm mb-3">
+    <i class="bi bi-eye me-1"></i>Tài khoản Cố vấn ở chế độ Hard Read-Only (`INV-04`), không tham gia gửi tin nhắn nội bộ.
+  </div>
+{% endif %}
+
+<div class="row g-3">
+  <!-- PANE 1: Danh sách hội thoại & Tạo mới -->
+  <div class="col-lg-3">
+    <div class="kmg-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 fw-bold mb-0">Hội thoại của tôi</h2>
+        <span class="badge text-bg-light border">{{ conversations|length }}</span>
+      </div>
+
+      {% if not is_advisor %}
+      <div class="d-grid gap-1 mb-3">
+        <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newDmCollapse">
+          <i class="bi bi-chat-plus me-1"></i>Nhắn tin 1-1 mới
+        </button>
+        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newGroupCollapse">
+          <i class="bi bi-people me-1"></i>Tạo nhóm / Vào kênh Ban
+        </button>
+      </div>
+
+      <div class="collapse mb-3" id="newDmCollapse">
+        <form method="post" class="border rounded-3 p-2 bg-body-tertiary">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="start_direct">
+          <select name="peer_user_id" class="form-select form-select-sm mb-2" required>
+            <option value="">-- Chọn thành viên KMG --</option>
+            {% for p in peer_members %}
+              <option value="{{ p.id }}">{{ p.public_name }} (@{{ p.username }})</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-primary w-100">Mở trò chuyện</button>
+        </form>
+      </div>
+
+      <div class="collapse mb-3" id="newGroupCollapse">
+        <div class="border rounded-3 p-2 bg-body-tertiary mb-2">
+          <form method="post" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="open_club_room">
+            <button type="submit" class="btn btn-sm btn-outline-dark w-100 text-start">
+              <i class="bi bi-globe me-1"></i>Mở Kênh chung Toàn CLB
+            </button>
+          </form>
+          {% for d in my_depts %}
+          <form method="post" class="mb-1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="open_dept_room">
+            <input type="hidden" name="department_id" value="{{ d.id }}">
+            <button type="submit" class="btn btn-sm btn-outline-info w-100 text-start">
+              <i class="bi bi-diagram-3 me-1"></i>Kênh {{ d.name }}
+            </button>
+          </form>
+          {% endfor %}
+        </div>
+
+        <form method="post" class="border rounded-3 p-2 bg-body-tertiary mb-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_group">
+          <input type="text" name="title" class="form-control form-control-sm mb-2" placeholder="Tên nhóm tuỳ chọn..." required>
+          <select name="member_user_ids" class="form-select form-select-sm mb-2" multiple size="3">
+            {% for p in peer_members %}
+              <option value="{{ p.id }}">{{ p.public_name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-success w-100">Tạo nhóm chat</button>
+        </form>
+
+        {% if my_events %}
+        <form method="post" class="border rounded-3 p-2 bg-body-tertiary mb-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="open_event_room">
+          <div class="input-group input-group-sm">
+            <select name="club_event_id" class="form-select">
+              {% for ce in my_events %}
+                <option value="{{ ce.id }}">{{ ce.event.name|truncatechars:28 }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline-secondary">Chat SK</button>
+          </div>
+        </form>
+        {% endif %}
+
+        {% if my_tasks %}
+        <form method="post" class="border rounded-3 p-2 bg-body-tertiary">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="open_task_room">
+          <div class="input-group input-group-sm">
+            <select name="task_id" class="form-select">
+              {% for t in my_tasks %}
+                <option value="{{ t.id }}">{{ t.title|truncatechars:28 }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline-secondary">Chat Task</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <div class="list-group list-group-flush">
+        {% for c in conversations %}
+          <a href="{% url 'social:conversation_detail' c.id %}"
+             class="list-group-item list-group-item-action rounded-3 mb-1 border {% if active_conv and active_conv.id == c.id %}active{% endif %}">
+            <div class="d-flex justify-content-between align-items-center">
+              <strong class="small text-truncate">{{ c.display_title }}</strong>
+              {% if c.has_unread %}<span class="badge rounded-pill text-bg-danger">Mới</span>{% endif %}
+            </div>
+            <div style="font-size:0.72rem;" class="opacity-75">{{ c.conv_type_label }} · {{ c.member_count }} TV</div>
+          </a>
+        {% empty %}
+          <div class="small text-body-secondary text-center py-3">Chưa có hội thoại nào.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 2: Khung tin nhắn giải mã trên RAM -->
+  <div class="col-lg-6">
+    {% if active_conv %}
+    <div class="kmg-card p-3 d-flex flex-column" style="min-height: 540px;">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pb-2 mb-3 border-bottom">
+        <div>
+          <h2 class="h6 fw-bold mb-0">{{ active_conv.title|default:active_conv.get_conv_type_display }}</h2>
+          <div class="small text-success"><i class="bi bi-shield-lock-fill me-1"></i>Đang giải mã AES-256-GCM hợp lệ (`INV-05`)</div>
+        </div>
+        <form method="get" class="d-flex gap-1">
+          <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Tìm trong phòng...">
+          <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i></button>
+        </form>
+      </div>
+
+      <div id="chatThreadBox" class="flex-grow-1 overflow-y-auto pe-1 mb-3" style="max-height: 410px;"
+           data-conv-id="{{ active_conv.id }}" data-last-id="{{ last_message_id }}">
+        {% for m in decrypted_messages %}
+          <div class="mb-3 d-flex flex-column {% if m.is_mine %}align-items-end{% else %}align-items-start{% endif %}" data-msg-id="{{ m.id }}">
+            <div class="small text-body-secondary mb-1">
+              <strong>{{ m.sender_name }}</strong> · {{ m.created_at|date:"H:i d/m" }}
+            </div>
+            <div class="p-2 px-3 rounded-3 border {% if m.is_mine %}bg-primary text-white border-primary{% else %}bg-body-tertiary{% endif %}" style="max-width: 85%;">
+              {% if m.reply_to %}
+                <div class="small opacity-75 border-start border-2 ps-2 mb-1">
+                  Trả lời {{ m.reply_to.sender_name }}
+                </div>
+              {% endif %}
+              <div style="white-space: pre-line;">{{ m.text }}</div>
+              {% for att in m.attachments %}
+                <div class="mt-2">
+                  {% if att.is_image %}
+                    <a href="{% url 'social:chat_attachment_download' att.id %}" target="_blank" rel="noopener">
+                      <img src="{% url 'social:chat_attachment_download' att.id %}" alt="{{ att.original_filename }}" class="img-fluid rounded border" style="max-height:180px;">
+                    </a>
+                  {% else %}
+                    <a href="{% url 'social:chat_attachment_download' att.id %}" class="btn btn-sm btn-light border mt-1">
+                      <i class="bi bi-paperclip"></i> {{ att.original_filename }}
+                    </a>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+            {% if not is_advisor and not m.is_recalled %}
+            <div class="d-flex flex-wrap gap-1 mt-1">
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="react_message">
+                <input type="hidden" name="message_id" value="{{ m.id }}">
+                <input type="hidden" name="emoji" value="LOVE">
+                <button type="submit" class="btn btn-link btn-sm p-0 text-decoration-none" style="font-size:0.74rem;">
+                  <i class="bi bi-heart"></i> {% if m.reaction_counts.LOVE %}({{ m.reaction_counts.LOVE }}){% endif %}
+                </button>
+              </form>
+              {% if m.can_recall %}
+              <form method="post" class="d-inline" onsubmit="return confirm('Thu hồi tin nhắn này?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="recall_message">
+                <input type="hidden" name="message_id" value="{{ m.id }}">
+                <button type="submit" class="btn btn-link btn-sm p-0 text-danger text-decoration-none ms-2" style="font-size:0.74rem;">Thu hồi</button>
+              </form>
+              {% endif %}
+              {% if m.can_report %}
+              <details class="d-inline ms-2">
+                <summary class="text-warning-emphasis" style="cursor:pointer;font-size:0.74rem;">Tố cáo vi phạm (`BE-07`)</summary>
+                <form method="post" class="input-group input-group-sm mt-1">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="report_abuse">
+                  <input type="hidden" name="message_id" value="{{ m.id }}">
+                  <input type="text" name="reason" class="form-control" placeholder="Mô tả quấy rối / vi phạm..." required>
+                  <button type="submit" class="btn btn-warning">Gửi HMAC tới BCN</button>
+                </form>
+              </details>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+        {% empty %}
+          <div class="text-center text-body-secondary small py-5">Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!</div>
+        {% endfor %}
+      </div>
+
+      {% if not is_advisor %}
+      <form method="post" enctype="multipart/form-data" class="border-top pt-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="send_message">
+        <div class="input-group mb-2">
+          <input type="text" name="plaintext" class="form-control" placeholder="Nhập tin nhắn (được mã hoá AES-256-GCM trước khi lưu DB)...">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-send-fill"></i></button>
+        </div>
+        <input type="file" name="attachment" class="form-control form-control-sm" accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.mp3">
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="kmg-card p-5 text-center text-body-secondary">
+      <i class="bi bi-chat-square-lock fs-1 d-block mb-2"></i>
+      Chọn một hội thoại bên trái hoặc bắt đầu trò chuyện 1-1 mới với thành viên KMG.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- PANE 3: Thành viên phòng & Quyền riêng tư -->
+  <div class="col-lg-3">
+    <div class="kmg-card p-3 h-100">
+      <h2 class="h6 fw-bold mb-2"><i class="bi bi-people me-1"></i>Thành viên đang tham gia</h2>
+      <ul class="list-group list-group-flush mb-3">
+        {% for rm in room_members %}
+          <li class="list-group-item px-0 py-1 bg-transparent small d-flex justify-content-between align-items-center">
+            <span>{{ rm.user.public_name }}</span>
+            <span class="badge text-bg-light border">{{ rm.get_member_role_display }}</span>
+          </li>
+        {% empty %}
+          <li class="list-group-item px-0 bg-transparent small text-body-secondary">Chưa chọn hội thoại.</li>
+        {% endfor %}
+      </ul>
+
+      {% if active_conv and not is_advisor %}
+      <form method="post" onsubmit="return confirm('Rời khỏi hội thoại này? Bạn sẽ không đọc được tin nhắn sau khi rời.');" class="mb-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="leave_room">
+        <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+          <i class="bi bi-box-arrow-right me-1"></i>Rời khỏi hội thoại
+        </button>
+      </form>
+      {% endif %}
+
+      <div class="border-top pt-2 small text-body-secondary">
+        <strong>Bất biến `INV-05`:</strong> Hệ thống không có cửa sau đọc trộm tin nhắn. Ngay cả Chủ nhiệm hoặc Admin Server cũng nhận lỗi <code>403</code> nếu không có tên trong danh sách bên trên.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var box = document.getElementById("chatThreadBox");
+    if (!box) return;
+    box.scrollTop = box.scrollHeight;
+    var convId = box.getAttribute("data-conv-id");
+    var lastId = parseInt(box.getAttribute("data-last-id") || "0", 10);
+    if (!convId) return;
+
+    setInterval(function () {
+      fetch("/api/v1/messages/conversations/" + convId + "/messages/?after_id=" + lastId, {
+        credentials: "same-origin"
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (payload) {
+          if (!payload || !payload.ok || !Array.isArray(payload.data) || payload.data.length === 0) return;
+          payload.data.forEach(function (m) {
+            if (m.id <= lastId) return;
+            lastId = m.id;
+            var wrap = document.createElement("div");
+            wrap.className = "mb-3 d-flex flex-column " + (m.is_mine ? "align-items-end" : "align-items-start");
+            var meta = document.createElement("div");
+            meta.className = "small text-body-secondary mb-1";
+            meta.textContent = m.sender_name + " · vừa xong";
+            var bubble = document.createElement("div");
+            bubble.className = "p-2 px-3 rounded-3 border " + (m.is_mine ? "bg-primary text-white border-primary" : "bg-body-tertiary");
+            bubble.style.maxWidth = "85%";
+            bubble.style.whiteSpace = "pre-line";
+            bubble.textContent = m.text;
+            wrap.appendChild(meta);
+            wrap.appendChild(bubble);
+            box.appendChild(wrap);
+          });
+          box.scrollTop = box.scrollHeight;
+        })
+        .catch(function () {});
+    }, 5000);
+  })();
+</script>
+{% endblock %}

@@ -15,7 +15,7 @@ Kèm: khoản chi (ngân sách), thông báo mẫu, mã giao dịch nhóm.
 import random
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -92,6 +92,8 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if not getattr(settings, "ALLOW_DEMO_SEED", True):
+            raise CommandError("Dữ liệu demo bị tắt. Dùng bootstrap_kmg cho môi trường pilot.")
         random.seed(42)  # kết quả giống nhau mỗi lần chạy, dễ kiểm tra
 
         if options["reset"]:

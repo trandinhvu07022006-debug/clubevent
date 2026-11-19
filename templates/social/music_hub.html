@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Playlist Âm nhạc Cá nhân & Tặng nhạc — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-disc-fill"></i> Personal Music &amp; Track Gifting</span>
+    <h1 class="h3 fw-bold mb-1">Playlist Âm nhạc Cá nhân &amp; Tặng nhạc</h1>
+    <p class="text-body-secondary small mb-0">
+      Playlist riêng tư tuân thủ `INV-05`; gửi tặng bài hát tích hợp thẻ xác thực thành viên chống nhầm tên (`BE-05`, `SEC-04`, `SEC-05`).
+    </p>
+  </div>
+  <a href="{% url 'social:feed' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Về Mạng xã hội
+  </a>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-collection-play me-2 text-primary"></i>Playlist của tôi</h2>
+        <span class="badge text-bg-light border">{{ my_playlists|length }} danh sách</span>
+      </div>
+
+      {% for pl in my_playlists %}
+        <div class="border rounded-3 p-3 mb-2 d-flex justify-content-between align-items-center">
+          <div>
+            <a href="{% url 'social:playlist_detail' pl.pk %}" class="fw-bold text-decoration-none">{{ pl.title }}</a>
+            <div class="small text-body-secondary">{{ pl.items.count }} bài hát · {{ pl.description|default:"Không có mô tả"|truncatechars:70 }}</div>
+          </div>
+          <span class="badge {% if pl.visibility == 'PRIVATE' %}text-bg-dark{% else %}text-bg-success{% endif %}">
+            {% if pl.visibility == 'PRIVATE' %}<i class="bi bi-lock-fill me-1"></i>{% else %}<i class="bi bi-people me-1"></i>{% endif %}
+            {{ pl.get_visibility_display }}
+          </span>
+        </div>
+      {% empty %}
+        <p class="small text-body-secondary">Bạn chưa tạo playlist âm nhạc nào.</p>
+      {% endfor %}
+
+      {% if not is_advisor %}
+      <form method="post" class="border-top pt-3 mt-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_playlist">
+        <h3 class="h6 fw-bold mb-2">Tạo Playlist mới</h3>
+        <div class="row g-2 mb-2">
+          <div class="col-md-7">
+            <input type="text" name="title" class="form-control form-control-sm" placeholder="VD: Đêm Nhạc Acoustic Trữ Tình" required>
+          </div>
+          <div class="col-md-5">
+            <select name="visibility" class="form-select form-select-sm">
+              {% for v_code, v_label in visibility_choices %}
+                <option value="{{ v_code }}">{{ v_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="input-group input-group-sm">
+          <input type="text" name="description" class="form-control" placeholder="Mô tả gu nhạc / chủ đề...">
+          <button type="submit" class="btn btn-primary">Tạo Playlist</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tặng bài hát chống trùng tên BE-05 + SEC-04 -->
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h5 fw-bold mb-2"><i class="bi bi-gift me-2 text-warning"></i>Gửi tặng Bài hát cho Thành viên KMG</h2>
+      <p class="small text-body-secondary mb-3">
+        Tìm chính xác người nhận bằng Thẻ định danh chống nhầm tên (<code>member_code</code> + Ban trực thuộc — `BE-05`, ẩn hoàn toàn SĐT/Email/MSSV theo `SEC-04`).
+      </p>
+      {% if not is_advisor %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="send_share">
+        <input type="hidden" name="recipient_user_id" id="selectedRecipientId" required>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold mb-1">1. Tìm người nhận (nhập tên hoặc mã thành viên KMG)</label>
+          <div class="input-group input-group-sm">
+            <input type="text" id="recipientSearchInput" class="form-control" placeholder="Gõ tên thành viên (VD: Quang Anh, KMG-)...">
+            <button type="button" id="recipientSearchBtn" class="btn btn-outline-primary">Tìm thẻ định danh</button>
+          </div>
+          <div id="recipientSearchStatus" class="small text-primary fw-semibold mt-1"></div>
+          <div id="recipientResultsList" class="d-flex flex-column gap-1 mt-2"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <input type="text" name="title" class="form-control form-control-sm" placeholder="Tên bài hát *" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="artist_name" class="form-control form-control-sm" placeholder="Nghệ sĩ / Band">
+          </div>
+        </div>
+        <div class="mb-2">
+          <input type="url" name="track_url" class="form-control form-control-sm" placeholder="Link YouTube / Spotify / SoundCloud *" required>
+        </div>
+        <div class="input-group input-group-sm">
+          <input type="text" name="personal_message" class="form-control" placeholder="Lời nhắn gửi tặng...">
+          <button type="submit" class="btn btn-warning fw-semibold">Gửi tặng nhạc</button>
+        </div>
+      </form>
+      {% else %}
+      <div class="alert alert-info small mb-0">Cố vấn ở chế độ Hard Read-Only (`INV-04`), không thể gửi tặng nhạc.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Quà tặng âm nhạc nhận được & Cộng đồng chia sẻ -->
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-music-note-list me-2 text-success"></i>Bài hát được tặng cho tôi</h2>
+      {% for sh in received_shares %}
+        <div class="border rounded-3 p-3 mb-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <strong>{{ sh.title }}</strong>{% if sh.artist_name %} — {{ sh.artist_name }}{% endif %}
+              <div class="small text-body-secondary">Từ <strong>{{ sh.sender.public_name }}</strong> · {{ sh.get_source_provider_display }}</div>
+            </div>
+            <a href="{{ sh.track_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">Nghe</a>
+          </div>
+          {% if sh.personal_message %}
+            <div class="small fst-italic text-body-secondary mt-1">“{{ sh.personal_message }}”</div>
+          {% endif %}
+          {% if not sh.is_saved_to_playlist and not is_advisor %}
+            <form method="post" class="mt-2 d-flex gap-2">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="save_share">
+              <input type="hidden" name="share_id" value="{{ sh.id }}">
+              <select name="target_playlist_id" class="form-select form-select-sm">
+                <option value="">-- Tự động lưu vào Playlist của tôi --</option>
+                {% for pl in my_playlists %}
+                  <option value="{{ pl.id }}">{{ pl.title }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-sm btn-success text-nowrap">Lưu vào Playlist</button>
+            </form>
+          {% elif sh.is_saved_to_playlist %}
+            <div class="small text-success mt-1"><i class="bi bi-check-circle-fill me-1"></i>Đã lưu vào Playlist</div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="small text-body-secondary mb-0">Bạn chưa nhận được bài hát tặng nào.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-globe-asia-australia me-2 text-primary"></i>Playlist được Thành viên CLB chia sẻ</h2>
+      {% for pl in club_shared_playlists %}
+        <div class="border rounded-3 p-3 mb-2 d-flex justify-content-between align-items-center">
+          <div>
+            <a href="{% url 'social:playlist_detail' pl.pk %}" class="fw-bold text-decoration-none">{{ pl.title }}</a>
+            <div class="small text-body-secondary">Của {{ pl.owner.public_name }} · {{ pl.items.count }} bài</div>
+          </div>
+          <a href="{% url 'social:playlist_detail' pl.pk %}" class="btn btn-sm btn-outline-primary">Mở</a>
+        </div>
+      {% empty %}
+        <p class="small text-body-secondary mb-0">Chưa có playlist chia sẻ công khai trong CLB.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var input = document.getElementById("recipientSearchInput");
+    var btn = document.getElementById("recipientSearchBtn");
+    var listEl = document.getElementById("recipientResultsList");
+    var hiddenId = document.getElementById("selectedRecipientId");
+    var statusEl = document.getElementById("recipientSearchStatus");
+    if (!input || !btn || !listEl || !hiddenId) return;
+
+    function runSearch() {
+      var q = input.value.trim();
+      if (!q) return;
+      fetch("/api/v1/music/recipients/search/?q=" + encodeURIComponent(q), { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (payload) {
+          listEl.replaceChildren();
+          if (!payload.ok) {
+            statusEl.textContent = (payload.error && payload.error.message) || "Không thể tìm kiếm.";
+            return;
+          }
+          if (payload.data.length === 0) {
+            statusEl.textContent = "Không tìm thấy thành viên phù hợp.";
+            return;
+          }
+          statusEl.textContent = "Chọn chính xác thành viên nhận bên dưới (`BE-05`):";
+          payload.data.forEach(function (u) {
+            var cardBtn = document.createElement("button");
+            cardBtn.type = "button";
+            cardBtn.className = "btn btn-sm btn-outline-secondary text-start d-flex justify-content-between align-items-center";
+            var left = document.createElement("span");
+            left.textContent = u.public_name + " (" + u.member_code + ")";
+            var right = document.createElement("span");
+            right.className = "badge text-bg-light border";
+            right.textContent = (u.department_names || []).join(", ") || "CLB KMG";
+            cardBtn.appendChild(left);
+            cardBtn.appendChild(right);
+            cardBtn.addEventListener("click", function () {
+              hiddenId.value = String(u.id);
+              statusEl.textContent = "Đã chọn người nhận: " + u.public_name + " (" + u.member_code + ")";
+              listEl.replaceChildren();
+            });
+            listEl.appendChild(cardBtn);
+          });
+        })
+        .catch(function () {});
+    }
+
+    btn.addEventListener("click", runSearch);
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); runSearch(); }
+    });
+  })();
+</script>
+{% endblock %}

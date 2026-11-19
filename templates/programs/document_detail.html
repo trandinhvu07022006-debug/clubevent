@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} — Tài liệu Mật KMG{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'programs:document_vault' %}" class="text-decoration-none small">
+    <i class="bi bi-arrow-left me-1"></i>Quay lại Kho Tài liệu Bảo mật
+  </a>
+</div>
+
+{% if access_denied_can_break_glass %}
+<div class="kmg-card p-4 border-danger">
+  <div class="d-flex align-items-start gap-3">
+    <div class="fs-2 text-danger"><i class="bi bi-shield-exclamation"></i></div>
+    <div class="flex-grow-1">
+      <span class="badge text-bg-danger mb-2">HTTP 403 · Tài liệu ngoài danh sách ACL hiện hành</span>
+      <h1 class="h4 fw-bold mb-1">{{ doc.title }} ({{ doc.code }})</h1>
+      <p class="small text-body-secondary mb-3">
+        Tài liệu thuộc phân loại <strong>{{ doc.get_classification_display }}</strong>. Theo quy định bảo mật dữ liệu (Rule 10 &amp; Trần cứng Chủ nhiệm), ngay cả Chủ nhiệm CLB cũng không tự động xem nội dung nếu không nằm trong danh sách ACL.
+        Nếu có tình huống khẩn cấp cần xử lý, bạn có thể kích hoạt cơ chế <strong>Break-Glass có thời hạn</strong> — hệ thống sẽ ghi nhận <code>DocumentAccessLog</code>, <code>AuditLog</code> và gửi cảnh báo ngay lập tức tới Trưởng ban &amp; Chủ sở hữu tài liệu.
+      </p>
+      <form method="post" class="row g-2 bg-body-tertiary p-3 rounded-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="break_glass">
+        <div class="col-md-8">
+          <label class="form-label small fw-semibold">Lý do khẩn cấp bắt buộc (tối thiểu 8 ký tự) <span class="text-danger">*</span></label>
+          <input type="text" name="reason" minlength="8" class="form-control form-control-sm" placeholder="VD: Xử lý sự cố âm thanh sân khấu gấp khi Trưởng ban vắng mặt" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Thời hạn (giờ)</label>
+          <input type="number" name="duration_hours" value="24" min="1" max="72" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-sm btn-danger w-100">
+            <i class="bi bi-key-fill me-1"></i>Mở Break-Glass
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% else %}
+
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+    <div>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <code>{{ doc.code }}</code>
+        <span class="badge {% if doc.classification == 'HIGHLY_RESTRICTED' %}text-bg-danger{% elif doc.classification == 'RESTRICTED' %}text-bg-warning{% elif doc.classification == 'DEPT_INTERNAL' %}text-bg-primary{% else %}text-bg-success{% endif %}">
+          {{ doc.get_classification_display }}
+        </span>
+        {% if doc.custom_category_label %}
+          <span class="badge text-bg-light border">{{ doc.custom_category_label }}</span>
+        {% elif doc.category %}
+          <span class="badge text-bg-light border">{{ doc.category.name }}</span>
+        {% endif %}
+      </div>
+      <h1 class="h3 fw-bold mb-1">{{ doc.title }}</h1>
+      {% if doc.description %}
+        <p class="text-body-secondary mb-2">{{ doc.description }}</p>
+      {% endif %}
+      <div class="small text-body-secondary d-flex flex-wrap gap-3">
+        <span><i class="bi bi-building me-1"></i>{{ doc.department.name|default:"Toàn CLB KMG" }}</span>
+        <span><i class="bi bi-person-check me-1"></i>Chủ sở hữu: {{ doc.owner.public_name|default:"KMG" }}</span>
+        {% if doc.recommended_skills.all %}
+          <span><i class="bi bi-stars me-1"></i>Gợi ý kỹ năng (không tự cấp quyền): {% for s in doc.recommended_skills.all %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      {% if can_download and doc.latest_version %}
+        <a href="{% url 'programs:document_download' doc.pk %}" class="btn btn-primary">
+          <i class="bi bi-download me-1"></i>Tải phiên bản mới nhất (v{{ doc.latest_version.version_number }})
+        </a>
+      {% else %}
+        <span class="badge text-bg-secondary py-2 px-3"><i class="bi bi-eye me-1"></i>Chỉ xem thông tin (VIEW)</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="{% if can_manage %}col-lg-7{% else %}col-12{% endif %}">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>Lịch sử Phiên bản Tệp ({{ versions|length }})</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Phiên bản</th>
+              <th>Tên tệp &amp; Dung lượng</th>
+              <th>Mã băm SHA-256</th>
+              <th>Người tải lên</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in versions %}
+            <tr>
+              <td>
+                <span class="badge {% if v.is_current %}text-bg-primary{% else %}text-bg-light border{% endif %}">v{{ v.version_number }}</span>
+              </td>
+              <td class="small">
+                <div class="fw-semibold">{{ v.original_filename }}</div>
+                <div class="text-body-secondary">{{ v.file_size|filesizeformat }}{% if v.change_note %} · {{ v.change_note }}{% endif %}</div>
+              </td>
+              <td><code class="small" title="{{ v.checksum_sha256 }}">{{ v.checksum_sha256|slice:":16" }}…</code></td>
+              <td class="small">{{ v.uploaded_by.public_name|default:"—" }}<div class="text-body-secondary">{{ v.created_at|date:"d/m/Y H:i" }}</div></td>
+              <td class="text-end">
+                {% if can_download %}
+                  <a href="{% url 'programs:document_download' doc.pk %}?version={{ v.pk }}" class="btn btn-sm btn-outline-primary">Tải</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if can_manage %}
+  <div class="col-lg-5">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-upload me-2 text-primary"></i>Tải lên Phiên bản mới</h2>
+      <form method="post" enctype="multipart/form-data" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="upload_version">
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Chọn tệp cập nhật <span class="text-danger">*</span></label>
+          <input type="file" name="file" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Ghi chú thay đổi</label>
+          <input type="text" name="change_note" class="form-control form-control-sm" placeholder="VD: Bổ sung hợp âm đoạn Bridge & Tempo">
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-sm btn-primary w-100">Lưu phiên bản mới</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if can_manage %}
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="kmg-card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-person-lock me-2"></i>Danh sách Phân quyền ACL ({{ acl_entries|length }})</h2>
+        <span class="badge text-bg-light border small">Gắn vòng đời PA-02</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Đối tượng ACL</th>
+              <th>Quyền</th>
+              <th>Trạng thái</th>
+              <th>Lý do &amp; Hạn</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in acl_entries %}
+            <tr>
+              <td class="small">
+                <span class="badge text-bg-light border me-1">{{ e.get_subject_type_display }}</span>
+                {% if e.user %}{{ e.user.public_name }}
+                {% elif e.position %}{{ e.position.name }}
+                {% elif e.task %}{{ e.task.title|truncatechars:36 }}
+                {% elif e.department %}{{ e.department.name }}
+                {% endif %}
+                {% if e.is_break_glass %}<span class="badge text-bg-danger ms-1">Break-Glass</span>{% endif %}
+              </td>
+              <td><span class="badge text-bg-primary">{{ e.permission_level }}</span></td>
+              <td class="small">
+                {% if e.is_currently_effective %}
+                  <span class="badge text-bg-success">Đang hiệu lực</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">Đã thu hồi / Hết hạn</span>
+                {% endif %}
+              </td>
+              <td class="small text-body-secondary">
+                {{ e.reason|default:e.revoked_reason }}
+                {% if e.expires_at %}<div>Hạn: {{ e.expires_at|date:"d/m/Y H:i" }}</div>{% endif %}
+              </td>
+              <td class="text-end">
+                {% if e.is_active %}
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="revoke_acl">
+                  <input type="hidden" name="entry_id" value="{{ e.pk }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Thu hồi</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-body-secondary small py-3">Chưa có mục ACL bổ sung nào.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h5 fw-bold mb-1"><i class="bi bi-key me-2 text-primary"></i>Cấp quyền ACL mới</h2>
+      <p class="small text-body-secondary mb-3">
+        Chỉ cấp theo Thành viên, Chức vụ, Nhiệm vụ hoặc Ban. Tuyệt đối <strong>không cấp theo Kỹ năng (INV-01 / PA-01)</strong>.
+      </p>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="grant_acl">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Loại đối tượng</label>
+          <select name="subject_type" class="form-select form-select-sm" required>
+            {% for code, label in subject_types %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Mức quyền</label>
+          <select name="permission_level" class="form-select form-select-sm">
+            {% for code, label in permission_levels %}
+              <option value="{{ code }}" {% if code == 'DOWNLOAD' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Thành viên (nếu chọn Thành viên đích danh)</label>
+          <select name="user_id" class="form-select form-select-sm">
+            <option value="">— Chọn thành viên —</option>
+            {% for u in active_members %}
+              <option value="{{ u.id }}">{{ u.public_name }} (@{{ u.username }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Chức vụ (nếu chọn Chức vụ)</label>
+          <select name="position_id" class="form-select form-select-sm">
+            <option value="">— Chọn chức vụ —</option>
+            {% for p in positions %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Ban (nếu chọn Ban)</label>
+          <select name="acl_department_id" class="form-select form-select-sm">
+            <option value="">— Chọn Ban —</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if dept_tasks %}
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Nhiệm vụ (nếu chọn Nhiệm vụ)</label>
+          <select name="task_id" class="form-select form-select-sm">
+            <option value="">— Chọn nhiệm vụ —</option>
+            {% for t in dept_tasks %}
+              <option value="{{ t.id }}">{{ t.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Hết hạn (tùy chọn)</label>
+          <input type="datetime-local" name="expires_at" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Lý do cấp quyền</label>
+          <input type="text" name="reason" class="form-control form-control-sm" placeholder="VD: Hát bè Liveshow">
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-sm btn-primary w-100">Lưu quyền ACL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="kmg-card p-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-journal-text me-2"></i>Nhật ký Truy cập Tài liệu Mật (Bất biến)</h2>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Thời điểm</th>
+          <th>Người thao tác</th>
+          <th>Hành động</th>
+          <th>Phiên bản</th>
+          <th>Ghi chú / IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in access_logs %}
+        <tr>
+          <td class="small text-body-secondary">{{ log.created_at|date:"d/m/Y H:i:s" }}</td>
+          <td class="small fw-semibold">{{ log.actor.public_name|default:"Hệ thống" }}</td>
+          <td>
+            <span class="badge {% if log.action == 'DENIED_ATTEMPT' or log.action == 'BREAK_GLASS' %}text-bg-danger{% elif log.action == 'DOWNLOAD' %}text-bg-primary{% else %}text-bg-light border{% endif %}">
+              {{ log.get_action_display }}
+            </span>
+          </td>
+          <td class="small">{% if log.version %}v{{ log.version.version_number }}{% else %}—{% endif %}</td>
+          <td class="small text-body-secondary">{{ log.reason }}{% if log.ip_address %} · {{ log.ip_address }}{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-body-secondary small py-3">Chưa có nhật ký truy cập.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

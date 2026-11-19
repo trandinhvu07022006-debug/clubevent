@@ -1,0 +1,119 @@
+name: kmg
+
+x-app: &app
+  build: .
+  image: kmg-app:local
+  env_file: ${KMG_ENV_FILE:-.env.production}
+  environment: &app-env
+    KMG_ENV_FILE: ""
+    DEBUG: "False"
+    DB_ENGINE: mysql
+    DB_NAME: ${DB_NAME:-kmg}
+    DB_USER: ${DB_USER:-kmg}
+    DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.production}
+    DB_HOST: db
+    DB_PORT: "3306"
+    DATABASE_URL: ""
+    CACHE_URL: redis://redis:6379/1
+    TRUST_PROXY_HEADERS: "True"
+    TRUST_X_FORWARDED_FOR: "True"
+    LOG_TO_CONSOLE: "True"
+    MEDIA_ROOT: /app/media
+    PRIVATE_VAULT_ROOT: /app/private_vault
+  volumes:
+    - media_data:/app/media
+    - vault_data:/app/private_vault
+  init: true
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  db:
+    image: mysql:8.4
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-kmg}
+      MYSQL_USER: ${DB_USER:-kmg}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.production}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env.production}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=TCP -h 127.0.0.1 -u \"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -e 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "deployment/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  scheduler:
+    <<: *app
+    command: ["python", "deployment/scheduler.py"]
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 35s
+    healthcheck:
+      test: ["CMD", "python", "deployment/scheduler_healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  nginx:
+    image: nginx:stable-alpine
+    environment:
+      PROXY_SCHEME: ${PROXY_SCHEME:-http}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./deployment/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - media_data:/srv/media:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  media_data:
+  vault_data:

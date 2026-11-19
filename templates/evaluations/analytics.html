@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Phân tích Vận hành &amp; Báo cáo Tổng hợp — KMG{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-bar-chart-fill"></i> Phân tích Vận hành &amp; Báo cáo</span>
+    <h1 class="h3 fw-bold mb-1">Trung tâm Phân tích &amp; Báo cáo Hoạt động</h1>
+    <p class="text-body-secondary mb-0 small">Theo dõi tiến độ, tỉ lệ chuyên cần, hoàn thành nhiệm vụ &amp; tài chính toàn CLB hoặc theo từng Ban.</p>
+  </div>
+  {% if can_export %}
+  <a href="{% url 'evaluations:analytics_csv' %}" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>Xuất Báo cáo CSV an toàn (SEC-02)</a>
+  {% endif %}
+</div>
+
+{% if is_advisor %}
+<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>Chế độ Cố vấn (INV-04) — thông tin liên hệ cá nhân (PII) được tự động che (PA-07).</div>
+{% endif %}
+
+<!-- Bộ lọc Ban -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+  {% if can_club %}
+  <a href="{% url 'evaluations:analytics' %}" class="btn btn-sm {% if not selected_dept %}btn-primary{% else %}btn-outline-secondary{% endif %}">Toàn CLB</a>
+  {% endif %}
+  {% for d in accessible_departments %}
+  <a href="{% url 'evaluations:analytics' %}?dept={{ d.id }}" class="btn btn-sm {% if selected_dept and selected_dept.id == d.id %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ d.name }}</a>
+  {% endfor %}
+</div>
+
+{% if executive_data %}
+<!-- TOÀN CLB -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Thành viên ACTIVE</div><div class="h4 fw-bold text-success mb-0">{{ executive_data.club_kpis.active_members }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Kỹ năng đã xác minh</div><div class="h4 fw-bold text-primary mb-0">{{ executive_data.club_kpis.verified_skills }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Số dư quỹ CLB (đã ghi sổ)</div><div class="h4 fw-bold mb-0">{{ executive_data.club_kpis.net_fund_balance|vnd }}đ</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Hồ sơ kỷ luật mở</div><div class="h4 fw-bold text-warning mb-0">{{ executive_data.club_kpis.flagged_discipline }}</div></div></div>
+</div>
+
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-diagram-3 me-2"></i>Chỉ số Hoạt động So sánh giữa các Ban</h2>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Ban</th><th>Thành viên</th><th>Tiến độ công việc</th><th>Có mặt sự kiện</th><th>Tập luyện</th><th>Đề xuất duyệt</th><th>Đánh giá chốt</th></tr></thead>
+      <tbody>
+        {% for ds in executive_data.dept_summaries %}
+        <tr>
+          <td><strong>{{ ds.department.name }}</strong></td>
+          <td>{{ ds.active_members_count }}</td>
+          <td><span class="fw-semibold text-success">{{ ds.tasks.rate }}%</span> ({{ ds.tasks.approved }}/{{ ds.tasks.total }})</td>
+          <td>{{ ds.events.attendance_rate }}%</td>
+          <td>{{ ds.training.practices_attended }} buổi</td>
+          <td>{{ ds.proposals.approved }}/{{ ds.proposals.total }}</td>
+          <td>{{ ds.evaluations.confirmed }}/{{ ds.evaluations.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if dept_data %}
+<!-- CHI TIẾT 1 BAN -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Nhân sự Ban ACTIVE</div><div class="h4 fw-bold text-success mb-0">{{ dept_data.active_members_count }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Hoàn thành công việc</div><div class="h4 fw-bold text-primary mb-0">{{ dept_data.tasks.rate }}%</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Tỉ lệ tham gia sự kiện</div><div class="h4 fw-bold mb-0">{{ dept_data.events.attendance_rate }}%</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Phiếu đánh giá đã chốt</div><div class="h4 fw-bold text-info mb-0">{{ dept_data.evaluations.confirmed }}/{{ dept_data.evaluations.total }}</div></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3">Phân bổ Nhận định Kỳ này</h2>
+      {% for rating_code, count in dept_data.evaluations.distribution.items %}
+      <div class="d-flex justify-content-between small py-1 border-bottom">
+        <span>{{ rating_code }}</span>
+        <span class="badge text-bg-light border">{{ count }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3">Tài nguyên &amp; Đào tạo của Ban</h2>
+      <ul class="list-group list-group-flush small">
+        <li class="list-group-item d-flex justify-content-between px-0"><span>Khóa đào tạo tổ chức:</span> <strong>{{ dept_data.training.courses_count }}</strong></li>
+        <li class="list-group-item d-flex justify-content-between px-0"><span>Lượt hoàn thành đào tạo:</span> <strong>{{ dept_data.training.training_completions }}</strong></li>
+        <li class="list-group-item d-flex justify-content-between px-0"><span>Buổi tập Band đã thực hiện:</span> <strong>{{ dept_data.training.practices_count }}</strong></li>
+        <li class="list-group-item d-flex justify-content-between px-0"><span>Tài liệu mật lưu trong Kho:</span> <strong>{{ dept_data.documents_count }}</strong></li>
+        <li class="list-group-item d-flex justify-content-between px-0"><span>Danh hiệu vinh danh đã cấp:</span> <strong>{{ dept_data.recognitions_count }}</strong></li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

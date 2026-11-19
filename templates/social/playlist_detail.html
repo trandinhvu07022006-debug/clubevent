@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ playlist.title }} — Playlist Âm nhạc KMG{% endblock %}
+
+{% block content %}
+<div class="mb-3 d-flex justify-content-between align-items-center">
+  <a href="{% url 'social:music_hub' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Quay lại Kho Playlist &amp; Tặng nhạc
+  </a>
+  <span class="badge {% if playlist.visibility == 'PRIVATE' %}text-bg-dark{% else %}text-bg-success{% endif %}">
+    {{ playlist.get_visibility_display }}
+  </span>
+</div>
+
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h1 class="h3 fw-bold mb-1">{{ playlist.title }}</h1>
+      <p class="text-body-secondary small mb-0">
+        Chủ sở hữu: <strong>{{ playlist.owner.public_name }}</strong>
+        {% if playlist.description %} · {{ playlist.description }}{% endif %}
+      </p>
+    </div>
+  </div>
+
+  {% if is_owner %}
+  <div class="row g-3 border-top pt-3">
+    <div class="col-lg-7">
+      <h2 class="h6 fw-bold mb-2"><i class="bi bi-plus-circle me-1 text-primary"></i>Thêm bài hát (chỉ URL công khai hợp lệ — `SEC-05`)</h2>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_track">
+        <div class="col-md-5"><input type="text" name="title" class="form-control form-control-sm" placeholder="Tên bài hát *" required></div>
+        <div class="col-md-4"><input type="text" name="artist_name" class="form-control form-control-sm" placeholder="Nghệ sĩ"></div>
+        <div class="col-md-3"><input type="number" name="duration_seconds" class="form-control form-control-sm" placeholder="Giây (tuỳ chọn)" min="1"></div>
+        <div class="col-md-9"><input type="url" name="track_url" class="form-control form-control-sm" placeholder="https://www.youtube.com/watch?v=... hoặc https://open.spotify.com/track/..." required></div>
+        <div class="col-md-3"><button type="submit" class="btn btn-sm btn-primary w-100">Thêm bài</button></div>
+      </form>
+    </div>
+    <div class="col-lg-5">
+      <h2 class="h6 fw-bold mb-2"><i class="bi bi-sliders me-1"></i>Cài đặt quyền riêng tư Playlist</h2>
+      <form method="post" class="input-group input-group-sm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_playlist">
+        <select name="visibility" class="form-select">
+          {% for v_code, v_label in visibility_choices %}
+            <option value="{{ v_code }}" {% if playlist.visibility == v_code %}selected{% endif %}>{{ v_label }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-outline-primary">Cập nhật chế độ</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  {% for tr in tracks %}
+    <div class="col-md-6">
+      <div class="kmg-card p-3 h-100">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <strong>{{ tr.item.title }}</strong>
+            <div class="small text-body-secondary">
+              {{ tr.item.artist_name|default:"Nghệ sĩ tự do" }} · <span class="badge text-bg-light border">{{ tr.item.get_source_provider_display }}</span>
+            </div>
+          </div>
+          <div class="d-flex gap-1">
+            <a href="{{ tr.item.track_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">Mở link</a>
+            {% if is_owner %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="remove_track">
+              <input type="hidden" name="item_id" value="{{ tr.item.id }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% if tr.embed.can_embed %}
+          <div class="ratio ratio-16x9 rounded overflow-hidden border">
+            <iframe src="{{ tr.embed.embed_url }}" title="{{ tr.item.title }}" loading="lazy" allowfullscreen></iframe>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="kmg-card p-4 text-center text-body-secondary">Playlist hiện chưa có bài hát nào.</div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

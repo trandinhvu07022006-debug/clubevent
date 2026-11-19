@@ -1,21 +1,20 @@
 """View cho trợ lý tra cứu."""
 import json
-import time
 
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
+from core.security import is_rate_limited, record_rate_event
+
 from .chatbot import SUGGESTIONS, answer
 
-# Rate limit: tối đa 30 request/phút mỗi session.
-# Không cần thư viện ngoài, dùng session Django có sẵn.
+# Rate limit: tối đa 30 request/phút mỗi IP (SEC-06: lưu trong Cache, bỏ cookie vẫn bị chặn).
 RATE_LIMIT = 30
 RATE_WINDOW = 60  # giây
 
 # Giới hạn RIÊNG cho nhánh AI (tốn quota, chậm): tối đa 10 câu trả lời AI mỗi
-# 10 phút mỗi session. Hết lượt thì trợ lý vẫn trả lời bằng luật như bình
-# thường, chỉ là câu hỏi lạ nhận lời gợi ý thay vì câu trả lời AI.
+# 10 phút mỗi IP. Hết lượt thì trợ lý vẫn trả lời bằng luật như bình thường.
 AI_LIMIT = 10
 AI_WINDOW = 600   # giây
 
@@ -26,40 +25,33 @@ def chat_page(request):
 
 
 def _is_rate_limited(request):
-    """
-    Kiểm tra rate limit dựa trên session.
-
-    Lưu danh sách timestamp của các request gần đây. Nếu vượt quá RATE_LIMIT
-    trong RATE_WINDOW giây thì trả True.
-    """
-    now = time.time()
-    key = "chat_timestamps"
-    timestamps = request.session.get(key, [])
-    # Chỉ giữ lại các timestamp trong cửa sổ thời gian
-    timestamps = [t for t in timestamps if now - t < RATE_WINDOW]
-    if len(timestamps) >= RATE_LIMIT:
-        return True
-    timestamps.append(now)
-    request.session[key] = timestamps
-    return False
-
-
-def _ai_timestamps(request):
-    """Các lần dùng AI còn nằm trong cửa sổ thời gian của session này."""
-    now = time.time()
-    return [t for t in request.session.get("chat_ai_timestamps", [])
-            if now - t < AI_WINDOW]
+    """Kiểm tra rate limit dựa trên Cache + IP (SEC-06)."""
+    return is_rate_limited(
+        request,
+        scope="aiassist_chat",
+        limit=RATE_LIMIT,
+        window_seconds=RATE_WINDOW,
+    )
 
 
 def _ai_allowed(request):
-    return len(_ai_timestamps(request)) < AI_LIMIT
+    """Kiểm tra hạn mức nhánh LLM mà chưa ghi nhận tiêu thụ."""
+    return not is_rate_limited(
+        request,
+        scope="aiassist_llm_budget",
+        limit=AI_LIMIT,
+        window_seconds=AI_WINDOW,
+        record=False,
+    )
 
 
 def _record_ai_use(request):
     """Chỉ tính lượt khi AI THẬT SỰ trả lời - câu hỏi đi nhánh luật không tốn lượt."""
-    stamps = _ai_timestamps(request)
-    stamps.append(time.time())
-    request.session["chat_ai_timestamps"] = stamps
+    record_rate_event(
+        request,
+        scope="aiassist_llm_budget",
+        window_seconds=AI_WINDOW,
+    )
 
 
 @require_POST

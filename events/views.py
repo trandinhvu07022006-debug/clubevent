@@ -20,7 +20,8 @@ from feedback.services import event_statistics
 from registrations.models import WaitlistEntry, WaitlistStatus
 
 from .forms import EventForm, TicketTypeForm
-from .models import CATEGORY_ICONS, Event, EventCategory, EventStatus
+from .models import (CATEGORY_ICONS, Event, EventCategory, EventStatus,
+                     EventVisibility, can_view_internal_events)
 from .services import (cancel_event, cert_token, certificate_ticket, event_ics,
                        events_for_calendar, mask_mssv, upcoming_for_user,
                        verify_certificate)
@@ -39,6 +40,9 @@ def event_list(request):
         category = ""
 
     events = Event.objects.prefetch_related("ticket_types")
+    # INT-01: Khách / Guest chưa là thành viên CLB chỉ thấy sự kiện CÔNG KHAI
+    if not can_view_internal_events(request.user):
+        events = events.filter(visibility=EventVisibility.PUBLIC)
     # Người thường không thấy sự kiện đang chuẩn bị (bản nháp của BTC)
     if not (request.user.is_authenticated and request.user.is_staff_btc):
         events = events.exclude(status=EventStatus.DRAFT)
@@ -78,6 +82,9 @@ def event_detail(request, pk):
         Event.objects.prefetch_related("ticket_types"), pk=pk)
 
     user = request.user
+    # INT-01: Sự kiện nội bộ không lộ ra cho khách vãng lai / Guest
+    if event.visibility == EventVisibility.INTERNAL and not can_view_internal_events(user):
+        raise Http404
     # Bản nháp chỉ BTC xem được
     if event.status == EventStatus.DRAFT and not (
             user.is_authenticated and user.is_staff_btc):
@@ -261,8 +268,10 @@ def dashboard(request):
 
 
 def event_ics_download(request, pk):
-    """F7.4 - Tải file lịch .ics. Bản nháp chỉ BTC tải được."""
+    """F7.4 - Tải file lịch .ics. Bản nháp chỉ BTC tải được; sự kiện nội bộ ẩn với khách."""
     event = get_object_or_404(Event, pk=pk)
+    if event.visibility == EventVisibility.INTERNAL and not can_view_internal_events(request.user):
+        raise Http404
     if event.status == EventStatus.DRAFT and not (
             request.user.is_authenticated and request.user.is_staff_btc):
         raise Http404

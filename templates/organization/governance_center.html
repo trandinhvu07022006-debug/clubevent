@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+{% block title %}Trung tâm Quản trị Tổ chức &amp; Phân quyền — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-shield-lock-fill"></i> Quản trị Cấp CLB (D04 v1.1)</span>
+    <h1 class="h3 fw-bold mb-1">Trung tâm Quản trị Tổ chức &amp; Phân quyền KMG</h1>
+    <p class="text-body-secondary mb-0">
+      Mọi quyết định nhân sự, bổ nhiệm, miễn nhiệm và ủy quyền đều được kiểm tra ở Backend và ghi vào Sổ cái lịch sử bất biến.
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'organization:advisor_overview' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-eye me-1"></i>Cổng Giám sát
+    </a>
+    <a href="{% url 'organization:workspace_home' %}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-grid-1x2 me-1"></i>Không gian CLB
+    </a>
+  </div>
+</div>
+
+<!-- 0. Tổng hợp vận hành Phase 2 & Phát thông báo chính thức -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><a href="{% url 'operations:event_hub' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Sự kiện chờ phê duyệt</div><div class="h3 fw-bold text-info mb-0">{{ ops_summary.pending_events }}</div></div></a></div>
+  <div class="col-6 col-xl-3"><a href="{% url 'operations:discipline_center' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Hồ sơ cảnh báo đang mở</div><div class="h3 fw-bold text-warning mb-0">{{ ops_summary.flagged_cases }}</div></div></a></div>
+  <div class="col-6 col-xl-3"><a href="{% url 'operations:discipline_center' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Khiếu nại chờ thụ lý</div><div class="h3 fw-bold text-primary mb-0">{{ ops_summary.open_appeals }}</div></div></a></div>
+  <div class="col-6 col-xl-3"><a href="{% url 'operations:task_list' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Nhiệm vụ cần giao lại</div><div class="h3 fw-bold text-danger mb-0">{{ ops_summary.reassignment_tasks }}</div></div></a></div>
+</div>
+
+{% if announce_depts or can_publish_club_announcement %}
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-megaphone-fill me-2 text-primary"></i>Phát Thông báo Chính thức</h2>
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="broadcast_announcement">
+        <div class="col-md-8"><input type="text" name="title" class="form-control form-control-sm" maxlength="160" placeholder="Tiêu đề thông báo" required></div>
+        <div class="col-md-4">
+          <select name="department_id" class="form-select form-select-sm">
+            {% if can_publish_club_announcement %}<option value="">Toàn CLB</option>{% endif %}
+            {% for d in announce_depts %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12"><textarea name="content" rows="3" class="form-control form-control-sm" placeholder="Nội dung thông báo" required></textarea></div>
+        <div class="col-md-8 d-flex gap-3 small pt-1">
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="is_pinned" value="1" id="annPin"><label class="form-check-label" for="annPin">Ghim nổi bật</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="send_email" value="1" id="annMail"><label class="form-check-label" for="annMail">Gửi kèm email quan trọng</label></div>
+        </div>
+        <div class="col-md-4"><button class="btn btn-sm btn-primary w-100"><i class="bi bi-send me-1"></i>Phát thông báo</button></div>
+      </form>
+    </div>
+    <div class="col-lg-5">
+      <h3 class="h6 fw-bold text-body-secondary">Gần đây</h3>
+      {% for a in recent_announcements %}
+        <div class="small border-bottom py-1"><strong>{{ a.title }}</strong> · {{ a.department.name|default:"Toàn CLB" }} · {{ a.recipient_count }} người · {{ a.created_at|date:"d/m H:i" }}</div>
+      {% empty %}
+        <div class="small text-body-secondary">Chưa phát thông báo nào.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- 1. Xét duyệt thành viên mới & Điều chuyển Đa Ban -->
+{% if can_approve_member %}
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-3">
+    <i class="bi bi-person-check-fill me-2 text-success"></i>1. Nâng Role Khách &rarr; Thành viên CLB &amp; Phân Ban (Chủ nhiệm / Phó CN)
+  </h2>
+
+  <div class="p-3 rounded-3 bg-body-tertiary border mb-4">
+    <h3 class="h6 fw-bold mb-1">
+      <i class="bi bi-person-up me-1 text-primary"></i>Nâng cấp Tài khoản Khách mới đăng ký (`Guest`) &amp; Phân vào Ban ({{ guest_users|length }} tài khoản Khách)
+    </h3>
+    <p class="small text-body-secondary mb-3">
+      Tài khoản đăng ký qua Email / SĐT (kể cả đã xác minh OTP) mặc định là <strong>Khách</strong>.
+      Chỉ sau khi <strong>Chủ nhiệm</strong> hoặc <strong>Phó chủ nhiệm</strong> nâng role và tích chọn ít nhất 01 Ban dưới đây, các chức năng Thành viên mới được mở khoá.
+    </p>
+    {% if guest_users %}
+    <form method="post" class="row g-3 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="promote_guest_member">
+      <div class="col-lg-4">
+        <label class="form-label small fw-semibold">Chọn tài khoản Khách đã đăng ký <span class="text-danger">*</span></label>
+        <select name="user_id" class="form-select form-select-sm" required>
+          <option value="">-- Chọn tài khoản Khách --</option>
+          {% for g in guest_users %}
+            <option value="{{ g.id }}">
+              {{ g.public_name }} (@{{ g.username }} · {{ g.email|default:g.phone|default:"chưa rõ liên hệ" }}{% if g.is_otp_verified %} · Đã OTP{% else %} · Chưa OTP{% endif %})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-lg-5">
+        <label class="form-label small fw-semibold d-block">Phân vào Ban (chọn 1 hoặc nhiều Ban) <span class="text-danger">*</span></label>
+        <div class="d-flex flex-wrap gap-3 pt-1">
+          {% for d in departments %}
+            <div class="form-check mb-0 small">
+              <input class="form-check-input" type="checkbox" name="department_ids" value="{{ d.id }}" id="promoDept_{{ d.id }}">
+              <label class="form-check-label" for="promoDept_{{ d.id }}">{{ d.name }}</label>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="col-lg-3">
+        <input type="hidden" name="note" value="Ban Chủ nhiệm nâng role Thành viên & phân Ban">
+        <button type="submit" class="btn btn-sm btn-success w-100 fw-semibold">
+          <i class="bi bi-unlock-fill me-1"></i>Nâng lên Thành viên &amp; Phân Ban
+        </button>
+      </div>
+    </form>
+    {% else %}
+      <div class="small text-body-secondary">Hiện không có tài khoản Khách nào đang chờ nâng cấp.</div>
+    {% endif %}
+  </div>
+
+  <h3 class="h6 fw-bold text-body-secondary text-uppercase mb-2">
+    Đơn ứng tuyển tự nộp chờ phê duyệt ({{ pending_apps|length }})
+  </h3>
+  {% if pending_apps %}
+  <div class="table-responsive mb-4">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Ứng viên</th>
+          <th>Nguyện vọng</th>
+          <th>Trạng thái sơ duyệt</th>
+          <th>Phê duyệt &amp; Cấp mã KMG</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for app in pending_apps %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ app.user.public_name }}</div>
+            <div class="small text-body-secondary">@{{ app.user.username }}</div>
+          </td>
+          <td class="small">
+            <div><strong>NV1:</strong> {{ app.primary_department.name }}</div>
+            {% if app.secondary_department %}
+              <div class="text-body-secondary"><strong>NV2:</strong> {{ app.secondary_department.name }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if app.status == 'DEPT_SCREENED' %}
+              <span class="badge text-bg-info">Đã sơ duyệt Ban</span>
+              {% if app.screening_note %}<div class="small text-body-secondary mt-1">{{ app.screening_note }}</div>{% endif %}
+            {% else %}
+              <span class="badge text-bg-warning">Mới nộp đơn</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" class="d-flex flex-wrap align-items-center gap-2">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="approve_application">
+              <input type="hidden" name="application_id" value="{{ app.id }}">
+              {% if app.secondary_department %}
+              <div class="form-check form-check-inline mb-0 small">
+                <input class="form-check-input" type="checkbox" name="include_secondary" value="1" id="incSec{{ app.id }}">
+                <label class="form-check-label" for="incSec{{ app.id }}">Duyệt cả NV2</label>
+              </div>
+              {% endif %}
+              <input type="text" name="decision_note" class="form-control form-control-sm" style="max-width:200px;" value="Chào mừng gia nhập KMG!">
+              <button type="submit" class="btn btn-sm btn-success">Phê duyệt vào CLB</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-body-secondary small mb-4">Hiện không có đơn ứng tuyển nào đang chờ Ban Chủ nhiệm phê duyệt.</p>
+  {% endif %}
+
+  <div class="row g-3 border-top pt-3">
+    <div class="col-lg-6">
+      <h3 class="h6 fw-bold mb-2">Thêm thành viên vào Ban thứ 2 / Đa Ban (M-N)</h3>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_dept_member">
+        <div class="col-md-6">
+          <select name="user_id" class="form-select form-select-sm" required>
+            <option value="">-- Chọn thành viên CLB --</option>
+            {% for cm in club_members %}
+              {% if cm.status == 'ACTIVE' %}
+                <option value="{{ cm.user.id }}">{{ cm.member_code }} — {{ cm.user.public_name }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <select name="department_id" class="form-select form-select-sm" required>
+            <option value="">-- Chọn Ban bổ sung --</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-8">
+          <input type="text" name="note" class="form-control form-control-sm" value="Đăng ký sinh hoạt đa ban" placeholder="Ghi chú">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-sm btn-outline-primary w-100">Thêm vào Ban</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-lg-6">
+      <h3 class="h6 fw-bold mb-2">Điều chuyển Ban (Lưu vết lịch sử bất biến)</h3>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="transfer_dept">
+        <div class="col-md-4">
+          <select name="user_id" class="form-select form-select-sm" required>
+            <option value="">-- Thành viên --</option>
+            {% for cm in club_members %}
+              {% if cm.status == 'ACTIVE' %}
+                <option value="{{ cm.user.id }}">{{ cm.user.public_name }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <select name="from_department_id" class="form-select form-select-sm" required>
+            <option value="">-- Từ Ban --</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <select name="to_department_id" class="form-select form-select-sm" required>
+            <option value="">-- Sang Ban --</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-8">
+          <input type="text" name="note" class="form-control form-control-sm" placeholder="Lý do điều chuyển công tác">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-sm btn-outline-warning w-100">Chuyển Ban</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- 2. Bổ nhiệm & Miễn nhiệm Chức vụ (Đơn nhiệm & Thu hồi quyền tức thời) -->
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="h5 fw-bold mb-0">
+      <i class="bi bi-award-fill me-2 text-warning"></i>2. Quản lý Nhiệm kỳ Chức vụ (Bổ nhiệm &amp; Thu hồi tức thời)
+    </h2>
+    {% if can_appoint_head %}
+      <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-primary">
+        <i class="bi bi-hdd-rack-fill me-1"></i>Bảng Nâng cấp Lãnh đạo của Admin Server
+      </a>
+    {% endif %}
+  </div>
+
+  {% if not can_appoint_head %}
+  <div class="alert alert-secondary border-0 small py-2 px-3 mb-3">
+    <i class="bi bi-shield-lock-fill me-1 text-primary"></i>
+    <strong>Chính sách phân quyền 2 tầng:</strong> Các chức vụ lãnh đạo chủ chốt
+    (<strong>Chủ nhiệm, Phó chủ nhiệm, Trưởng ban, Cố vấn</strong>) chỉ do <strong>Admin Server</strong> nâng cấp sau khi đăng ký tài khoản.
+    Ban Chủ nhiệm &amp; Trưởng ban có quyền bổ nhiệm / miễn nhiệm <strong>Phó ban</strong> và <strong>Thành viên nòng cốt</strong>.
+  </div>
+  {% endif %}
+
+  {% if can_appoint_head or can_appoint_deputy_club %}
+  <form method="post" class="row g-2 align-items-end mb-4 pb-3 border-bottom">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="appoint_officer">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Thành viên / Cán bộ</label>
+      <select name="user_id" class="form-select form-select-sm" required>
+        <option value="">-- Chọn nhân sự --</option>
+        {% for cm in club_members %}
+          <option value="{{ cm.user.id }}">{{ cm.member_code }} — {{ cm.user.public_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Chức vụ</label>
+      <select name="position_code" class="form-select form-select-sm" required>
+        {% if can_appoint_head %}
+          {% for p in positions %}
+            <option value="{{ p.code }}">{{ p.name }}</option>
+          {% endfor %}
+        {% else %}
+          {% for p in deputy_positions %}
+            <option value="{{ p.code }}">{{ p.name }}</option>
+          {% endfor %}
+        {% endif %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Phạm vi Ban</label>
+      <select name="department_id" class="form-select form-select-sm">
+        {% if can_appoint_head %}
+          <option value="">Toàn CLB (Chủ nhiệm / Phó CN / Cố vấn)</option>
+        {% endif %}
+        {% for d in departments %}
+          <option value="{{ d.id }}">{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Nhiệm kỳ</label>
+      <input type="text" name="term_label" class="form-control form-control-sm" value="2026-2027">
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-sm btn-primary w-100">Bổ nhiệm</button>
+    </div>
+  </form>
+  {% endif %}
+
+  <h3 class="h6 fw-bold text-uppercase text-body-secondary mb-2">Danh sách Chức vụ Đương nhiệm ({{ active_appointments|length }})</h3>
+  <div class="table-responsive mb-3">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Cán bộ</th>
+          <th>Chức vụ</th>
+          <th>Phạm vi</th>
+          <th>Nhiệm kỳ</th>
+          <th>Thao tác nhiệm kỳ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for appt in active_appointments %}
+        <tr>
+          <td class="fw-semibold">{{ appt.user.public_name }} <span class="text-body-secondary fw-normal small">(@{{ appt.user.username }})</span></td>
+          <td><span class="badge kmg-badge-gold">{{ appt.position.name }}</span></td>
+          <td class="small">{{ appt.department.name|default:"Toàn CLB" }}</td>
+          <td class="small">{{ appt.term_label }}</td>
+          <td>
+            {% if can_appoint_head or can_appoint_deputy_club and appt.position.code == 'DEPUTY_HEAD' %}
+            <form method="post" class="d-flex gap-2">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="end_appointment">
+              <input type="hidden" name="appointment_id" value="{{ appt.id }}">
+              <input type="text" name="reason" class="form-control form-control-sm" style="max-width:190px;" value="Kết thúc nhiệm kỳ">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Kết thúc nhiệm kỳ</button>
+            </form>
+            {% else %}
+            <span class="small text-body-secondary">Đương nhiệm (Admin Server quản lý)</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-body-secondary small py-3">Chưa có quyết định bổ nhiệm nào.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if historical_appointments %}
+  <details class="small">
+    <summary class="fw-semibold text-body-secondary" style="cursor:pointer;">
+      Xem lưu trữ lịch sử các nhiệm kỳ đã kết thúc ({{ historical_appointments|length }} bản ghi gần nhất)
+    </summary>
+    <div class="table-responsive mt-2">
+      <table class="table table-sm mb-0">
+        <thead>
+          <tr>
+            <th>Nhân sự</th>
+            <th>Chức vụ cũ</th>
+            <th>Phạm vi</th>
+            <th>Kết thúc lúc</th>
+            <th>Lý do</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in historical_appointments %}
+          <tr>
+            <td>{{ h.user.public_name }}</td>
+            <td>{{ h.position.name }}</td>
+            <td>{{ h.department.name|default:"Toàn CLB" }}</td>
+            <td>{{ h.ended_at|date:"d/m/Y H:i" }}</td>
+            <td>{{ h.ended_reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+</div>
+
+<!-- 3. Phân công Mảng Phụ trách Phó CN & Gói Ủy quyền Phó Ban (Chỉ thị 3.1) -->
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-3">
+    <i class="bi bi-key-fill me-2 text-primary"></i>3. Ủy quyền Mảng phụ trách (Phó CN) &amp; Gói năng lực (Phó ban)
+  </h2>
+
+  {% if can_delegate_club and delegable_appointments %}
+  <form method="post" class="row g-2 align-items-end mb-4 pb-3 border-bottom">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="grant_portfolio">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Chọn Phó chủ nhiệm / Phó ban đương nhiệm</label>
+      <select name="appointment_id" class="form-select form-select-sm" required>
+        {% for a in delegable_appointments %}
+          <option value="{{ a.id }}">
+            {{ a.user.public_name }} — {{ a.position.name }} ({{ a.department.name|default:"Toàn CLB" }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Mảng phụ trách / Gói năng lực</label>
+      <select name="bundle_code" class="form-select form-select-sm" required>
+        {% for code, label in bundle_choices %}
+          <option value="{{ code }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Văn bản / Lý do</label>
+      <input type="text" name="reason" class="form-control form-control-sm" value="Phân công nhiệm kỳ">
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-sm btn-primary w-100">Cấp ủy quyền</button>
+    </div>
+  </form>
+  {% endif %}
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Người nhận</th>
+          <th>Gói quyền / Mảng</th>
+          <th>Phạm vi</th>
+          <th>Người cấp</th>
+          <th>Thu hồi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in active_grants %}
+        <tr>
+          <td class="fw-semibold">{{ g.grantee.public_name }}</td>
+          <td><span class="badge text-bg-info">{{ g.get_bundle_code_display }}</span></td>
+          <td class="small">{{ g.department.name|default:"Toàn CLB" }}</td>
+          <td class="small text-body-secondary">{{ g.granted_by.public_name|default:"Hệ thống" }}</td>
+          <td>
+            {% if can_delegate_club %}
+            <form method="post" class="d-flex gap-2">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="revoke_grant">
+              <input type="hidden" name="grant_id" value="{{ g.id }}">
+              <input type="hidden" name="reason" value="Thu hồi phân công theo quyết định BCN">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Thu hồi</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-body-secondary small py-3">Chưa có gói ủy quyền nào đang mở.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 4. Danh bạ Thành viên CLB & Tạm khoá / Khôi phục -->
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-3">
+    <i class="bi bi-people-fill me-2"></i>4. Hồ sơ Thành viên CLB &amp; Kiểm soát Trạng thái ({{ club_members|length }})
+  </h2>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Mã KMG</th>
+          <th>Thành viên</th>
+          <th>Các Ban tham gia</th>
+          <th>Trạng thái</th>
+          <th>Sổ cái &amp; Quản trị</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cm in club_members %}
+        <tr>
+          <td><span class="badge text-bg-light border">{{ cm.member_code }}</span></td>
+          <td>
+            <div class="fw-semibold">{{ cm.user.public_name }}</div>
+            <div class="small text-body-secondary">@{{ cm.user.username }}</div>
+          </td>
+          <td>
+            {% for dm in cm.user.department_memberships.all %}
+              {% if dm.status == 'ACTIVE' %}
+                <span class="badge text-bg-light border me-1">{{ dm.department.name }}</span>
+              {% endif %}
+            {% endfor %}
+          </td>
+          <td>
+            {% if cm.status == 'ACTIVE' %}
+              <span class="badge text-bg-success">{{ cm.get_status_display }}</span>
+            {% elif cm.status == 'SUSPENDED' %}
+              <span class="badge text-bg-warning">{{ cm.get_status_display }}</span>
+            {% else %}
+              <span class="badge text-bg-secondary">{{ cm.get_status_display }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <a href="{% url 'organization:member_lifecycle' cm.user.id %}" class="btn btn-sm btn-outline-secondary">
+                Lịch sử
+              </a>
+              {% if can_suspend_member and cm.user.id != user.id %}
+                {% if cm.status == 'ACTIVE' %}
+                <form method="post" class="d-inline-flex gap-1">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="suspend_member">
+                  <input type="hidden" name="user_id" value="{{ cm.user.id }}">
+                  <input type="text" name="reason" class="form-control form-control-sm" style="max-width:150px;" placeholder="Lý do tạm khoá" required>
+                  <button type="submit" class="btn btn-sm btn-outline-warning">Tạm khoá</button>
+                </form>
+                {% elif cm.status == 'SUSPENDED' %}
+                <form method="post" class="d-inline-flex gap-1">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="restore_member">
+                  <input type="hidden" name="user_id" value="{{ cm.user.id }}">
+                  <input type="hidden" name="reason" value="Khôi phục tư cách thành viên">
+                  <button type="submit" class="btn btn-sm btn-success">Khôi phục</button>
+                </form>
+                {% endif %}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 5. Phiên bản Chính sách Vận hành đang áp dụng -->
+<div class="kmg-card p-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-file-earmark-ruled me-2"></i>5. Chính sách Vận hành CLB Hiện hành (Versioned Policies)</h2>
+  <div class="row g-3">
+    {% for pol in policies %}
+    <div class="col-md-6">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <strong>{{ pol.title }}</strong>
+          <span class="badge kmg-badge-gold">v{{ pol.version_number }}</span>
+        </div>
+        <div class="small text-body-secondary mb-2">Mã: <code>{{ pol.policy_key }}</code></div>
+        <pre class="small bg-body-tertiary p-2 rounded mb-0" style="white-space:pre-wrap;">{{ pol.config }}</pre>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

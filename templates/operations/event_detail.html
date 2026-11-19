@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ club_event.event.name }} — Sự kiện CLB{% endblock %}
+
+{% block content %}
+<div class="mb-3"><a href="{% url 'operations:event_hub' %}" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i>Quay lại Trung tâm Sự kiện</a></div>
+
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between gap-3">
+    <div>
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="badge text-bg-light border">{{ club_event.get_event_scope_display }}</span>
+        <span class="badge text-bg-primary">{{ club_event.get_approval_status_display }}</span>
+        <span class="badge text-bg-light border">Hiển thị: {{ club_event.event.get_visibility_display }}</span>
+        {% if club_event.policy_version %}<span class="badge kmg-badge-gold">Chính sách RSVP v{{ club_event.policy_version.version_number }}</span>{% endif %}
+      </div>
+      <h1 class="h4 fw-bold mb-1">{{ club_event.event.name }}</h1>
+      <div class="small text-body-secondary">
+        <i class="bi bi-geo-alt"></i> {{ club_event.event.location }} · <i class="bi bi-clock"></i> {{ club_event.event.starts_at|date:"H:i d/m/Y" }}
+        {% if club_event.rsvp_freeze_at %} · <i class="bi bi-lock"></i> Chốt RSVP: {{ club_event.rsvp_freeze_at|date:"H:i d/m/Y" }}{% endif %}
+      </div>
+      {% if club_event.proposal_note %}<p class="small mt-2 mb-0" style="white-space:pre-line;">{{ club_event.proposal_note }}</p>{% endif %}
+      {% if club_event.review_note %}<p class="small mt-2 mb-0 text-body-secondary"><strong>Ý kiến phê duyệt:</strong> {{ club_event.review_note }}</p>{% endif %}
+    </div>
+    <div class="small">
+      <h2 class="h6 fw-bold">Phối hợp liên Ban</h2>
+      {% for r in dept_roles %}<div><span class="badge text-bg-light border">{{ r.get_role_type_display }}</span> {{ r.department.name }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mt-3">
+    {% if can_manage_lead and club_event.approval_status == 'DRAFT' or can_manage_lead and club_event.approval_status == 'REJECTED' %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="submit_proposal"><button class="btn btn-sm btn-outline-primary">Gửi duyệt</button></form>
+    {% endif %}
+    {% if can_approve_this and club_event.approval_status == 'APPROVED' %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="publish_event"><button class="btn btn-sm btn-success">Ban hành &amp; mở RSVP</button></form>
+    {% endif %}
+    {% if can_manage_rsvp and club_event.approval_status == 'PUBLISHED' and not club_event.rsvp_frozen_at %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="freeze_rsvp"><button class="btn btn-sm btn-outline-warning">Khoá sổ RSVP ngay</button></form>
+    {% endif %}
+  </div>
+
+  {% if can_approve_this and club_event.approval_status == 'SUBMITTED' or can_approve_this and club_event.approval_status == 'UNDER_REVIEW' %}
+  <form method="post" class="row g-2 mt-3 border-top pt-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="review_event">
+    <div class="col-md-6"><input type="text" name="review_note" class="form-control form-control-sm" placeholder="Ý kiến phê duyệt"></div>
+    <div class="col-md-2 form-check small pt-1 ms-2"><input class="form-check-input" type="checkbox" name="auto_publish" value="1" id="autoPub"><label class="form-check-label" for="autoPub">Ban hành luôn</label></div>
+    <div class="col-md-3 d-flex gap-2">
+      <button name="decision" value="approve" class="btn btn-sm btn-success">Phê duyệt</button>
+      <button name="decision" value="reject" class="btn btn-sm btn-outline-danger">Từ chối</button>
+    </div>
+  </form>
+  {% elif club_event.approval_status == 'SUBMITTED' and club_event.event_scope != 'DEPT_INTERNAL' %}
+  <div class="small text-body-secondary mt-3"><i class="bi bi-info-circle"></i> Sự kiện cấp CLB / Show công khai chỉ do Chủ nhiệm hoặc Phó CN mảng Sự kiện phê duyệt; Trưởng ban chỉ đề xuất.</div>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    {% if my_attendance or is_active_member and club_event.approval_status == 'PUBLISHED' %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-2"><i class="bi bi-calendar2-check me-2"></i>Phản hồi của tôi</h2>
+      {% if my_attendance %}<p class="small mb-2">Trạng thái: <strong>{{ my_attendance.get_rsvp_status_display }}</strong>{% if my_attendance.decline_reason %}<br><span class="text-body-secondary">Lý do: {{ my_attendance.decline_reason }}</span>{% endif %}</p>{% endif %}
+      {% if club_event.is_rsvp_frozen %}
+        <div class="alert alert-secondary small mb-0">Đã chốt danh sách RSVP, không thể tự thay đổi.</div>
+      {% elif is_active_member and club_event.approval_status == 'PUBLISHED' %}
+      <form method="post" class="vstack gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="respond_rsvp">
+        <button name="rsvp_choice" value="attending" class="btn btn-sm btn-success"><i class="bi bi-check2-circle me-1"></i>Tôi sẽ tham gia</button>
+        <input type="text" name="decline_reason" class="form-control form-control-sm" placeholder="Lý do xin vắng (bắt buộc nếu vắng)">
+        <button name="rsvp_choice" value="decline" class="btn btn-sm btn-outline-danger">Xin vắng có lý do</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3">Tổng hợp RSVP</h2>
+      <ul class="list-unstyled small mb-0">
+        <li>Tổng: <strong>{{ rsvp_summary.total }}</strong></li>
+        <li>Tham gia / Mặc định tham gia: <strong class="text-success">{{ rsvp_summary.confirmed }}</strong></li>
+        <li>Chờ phản hồi: <strong>{{ rsvp_summary.pending }}</strong></li>
+        <li>Xin vắng chờ duyệt: <strong class="text-warning-emphasis">{{ rsvp_summary.declined_pending }}</strong></li>
+        <li>Miễn trừ (có phép / đang tạm khoá): <strong>{{ rsvp_summary.exempted }}</strong></li>
+      </ul>
+      <div class="small text-body-secondary mt-2">Điểm danh nội bộ tách biệt hoàn toàn với quota vé khán giả (CM-04).</div>
+    </div>
+
+    {% if event_tasks %}
+    <div class="kmg-card p-4">
+      <h2 class="h6 fw-bold mb-3">Nhiệm vụ của sự kiện</h2>
+      {% for t in event_tasks %}<div class="small mb-1"><a href="{% url 'operations:task_detail' t.pk %}">{{ t.title }}</a> · {{ t.get_workflow_status_display }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-8">
+    {% if can_manage_rsvp %}
+    <div class="kmg-card p-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-person-check me-2"></i>Danh sách RSVP &amp; Điểm danh ({{ attendances|length }})</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Thành viên</th><th>RSVP</th><th>Xét lý do vắng</th><th>Điểm danh</th></tr></thead>
+          <tbody>
+            {% for a in attendances %}
+            <tr>
+              <td class="small fw-semibold">{{ a.user.public_name }}</td>
+              <td class="small">{{ a.get_rsvp_status_display }}{% if a.decline_reason %}<div class="text-body-secondary">{{ a.decline_reason }}</div>{% endif %}</td>
+              <td>
+                {% if a.rsvp_status == 'DECLINED_PENDING' and a.user_id != user.id %}
+                <form method="post" class="d-flex gap-1">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="review_exemption">
+                  <input type="hidden" name="attendance_id" value="{{ a.id }}">
+                  <button name="decision" value="exempt" class="btn btn-sm btn-outline-success">Có phép</button>
+                  <button name="decision" value="unexcused" class="btn btn-sm btn-outline-danger">Không phép</button>
+                </form>
+                {% else %}<span class="small text-body-secondary">—</span>{% endif %}
+              </td>
+              <td>
+                {% if a.rsvp_status == 'EXEMPT_SUSPENDED' %}
+                  <span class="small text-body-secondary">Miễn trừ (CF-02)</span>
+                {% else %}
+                <form method="post" class="d-flex gap-1">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="checkin_member">
+                  <input type="hidden" name="attendance_id" value="{{ a.id }}">
+                  <select name="checkin_status" class="form-select form-select-sm" style="max-width:150px;">
+                    {% for code, label in checkin_choices %}<option value="{{ code }}" {% if code == a.checkin_status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                  </select>
+                  <button class="btn btn-sm btn-outline-primary">Lưu</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center small text-body-secondary py-3">Danh sách RSVP sẽ được khởi tạo khi sự kiện được ban hành.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

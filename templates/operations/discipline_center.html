@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Chuyên cần &amp; Khiếu nại — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <span class="kmg-kicker mb-2"><i class="bi bi-shield-check"></i> WF23–WF24 · R04</span>
+  <h1 class="h3 fw-bold mb-1">Trung tâm Chuyên cần &amp; Khiếu nại</h1>
+  <p class="text-body-secondary small mb-0">
+    Vượt ngưỡng vi phạm (&gt; 3 lần/kỳ) chỉ tạo hồ sơ cảnh báo để Ban Chủ nhiệm xem xét — hệ thống <strong>không bao giờ tự khoá</strong> thành viên.
+    Người ra quyết định ban đầu không được tự phán quyết đơn khiếu nại về quyết định đó.
+  </p>
+</div>
+
+{% if can_supervise and not can_adjudicate %}
+<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-eye-fill me-1"></i>Chế độ Giám sát chỉ đọc (INV-04): bạn xem được toàn bộ hồ sơ nhưng không có thao tác xử lý.</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-person-exclamation me-2"></i>Hồ sơ cảnh báo của tôi ({{ my_cases|length }})</h2>
+      {% for c in my_cases %}
+      <div class="border rounded-3 p-3 mb-2 small">
+        <div class="d-flex justify-content-between mb-1"><strong>#{{ c.id }} · {{ c.get_trigger_type_display }}</strong><span class="badge text-bg-warning">{{ c.get_status_display }}</span></div>
+        <div>{{ c.summary }}</div>
+        {% if c.resolution_note %}<div class="text-body-secondary mt-1">Kết luận: {{ c.resolution_note }}</div>{% endif %}
+        {% if c.status == 'FLAGGED' or c.status == 'UNDER_REVIEW' or c.status == 'WARNING_ISSUED' %}
+        <form method="post" class="mt-2 vstack gap-1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="submit_appeal">
+          <input type="hidden" name="discipline_case_id" value="{{ c.id }}">
+          <input type="text" name="reason" class="form-control form-control-sm" placeholder="Giải trình / lý do khách quan..." required>
+          <input type="url" name="evidence_url" class="form-control form-control-sm" placeholder="Link minh chứng (tuỳ chọn)">
+          <button class="btn btn-sm btn-outline-primary">Gửi giải trình</button>
+        </form>
+        {% endif %}
+      </div>
+      {% empty %}
+      <p class="small text-body-secondary mb-0">Bạn không có hồ sơ cảnh báo nào. Cảm ơn bạn đã tham gia đầy đủ!</p>
+      {% endfor %}
+    </div>
+
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-envelope-paper me-2"></i>Đơn khiếu nại của tôi ({{ my_appeals|length }})</h2>
+      {% for ap in my_appeals %}
+      <div class="border rounded-3 p-2 mb-2 small">
+        <div class="d-flex justify-content-between"><strong>#{{ ap.id }} · {{ ap.get_target_type_display }}</strong><span class="badge text-bg-light border">{{ ap.get_status_display }}</span></div>
+        <div>{{ ap.reason }}</div>
+        {% if ap.decision_note %}<div class="text-body-secondary mt-1">Kết luận ({{ ap.decided_by.public_name }}): {{ ap.decision_note }}</div>{% endif %}
+      </div>
+      {% empty %}
+      <p class="small text-body-secondary mb-0">Chưa có đơn khiếu nại.</p>
+      {% endfor %}
+    </div>
+
+    {% if proposable_depts %}
+    <div class="kmg-card p-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-file-earmark-plus me-2"></i>Đề xuất xem xét thành viên</h2>
+      <form method="post" class="vstack gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="propose_case">
+        <select name="target_user_id" class="form-select form-select-sm" required>
+          <option value="">-- Chọn thành viên --</option>
+          {% for cm in eligible_targets %}<option value="{{ cm.user.id }}">{{ cm.member_code }} — {{ cm.user.public_name }}</option>{% endfor %}
+        </select>
+        <select name="department_id" class="form-select form-select-sm">
+          {% if can_adjudicate %}<option value="">Cấp CLB</option>{% endif %}
+          {% for d in proposable_depts %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+        </select>
+        <input type="text" name="summary" class="form-control form-control-sm" maxlength="255" placeholder="Tóm tắt nội dung đề xuất" required>
+        <textarea name="evidence_note" rows="2" class="form-control form-control-sm" placeholder="Căn cứ / minh chứng"></textarea>
+        <button class="btn btn-sm btn-outline-warning">Lập hồ sơ đề xuất</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-7">
+    {% if managed_cases %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-folder2-open me-2"></i>Hồ sơ cảnh báo trong phạm vi ({{ managed_cases|length }})</h2>
+      {% for c in managed_cases %}
+      <div class="border rounded-3 p-3 mb-2 small">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
+          <strong>#{{ c.id }} · {{ c.target_user.public_name }}</strong>
+          <span><span class="badge text-bg-light border">{{ c.get_trigger_type_display }}</span> <span class="badge text-bg-warning">{{ c.get_status_display }}</span></span>
+        </div>
+        <div>{{ c.summary }}</div>
+        <div class="text-body-secondary">Vi phạm: {{ c.violation_count }} / ngưỡng &gt; {{ c.threshold_applied }}{% if c.policy_version %} · Chính sách v{{ c.policy_version.version_number }}{% endif %}{% if c.created_by %} · Lập bởi {{ c.created_by.public_name }}{% else %} · Hệ thống gắn cờ{% endif %}</div>
+        {% if c.resolution_note %}<div class="mt-1">Kết luận: {{ c.resolution_note }}</div>{% endif %}
+        {% if can_adjudicate and c.target_user_id != user.id and c.status != 'EXEMPTED_DISMISSED' and c.status != 'SUSPENSION_APPLIED' %}
+        <form method="post" class="row g-1 mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="resolve_case">
+          <input type="hidden" name="case_id" value="{{ c.id }}">
+          <div class="col-md-5"><select name="new_status" class="form-select form-select-sm">{% for code, label in resolution_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+          <div class="col-md-5"><input type="text" name="resolution_note" class="form-control form-control-sm" placeholder="Kết luận minh bạch (bắt buộc)" required></div>
+          <div class="col-md-2"><button class="btn btn-sm btn-primary w-100">Lưu</button></div>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if managed_appeals %}
+    <div class="kmg-card p-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-bank me-2"></i>Đơn khiếu nại cần thụ lý ({{ managed_appeals|length }})</h2>
+      {% for ap in managed_appeals %}
+      <div class="border rounded-3 p-3 mb-2 small">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
+          <strong>#{{ ap.id }} · {{ ap.appellant.public_name }}</strong>
+          <span><span class="badge text-bg-light border">{{ ap.get_target_type_display }}</span> <span class="badge text-bg-info">{{ ap.get_status_display }}</span></span>
+        </div>
+        <div>{{ ap.reason }}</div>
+        {% if ap.evidence_url %}<a href="{{ ap.evidence_url }}" target="_blank" rel="noopener noreferrer">Minh chứng</a>{% endif %}
+        <div class="text-body-secondary">Quyết định ban đầu bởi: {{ ap.original_actor.public_name|default:"Hệ thống" }}</div>
+        {% if ap.decision_note %}<div class="mt-1">Kết luận ({{ ap.decided_by.public_name }}): {{ ap.decision_note }}</div>{% endif %}
+        {% if can_adjudicate and ap.status != 'UPHELD' and ap.status != 'OVERTURNED' %}
+          {% if ap.original_actor_id == user.id or ap.appellant_id == user.id %}
+            <div class="text-warning-emphasis mt-2"><i class="bi bi-shield-lock"></i> Bạn là người ra quyết định ban đầu / người gửi đơn nên không được phán quyết đơn này.</div>
+          {% else %}
+          <form method="post" class="row g-1 mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="adjudicate_appeal">
+            <input type="hidden" name="appeal_id" value="{{ ap.id }}">
+            <div class="col-md-5"><select name="decision_status" class="form-select form-select-sm">{% for code, label in appeal_decision_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+            <div class="col-md-5"><input type="text" name="decision_note" class="form-control form-control-sm" placeholder="Căn cứ giải quyết (bắt buộc)" required></div>
+            <div class="col-md-2"><button class="btn btn-sm btn-primary w-100">Phán quyết</button></div>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

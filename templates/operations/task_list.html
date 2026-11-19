@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Công việc CLB — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-kanban-fill"></i> Core Management · WF13–WF15</span>
+    <h1 class="h3 fw-bold mb-1">Không gian Công việc CLB</h1>
+    <p class="text-body-secondary mb-0 small">Giao việc theo Ban, gợi ý nhân sự theo kỹ năng (không cấp quyền — INV-01), nộp kết quả bảo mật và nghiệm thu bất biến.</p>
+  </div>
+  <form method="get" class="d-flex flex-wrap gap-2">
+    <select name="ban" class="form-select form-select-sm" style="max-width:220px;">
+      <option value="">Tất cả các Ban</option>
+      {% for d in assignable_depts %}
+        <option value="{{ d.slug }}" {% if d.slug == selected_dept_slug %}selected{% endif %}>{{ d.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="status" class="form-select form-select-sm" style="max-width:200px;">
+      <option value="">Mọi trạng thái</option>
+      {% for code, label in status_choices %}
+        <option value="{{ code }}" {% if code == filter_status %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-funnel"></i> Lọc</button>
+  </form>
+</div>
+
+{% if reassignment_tasks %}
+<div class="alert alert-warning border-0 shadow-sm small mb-4">
+  <i class="bi bi-exclamation-triangle-fill me-1"></i>
+  <strong>{{ reassignment_tasks|length }} nhiệm vụ cần phân công lại (BE-02)</strong> do người thực hiện chuyển Ban, bị tạm khoá hoặc rời CLB:
+  {% for t in reassignment_tasks %}
+    <a href="{% url 'operations:task_detail' t.pk %}" class="badge text-bg-warning text-decoration-none ms-1">{{ t.title }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="{% if assignable_depts %}col-xl-7{% else %}col-12{% endif %}">
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-person-workspace me-2"></i>Nhiệm vụ của tôi ({{ my_tasks|length }})</h2>
+      {% include "operations/_task_table.html" with tasks=my_tasks empty_text="Bạn chưa được giao nhiệm vụ nào." %}
+    </div>
+
+    {% if managed_tasks %}
+    <div class="kmg-card p-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-clipboard-data me-2"></i>Nhiệm vụ trong phạm vi quản lý ({{ managed_tasks|length }})</h2>
+      {% include "operations/_task_table.html" with tasks=managed_tasks empty_text="Không có nhiệm vụ." show_assignees=True %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if assignable_depts %}
+  <div class="col-xl-5">
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-send-plus me-2 text-primary"></i>Giao nhiệm vụ mới</h2>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_task">
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Tên nhiệm vụ <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="form-control form-control-sm" maxlength="200" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Mô tả &amp; yêu cầu đầu ra</label>
+          <textarea name="description" rows="2" class="form-control form-control-sm"></textarea>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Ban chủ quản <span class="text-danger">*</span></label>
+          <select name="department_id" class="form-select form-select-sm" required>
+            {% for d in assignable_depts %}
+              <option value="{{ d.id }}" {% if preview_dept and d.id == preview_dept.id %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Hạn hoàn thành <span class="text-danger">*</span></label>
+          <input type="datetime-local" name="deadline" value="{{ default_deadline }}" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Độ ưu tiên</label>
+          <select name="priority" class="form-select form-select-sm">
+            {% for code, label in priority_choices %}
+              <option value="{{ code }}" {% if code == 'MEDIUM' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Chế độ nộp nhóm</label>
+          <select name="submission_mode" class="form-select form-select-sm">
+            {% for code, label in submission_modes %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Kỹ năng gợi ý</label>
+          <select name="recommended_skill_id" class="form-select form-select-sm">
+            <option value="">— Không yêu cầu —</option>
+            {% for s in skills %}
+              <option value="{{ s.id }}" {% if preview_skill and s.id == preview_skill.id %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Gắn với sự kiện CLB</label>
+          <select name="club_event_id" class="form-select form-select-sm">
+            <option value="">— Không gắn —</option>
+            {% for ce in active_club_events %}
+              <option value="{{ ce.id }}">{{ ce.event.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Người thực hiện <span class="text-danger">*</span> <span class="text-body-secondary fw-normal">(người đầu tiên là Chủ trì; giữ Ctrl để chọn nhiều)</span></label>
+          <select name="assignee_ids" class="form-select form-select-sm" multiple size="6" required>
+            {% for dm in all_assignable_members %}
+              <option value="{{ dm.user.id }}">{{ dm.department.name }} · {{ dm.user.public_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 pt-1">
+          <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-send me-1"></i>Giao nhiệm vụ</button>
+        </div>
+      </form>
+    </div>
+
+    {% if preview_dept %}
+    <div class="kmg-card p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <h2 class="h6 fw-bold mb-0"><i class="bi bi-stars me-1 text-warning"></i>Gợi ý nhân sự — {{ preview_dept.name }}</h2>
+        <form method="get" class="d-flex gap-1">
+          <input type="hidden" name="ban" value="{{ preview_dept.slug }}">
+          <select name="skill" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Theo tải công việc</option>
+            {% for s in skills %}
+              <option value="{{ s.id }}" {% if preview_skill and s.id == preview_skill.id %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+      <p class="small text-body-secondary mb-2">Xếp hạng: kỹ năng đã xác minh → ít việc quá hạn → ít việc đang mở. Chỉ là gợi ý, không cấp quyền truy cập.</p>
+      <ul class="list-group list-group-flush small">
+        {% for c in recommended_candidates|slice:":8" %}
+          <li class="list-group-item px-0 d-flex justify-content-between align-items-center bg-transparent">
+            <span>
+              <strong>{{ c.user.public_name }}</strong>
+              {% if c.has_verified_skill %}<span class="badge text-bg-success ms-1"><i class="bi bi-patch-check-fill"></i> {{ c.proficiency_label }}</span>{% endif %}
+            </span>
+            <span class="text-body-secondary">{{ c.active_task_count }} việc mở{% if c.overdue_task_count %} · <span class="text-danger">{{ c.overdue_task_count }} quá hạn</span>{% endif %}</span>
+          </li>
+        {% empty %}
+          <li class="list-group-item px-0 text-body-secondary bg-transparent">Ban chưa có thành viên ACTIVE.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

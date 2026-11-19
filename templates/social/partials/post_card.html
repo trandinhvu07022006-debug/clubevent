@@ -1,0 +1,278 @@
+<article class="kmg-card p-3 p-md-4 mb-3">
+  <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+    <div class="d-flex align-items-center gap-2">
+      <div class="kmg-dept-icon" style="width:2.5rem;height:2.5rem;font-size:1.1rem;">
+        {% if item.author_avatar %}
+          <img src="{{ item.author_avatar }}" alt="{{ item.author_name }}" class="rounded-circle w-100 h-100 object-fit-cover">
+        {% else %}
+          <i class="bi bi-person-fill"></i>
+        {% endif %}
+      </div>
+      <div>
+        <div class="fw-bold">{{ item.author_name }} <span class="text-body-secondary fw-normal small">@{{ item.author_username }}</span></div>
+        <div class="small text-body-secondary">
+          {{ item.created_at|date:"H:i d/m/Y" }} ·
+          {% if item.visibility == 'PERSONAL' %}
+            <span class="badge text-bg-dark"><i class="bi bi-lock-fill me-1"></i>{{ item.visibility_label }}</span>
+          {% elif item.visibility == 'DEPARTMENT' %}
+            <span class="badge text-bg-info"><i class="bi bi-diagram-3 me-1"></i>{{ item.department.name|default:item.visibility_label }}</span>
+          {% elif item.visibility == 'CUSTOM_GROUP' %}
+            <span class="badge text-bg-secondary"><i class="bi bi-people me-1"></i>{{ item.visibility_label }}</span>
+          {% else %}
+            <span class="badge kmg-badge-gold"><i class="bi bi-globe2 me-1"></i>{{ item.visibility_label }}</span>
+          {% endif %}
+          {% if item.moderation_status == 'HIDDEN' %}
+            <span class="badge text-bg-danger ms-1"><i class="bi bi-eye-slash me-1"></i>Đã ẩn</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-1 align-items-center">
+      <a href="{% url 'social:post_detail' item.id %}" class="btn btn-sm btn-outline-secondary" title="Mở trang chi tiết">
+        <i class="bi bi-box-arrow-up-right"></i>
+      </a>
+      {% if item.can_delete %}
+      <form method="post" action="{{ form_action|default:'' }}" class="d-inline" onsubmit="return confirm('Xoá bài viết #{{ item.id }}?');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_post">
+        <input type="hidden" name="post_id" value="{{ item.id }}">
+        <button type="submit" class="btn btn-sm btn-outline-danger" title="Xoá bài viết"><i class="bi bi-trash"></i></button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if item.content %}
+    <p class="mb-2" style="white-space: pre-line;">{{ item.content }}</p>
+  {% endif %}
+
+  {% if item.link_url %}
+    <div class="mb-2 small">
+      <a href="{{ item.link_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-link-45deg me-1"></i>{{ item.link_url|truncatechars:65 }}
+      </a>
+    </div>
+  {% endif %}
+
+  {% if item.attachments %}
+    <div class="row g-2 mb-3">
+      {% for att in item.attachments %}
+        <div class="col-md-6">
+          {% if att.attachment_type == 'IMAGE' %}
+            <a href="{% url 'social:attachment_download' att.id %}" target="_blank" rel="noopener">
+              <img src="{% url 'social:attachment_download' att.id %}" alt="{{ att.original_filename }}"
+                   class="img-fluid rounded-3 border" style="max-height: 320px; width: 100%; object-fit: cover;">
+            </a>
+          {% else %}
+            <a href="{% url 'social:attachment_download' att.id %}" class="btn btn-sm btn-outline-secondary w-100 text-start text-truncate">
+              <i class="bi bi-paperclip me-1"></i>{{ att.original_filename }}
+            </a>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if item.shared_post_restricted %}
+    <div class="border rounded-3 p-3 mb-3 bg-body-tertiary text-body-secondary small">
+      <i class="bi bi-shield-lock-fill me-1 text-warning"></i>
+      <strong>{{ item.shared_post_placeholder }}</strong>
+    </div>
+  {% elif item.shared_post_data %}
+    <div class="border rounded-3 p-3 mb-3 bg-body-tertiary">
+      <div class="small fw-semibold mb-1">
+        <i class="bi bi-repeat me-1 text-primary"></i>Chia sẻ từ {{ item.shared_post_data.author_name }}
+        <span class="badge text-bg-light border ms-1">{{ item.shared_post_data.visibility_label }}{% if item.shared_post_data.department_name %} · {{ item.shared_post_data.department_name }}{% endif %}</span>
+      </div>
+      {% if item.shared_post_data.content %}
+        <div class="small mb-2" style="white-space: pre-line;">{{ item.shared_post_data.content }}</div>
+      {% endif %}
+      {% if item.shared_post_data.attachments %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for satt in item.shared_post_data.attachments %}
+            {% if satt.attachment_type == 'IMAGE' %}
+              <img src="{% url 'social:attachment_download' satt.id %}" alt="{{ satt.original_filename }}"
+                   class="rounded border" style="max-height:140px;object-fit:cover;">
+            {% else %}
+              <a href="{% url 'social:attachment_download' satt.id %}" class="btn btn-xs btn-outline-secondary btn-sm">
+                <i class="bi bi-paperclip"></i> {{ satt.original_filename }}
+              </a>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <!-- Thanh cảm xúc & tương tác -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top mb-3">
+    <div class="d-flex flex-wrap gap-1 align-items-center">
+      {% for r_code, r_label in reaction_choices %}
+        {% if item.can_interact %}
+          <form method="post" action="{{ form_action|default:'' }}" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="react_post">
+            <input type="hidden" name="post_id" value="{{ item.id }}">
+            <input type="hidden" name="reaction_type" value="{{ r_code }}">
+            <button type="submit" class="btn btn-sm {% if item.my_reaction == r_code %}btn-primary{% else %}btn-outline-secondary{% endif %} py-0 px-2" style="font-size:0.78rem;">
+              {% if r_code == 'LIKE' %}<i class="bi bi-hand-thumbs-up"></i>
+              {% elif r_code == 'LOVE' %}<i class="bi bi-heart"></i>
+              {% elif r_code == 'FIRE' %}<i class="bi bi-fire"></i>
+              {% elif r_code == 'CLAP' %}<i class="bi bi-stars"></i>
+              {% else %}<i class="bi bi-music-note"></i>{% endif %}
+              {{ r_label }}
+            </button>
+          </form>
+        {% endif %}
+      {% endfor %}
+      <span class="small text-body-secondary ms-1">
+        {{ item.reaction_total }} cảm xúc · {{ item.comment_count }} bình luận
+      </span>
+    </div>
+
+    {% if item.can_interact %}
+    <div class="d-flex flex-wrap gap-1">
+      {% if item.can_share %}
+      <button class="btn btn-sm btn-outline-primary py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#shareBox{{ item.id }}">
+        <i class="bi bi-share me-1"></i>Chia sẻ
+      </button>
+      {% endif %}
+      {% if item.can_report %}
+      <button class="btn btn-sm btn-outline-warning py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#reportBox{{ item.id }}">
+        <i class="bi bi-flag me-1"></i>Báo cáo
+      </button>
+      {% endif %}
+      {% if item.can_moderate %}
+      <button class="btn btn-sm btn-outline-danger py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#modBox{{ item.id }}">
+        <i class="bi bi-shield-check me-1"></i>Kiểm duyệt
+      </button>
+      {% endif %}
+    </div>
+    {% else %}
+      <span class="badge text-bg-light border small"><i class="bi bi-eye me-1"></i>Cố vấn: Chỉ đọc (INV-04)</span>
+    {% endif %}
+  </div>
+
+  {% if item.can_share %}
+  <div class="collapse mb-3" id="shareBox{{ item.id }}">
+    <form method="post" action="{{ form_action|default:'' }}" class="border rounded-3 p-3 bg-body-tertiary">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="share_post">
+      <input type="hidden" name="shared_post_id" value="{{ item.id }}">
+      <div class="small fw-bold mb-2">Chia sẻ bài viết #{{ item.id }} (áp dụng kiểm tra quyền gốc `PA-05`)</div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-5">
+          <select name="visibility" class="form-select form-select-sm">
+            <option value="CLUB">Toàn CLB KMG</option>
+            <option value="DEPARTMENT">Nội bộ Ban</option>
+            <option value="CUSTOM_GROUP">Nhóm thành viên tùy chọn</option>
+          </select>
+        </div>
+        <div class="col-md-7">
+          <select name="department_id" class="form-select form-select-sm">
+            <option value="">-- Chọn Ban (nếu chia sẻ vào Ban) --</option>
+            {% for d in postable_depts %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <textarea name="content" class="form-control form-control-sm mb-2" rows="2" placeholder="Lời dẫn chia sẻ..."></textarea>
+      <button type="submit" class="btn btn-sm btn-primary">Xác nhận Chia sẻ</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if item.can_report %}
+  <div class="collapse mb-3" id="reportBox{{ item.id }}">
+    <form method="post" action="{{ form_action|default:'' }}" class="border rounded-3 p-3 bg-body-tertiary">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="report_post">
+      <input type="hidden" name="post_id" value="{{ item.id }}">
+      <label class="form-label small fw-bold">Lý do báo cáo vi phạm (định tuyến đúng phạm vi)</label>
+      <div class="input-group input-group-sm">
+        <input type="text" name="reason" class="form-control" placeholder="Mô tả nội dung không phù hợp..." required>
+        <button type="submit" class="btn btn-warning">Gửi báo cáo</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if item.can_moderate %}
+  <div class="collapse mb-3" id="modBox{{ item.id }}">
+    <form method="post" action="{{ form_action|default:'' }}" class="border rounded-3 p-3 bg-body-tertiary">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="moderate_post">
+      <input type="hidden" name="post_id" value="{{ item.id }}">
+      <div class="small fw-bold mb-2">Kiểm duyệt bài viết (Ghi sổ cái bất biến)</div>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <select name="mod_action" class="form-select form-select-sm">
+            {% for m_code, m_label in mod_action_choices %}
+              <option value="{{ m_code }}">{{ m_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <input type="text" name="note" class="form-control form-control-sm" placeholder="Lý do / Ghi chú kiểm duyệt...">
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-sm btn-danger w-100">Áp dụng</button>
+        </div>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- Bình luận & phản hồi -->
+  <div class="pt-1">
+    {% for c in item.comments %}
+      <div class="border-start border-2 ps-2 mb-2 small">
+        <div class="d-flex justify-content-between">
+          <span><strong>{{ c.author_name }}</strong> <span class="text-body-secondary">{{ c.created_at|date:"H:i d/m" }}</span></span>
+          {% if item.can_interact %}
+          <form method="post" action="{{ form_action|default:'' }}" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="react_comment">
+            <input type="hidden" name="comment_id" value="{{ c.id }}">
+            <input type="hidden" name="reaction_type" value="LIKE">
+            <button type="submit" class="btn btn-link btn-sm p-0 text-decoration-none" style="font-size:0.75rem;">
+              Thích {% if c.reaction_counts.LIKE %}({{ c.reaction_counts.LIKE }}){% endif %}
+            </button>
+          </form>
+          {% endif %}
+        </div>
+        <div>{{ c.content }}</div>
+        {% for rep in c.replies %}
+          <div class="border-start ps-2 ms-2 mt-1 text-body-secondary">
+            <strong class="text-body">{{ rep.author_name }}</strong>: {{ rep.content }}
+          </div>
+        {% endfor %}
+        {% if item.can_interact %}
+        <details class="mt-1">
+          <summary class="text-primary" style="cursor:pointer;font-size:0.75rem;">Trả lời</summary>
+          <form method="post" action="{{ form_action|default:'' }}" class="input-group input-group-sm mt-1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_comment">
+            <input type="hidden" name="post_id" value="{{ item.id }}">
+            <input type="hidden" name="parent_id" value="{{ c.id }}">
+            <input type="text" name="content" class="form-control" placeholder="Phản hồi (@username để nhắc)..." required>
+            <button type="submit" class="btn btn-outline-primary">Gửi</button>
+          </form>
+        </details>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    {% if item.can_interact %}
+      <form method="post" action="{{ form_action|default:'' }}" class="input-group input-group-sm mt-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_comment">
+        <input type="hidden" name="post_id" value="{{ item.id }}">
+        <input type="text" name="content" class="form-control" placeholder="Viết bình luận (hỗ trợ @username)..." required>
+        <button type="submit" class="btn btn-outline-primary">Bình luận</button>
+      </form>
+    {% endif %}
+  </div>
+</article>

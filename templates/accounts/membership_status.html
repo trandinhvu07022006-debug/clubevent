@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Trạng thái Tư cách Thành viên &amp; Khiếu nại — KMG{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="card shadow-sm border-warning mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <i class="bi bi-shield-exclamation fs-1 text-warning"></i>
+          <div>
+            <h1 class="h4 fw-bold mb-1">Cổng thông tin trạng thái Thành viên CLB</h1>
+            <p class="text-body-secondary small mb-0">Tài khoản: <strong>{{ user.public_name }}</strong> (@{{ user.username }})</p>
+          </div>
+        </div>
+
+        {% if club_membership and club_membership.status == 'SUSPENDED' %}
+          <div class="alert alert-warning mb-3">
+            <div class="fw-bold mb-1">Tư cách thành viên CLB ({{ club_membership.member_code }}) đang bị tạm khoá</div>
+            <div><strong>Lý do ghi nhận:</strong> {{ club_membership.suspended_reason|default:"Theo quyết định của Ban Chủ nhiệm" }}</div>
+            {% if club_membership.suspended_until %}
+              <div><strong>Thời hạn dự kiến:</strong> {{ club_membership.suspended_until|date:"H:i d/m/Y" }}</div>
+            {% endif %}
+          </div>
+          <p class="small text-body-secondary mb-0">
+            Trong thời gian tạm khoá tư cách thành viên CLB, quyền truy cập Không gian Nội bộ các Ban được tạm ngưng và hệ thống tự động miễn trừ điểm danh sự kiện nội bộ mới (chống phạt kép <code>CF-02</code>).
+            Bạn vẫn có toàn quyền gửi <strong>Đơn khiếu nại / Giải trình độc lập</strong> ngay bên dưới.
+          </p>
+        {% else %}
+          <p class="mb-0">Trạng thái hiện tại tại CLB: <span class="badge bg-primary">{{ user.club_status }}</span></p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if club_membership and club_membership.status == 'SUSPENDED' %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h5 fw-bold mb-2"><i class="bi bi-envelope-paper me-2 text-primary"></i>Gửi Đơn Khiếu nại / Giải trình Độc lập (WF24)</h2>
+      <p class="small text-body-secondary mb-3">
+        Đơn khiếu nại của bạn được bảo vệ theo nguyên tắc khách quan: người ra quyết định tạm khoá ban đầu không được phép tự bác bỏ đơn này.
+      </p>
+      <form method="post" class="row g-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="submit_appeal">
+        {% if my_cases %}
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Hồ sơ liên quan (nếu có)</label>
+          <select name="discipline_case_id" class="form-select form-select-sm">
+            <option value="">-- Khiếu nại chung quyết định tạm khoá hiện tại --</option>
+            {% for c in my_cases %}
+              <option value="{{ c.id }}">Hồ sơ #{{ c.id }} — {{ c.summary }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Nội dung giải trình &amp; đề nghị xem xét lại <span class="text-danger">*</span></label>
+          <textarea name="reason" rows="3" class="form-control form-control-sm" placeholder="Trình bày rõ lý do khách quan, hoàn cảnh thực tế..." required></textarea>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label small fw-semibold">Link minh chứng đính kèm (Google Drive / Ảnh giấy phép, tuỳ chọn)</label>
+          <input type="url" name="evidence_url" class="form-control form-control-sm" placeholder="https://...">
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary btn-sm w-100 fw-semibold">
+            <i class="bi bi-send me-1"></i>Gửi khiếu nại chính thức
+          </button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if my_appeals %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-shield-check me-2"></i>Lịch sử Đơn Khiếu nại của bạn ({{ my_appeals|length }})</h2>
+      <div class="vstack gap-2">
+        {% for ap in my_appeals %}
+        <div class="border rounded-3 p-3">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+            <strong>Đơn #{{ ap.id }} — {{ ap.get_target_type_display }}</strong>
+            {% if ap.status == 'OVERTURNED' %}
+              <span class="badge text-bg-success">{{ ap.get_status_display }}</span>
+            {% elif ap.status == 'UPHELD' %}
+              <span class="badge text-bg-danger">{{ ap.get_status_display }}</span>
+            {% else %}
+              <span class="badge text-bg-warning">{{ ap.get_status_display }}</span>
+            {% endif %}
+          </div>
+          <div class="small mb-1">{{ ap.reason }}</div>
+          {% if ap.decision_note %}
+            <div class="small bg-body-tertiary rounded p-2 mt-2">
+              <strong>Kết luận từ {{ ap.decided_by.public_name|default:"Ban Chủ nhiệm" }}:</strong> {{ ap.decision_note }}
+            </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if my_contributions %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-cash-stack me-2 text-success"></i>Đóng góp quỹ cá nhân của bạn ({{ my_contributions|length }})</h2>
+      <div class="vstack gap-2">
+        {% for c in my_contributions %}
+        <div class="border rounded-3 p-3 d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ c.period_label }} — {{ c.title }}</strong>
+            <div class="small text-body-secondary">{{ c.department.name|default:"Toàn CLB" }} · Ngày nộp: {{ c.paid_on|date:"d/m/Y"|default:"—" }}</div>
+          </div>
+          <div>
+            <span class="fw-semibold">{{ c.amount }}đ</span>
+            <span class="badge text-bg-light border ms-1">{{ c.get_status_display }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if my_evaluations %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-clipboard2-check me-2 text-primary"></i>Kết quả đánh giá định kỳ của bạn</h2>
+      <div class="vstack gap-2">
+        {% for e in my_evaluations %}
+        <div class="border rounded-3 p-3">
+          <div class="d-flex justify-content-between mb-1">
+            <strong>{{ e.cycle.code }} — {{ e.department.name }}</strong>
+            <span class="badge text-bg-success">{{ e.get_overall_rating_display }}</span>
+          </div>
+          <div class="small text-body-secondary mb-2">Đã chốt ngày {{ e.finalized_at|date:"d/m/Y" }}</div>
+          {% if e.strengths %}<div class="small"><strong>Điểm mạnh:</strong> {{ e.strengths }}</div>{% endif %}
+          {% if e.growth_areas %}<div class="small"><strong>Định hướng:</strong> {{ e.growth_areas }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if lifecycle %}
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 fw-bold mb-3">Lịch sử tư cách thành viên của bạn</h2>
+          <ul class="list-group list-group-flush">
+            {% for ev in lifecycle %}
+              <li class="list-group-item px-0">
+                <div class="d-flex justify-content-between">
+                  <strong>{{ ev.title }}</strong>
+                  <span class="small text-muted">{{ ev.created_at|date:"H:i d/m/Y" }}</span>
+                </div>
+                {% if ev.note %}<div class="small text-body-secondary">{{ ev.note }}</div>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }} — Công việc CLB{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'operations:task_list' %}" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i>Quay lại Công việc CLB</a>
+</div>
+
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+    <div>
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="badge text-bg-light border">{{ task.department.name }}</span>
+        <span class="badge text-bg-light border">Ưu tiên: {{ task.get_priority_display }}</span>
+        <span class="badge text-bg-light border">{{ task.get_submission_mode_display }}</span>
+        {% if task.recommended_skill %}<span class="badge kmg-badge-gold">Kỹ năng gợi ý: {{ task.recommended_skill.name }}</span>{% endif %}
+        {% if task.event %}<span class="badge text-bg-info"><i class="bi bi-calendar-event"></i> {{ task.event.name }}</span>{% endif %}
+      </div>
+      <h1 class="h4 fw-bold mb-1">{{ task.title }}</h1>
+      <p class="text-body-secondary mb-0" style="white-space:pre-line;">{{ task.description|default:"(Không có mô tả)" }}</p>
+    </div>
+    <div class="text-end">
+      <div class="h5 mb-1"><span class="badge text-bg-primary">{{ task.get_workflow_status_display }}</span></div>
+      <div class="small {% if task.is_overdue %}text-danger fw-semibold{% else %}text-body-secondary{% endif %}">
+        Hạn: {{ task.deadline|date:"H:i d/m/Y" }}{% if task.is_overdue %} (Quá hạn){% endif %}
+      </div>
+      <div class="small text-body-secondary">Giao bởi: {{ task.created_by.public_name|default:"Hệ thống" }}</div>
+      <div class="progress mt-2" style="height:8px; min-width:180px;"><div class="progress-bar" style="width: {{ task.progress_percent }}%"></div></div>
+    </div>
+  </div>
+  {% if task.reassignment_needed %}
+  <div class="alert alert-warning small mt-3 mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Cần phân công lại (BE-02):</strong> {{ task.reassignment_reason }}</div>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-people me-2"></i>Người thực hiện (trạng thái cá nhân — CM-02)</h2>
+      <ul class="list-group list-group-flush small">
+        {% for a in assignees %}
+        <li class="list-group-item px-0 d-flex justify-content-between align-items-center bg-transparent {% if not a.is_active %}text-decoration-line-through text-body-secondary{% endif %}">
+          <span><strong>{{ a.user.public_name }}</strong> · {{ a.get_role_display }}{% if not a.is_active %} (đã thôi phụ trách){% endif %}</span>
+          <span><span class="badge text-bg-light border">{{ a.get_personal_status_display }}</span> {{ a.progress_percent }}%</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-inbox me-2"></i>Bài nộp ({{ submissions|length }})</h2>
+      {% for s in submissions %}
+      <div class="border rounded-3 p-3 mb-2">
+        <div class="d-flex justify-content-between small mb-1">
+          <strong>{{ s.submitted_by.public_name }}</strong>
+          <span class="text-body-secondary">{{ s.submitted_at|date:"H:i d/m/Y" }}{% if s.is_late %} · <span class="text-danger">Nộp trễ</span>{% endif %}</span>
+        </div>
+        <div class="small" style="white-space:pre-line;">{{ s.submission_note }}</div>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          {% if s.evidence_url %}<a href="{{ s.evidence_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary"><i class="bi bi-link-45deg"></i> Liên kết sản phẩm</a>{% endif %}
+          {% if s.attachment %}<a href="{% url 'operations:download_submission' s.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-lock2"></i> Tải tệp bảo mật</a>{% endif %}
+        </div>
+      </div>
+      {% empty %}
+      <p class="small text-body-secondary mb-0">Chưa có bài nộp.</p>
+      {% endfor %}
+    </div>
+
+    <div class="kmg-card p-4">
+      <h2 class="h6 fw-bold mb-1"><i class="bi bi-journal-check me-2"></i>Sổ cái nghiệm thu (bất biến — không sửa/xoá)</h2>
+      <p class="small text-body-secondary mb-3">Người được giao việc không được tự nghiệm thu (PA-04). Thành viên có thể phản hồi nếu không đồng ý.</p>
+      {% for r in reviews %}
+      <div class="border rounded-3 p-3 mb-2">
+        <div class="d-flex justify-content-between small mb-1">
+          <strong>{{ r.get_decision_display }} · {{ r.quality_score }}/5</strong>
+          <span class="text-body-secondary">{{ r.reviewer.public_name }} · {{ r.created_at|date:"H:i d/m/Y" }}</span>
+        </div>
+        <div class="small" style="white-space:pre-line;">{{ r.feedback }}</div>
+        {% if is_assignee %}
+        <details class="mt-2 small">
+          <summary class="text-primary" style="cursor:pointer;">Không đồng ý? Gửi phản hồi / khiếu nại</summary>
+          <form method="post" class="mt-2 d-flex gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="appeal_review">
+            <input type="hidden" name="review_id" value="{{ r.id }}">
+            <input type="text" name="reason" class="form-control form-control-sm" placeholder="Lý do không đồng ý..." required>
+            <button class="btn btn-sm btn-outline-primary flex-shrink-0">Gửi</button>
+          </form>
+        </details>
+        {% endif %}
+      </div>
+      {% empty %}
+      <p class="small text-body-secondary mb-0">Chưa có biên bản nghiệm thu.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    {% if is_assignee and not task.is_finalized %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-activity me-2"></i>Cập nhật tiến độ</h2>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_progress">
+        <div class="col-7">
+          <select name="new_status" class="form-select form-select-sm">
+            <option value="ACCEPTED">Tiếp nhận nhiệm vụ</option>
+            <option value="IN_PROGRESS" selected>Đang thực hiện</option>
+          </select>
+        </div>
+        <div class="col-5"><input type="number" name="progress_percent" min="0" max="100" class="form-control form-control-sm" placeholder="%"></div>
+        <div class="col-12"><button class="btn btn-sm btn-outline-primary w-100">Cập nhật</button></div>
+      </form>
+    </div>
+
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-upload me-2"></i>Nộp kết quả</h2>
+      <form method="post" enctype="multipart/form-data" class="vstack gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="submit_deliverable">
+        <textarea name="submission_note" rows="3" class="form-control form-control-sm" placeholder="Báo cáo kết quả thực hiện..." required></textarea>
+        <input type="url" name="evidence_url" class="form-control form-control-sm" placeholder="Link sản phẩm / Drive (tuỳ chọn)">
+        <input type="file" name="attachment" class="form-control form-control-sm">
+        <div class="small text-body-secondary"><i class="bi bi-shield-lock"></i> Tệp lưu tại Private Vault, chỉ người có quyền mới tải được (SEC-01). Vẫn nộp được khi đã quá hạn (CM-01).</div>
+        <button class="btn btn-sm btn-primary">Nộp kết quả</button>
+      </form>
+    </div>
+
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-hourglass-split me-2"></i>Xin gia hạn</h2>
+      <form method="post" class="vstack gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request_extension">
+        <input type="datetime-local" name="requested_deadline" class="form-control form-control-sm" required>
+        <input type="text" name="reason" class="form-control form-control-sm" placeholder="Lý do xin gia hạn" required>
+        <button class="btn btn-sm btn-outline-secondary">Gửi yêu cầu</button>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if extensions %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-3">Yêu cầu gia hạn</h2>
+      {% for e in extensions %}
+      <div class="border rounded-3 p-2 mb-2 small">
+        <div class="d-flex justify-content-between"><strong>{{ e.requested_by.public_name }}</strong><span class="badge text-bg-light border">{{ e.get_status_display }}</span></div>
+        <div>Đến: {{ e.requested_deadline|date:"H:i d/m/Y" }} — {{ e.reason }}</div>
+        {% if e.review_note %}<div class="text-body-secondary">Phản hồi: {{ e.review_note }}</div>{% endif %}
+        {% if can_review_this_task and e.status == 'PENDING' %}
+        <form method="post" class="d-flex gap-1 mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="review_extension">
+          <input type="hidden" name="extension_id" value="{{ e.id }}">
+          <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Ghi chú">
+          <button name="decision" value="approve" class="btn btn-sm btn-success">Đồng ý</button>
+          <button name="decision" value="reject" class="btn btn-sm btn-outline-danger">Từ chối</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if can_review_this_task and not task.is_finalized %}
+    <div class="kmg-card p-4 mb-4 border-primary">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-clipboard2-check me-2 text-primary"></i>Nghiệm thu nhiệm vụ</h2>
+      <form method="post" class="vstack gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="finalize_review">
+        <select name="decision" class="form-select form-select-sm" required>
+          {% for code, label in review_decisions %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+        </select>
+        <label class="small fw-semibold">Điểm chất lượng (1–5)</label>
+        <input type="number" name="quality_score" min="1" max="5" value="5" class="form-control form-control-sm">
+        <textarea name="feedback" rows="3" class="form-control form-control-sm" placeholder="Nhận xét minh bạch (bắt buộc)" required></textarea>
+        <button class="btn btn-sm btn-primary">Ghi biên bản nghiệm thu</button>
+      </form>
+    </div>
+    {% elif has_approve_perm and is_assignee %}
+    <div class="alert alert-secondary small"><i class="bi bi-shield-lock-fill me-1"></i>Bạn đang là người thực hiện nhiệm vụ này nên không thể tự nghiệm thu (PA-04 / INV-03).</div>
+    {% endif %}
+
+    {% if can_reassign and not task.is_finalized %}
+    <div class="kmg-card p-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-arrow-left-right me-2"></i>Phân công lại nhân sự</h2>
+      <form method="post" class="vstack gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reassign_task">
+        <select name="assignee_ids" class="form-select form-select-sm" multiple size="5" required>
+          {% for c in dept_candidates %}
+            <option value="{{ c.user.id }}">{{ c.user.public_name }}{% if c.has_verified_skill %} ✓kỹ năng{% endif %} · {{ c.active_task_count }} việc mở</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="note" class="form-control form-control-sm" placeholder="Ghi chú bàn giao">
+        <button class="btn btn-sm btn-outline-warning">Phân công lại</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,448 @@
+{% load static ui %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KMG Music Club · Nền tảng Âm nhạc &amp; Kết nối Sinh viên</title>
+  <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        if (t === "dark" || t === "light")
+          document.documentElement.setAttribute("data-bs-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/kmg_editorial.css' %}">
+</head>
+<body class="kmg-public-body">
+
+<!-- 1. HEADER THƯƠNG HIỆU CÔNG KHAI -->
+<header class="kmg-public-header sticky-top py-2">
+  <div class="container d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <a href="{% url 'public_portal:home' %}" class="d-flex align-items-center gap-2 text-decoration-none text-reset fw-bold fs-5">
+      <img src="{% static 'img/logo.jpg' %}" alt="Logo KMG" class="rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
+      <span>KMG <span style="color: var(--kmg-gold);">Music Club</span></span>
+    </a>
+
+    <nav class="d-none d-lg-flex align-items-center gap-4 small fw-semibold">
+      <a href="#gioi-thieu" class="text-decoration-none text-reset">Văn hoá CLB</a>
+      <a href="#co-cau-ban" class="text-decoration-none text-reset">Cơ cấu 3 Ban</a>
+      <a href="#su-kien" class="text-decoration-none text-reset">Sự kiện &amp; Vé</a>
+      <a href="#vinh-danh" class="text-decoration-none text-reset">Gương mặt KMG</a>
+      <a href="#lien-he" class="text-decoration-none text-reset">Tuyển thành viên &amp; Liên hệ</a>
+    </nav>
+
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-outline-secondary themeToggleBtn" type="button" title="Đổi giao diện Sáng/Tối">
+        <i class="bi bi-circle-half"></i>
+      </button>
+      <a href="{% url 'events:list' %}" class="btn btn-sm btn-outline-primary fw-semibold">
+        <i class="bi bi-ticket-perforated"></i> Cổng Vé Sự kiện
+      </a>
+      {% if user.is_authenticated %}
+        {% if user.has_active_club_access %}
+          <a href="{% url 'organization:workspace_home' %}" class="btn btn-sm btn-primary fw-semibold">
+            <i class="bi bi-grid-1x2"></i> Không gian CLB
+          </a>
+        {% elif user.club_status == 'SUSPENDED' %}
+          <a href="{% url 'accounts:membership_status' %}" class="btn btn-sm btn-warning fw-semibold">
+            Trạng thái tài khoản
+          </a>
+        {% else %}
+          <a href="{% url 'organization:apply_membership' %}" class="btn btn-sm btn-primary fw-semibold">
+            <i class="bi bi-stars"></i> Ứng tuyển CLB
+          </a>
+        {% endif %}
+      {% else %}
+        <a href="{% url 'accounts:login' %}" class="btn btn-sm btn-primary fw-semibold">Đăng nhập</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<main class="container py-4">
+  {% if messages %}
+    {% for m in messages %}
+      <div class="alert alert-{{ m.tags|default:'info' }} alert-dismissible shadow-sm">
+        {{ m }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- 2. HERO STAGE -->
+  <section class="kmg-hero p-4 p-lg-5 mb-5 shadow">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <span class="kmg-kicker mb-3"><i class="bi bi-vinyl-fill"></i> CLB Âm nhạc Sinh viên KMG</span>
+        <h1 class="display-5 fw-bolder mb-3">Nơi Âm Nhạc Kết Nối Đam Mê &amp; Kiến Tạo Sân Khấu</h1>
+        <p class="lead opacity-75 mb-4">
+          Từ những buổi tập Acoustic mộc mạc đến các đêm Minishow rực rỡ ánh đèn — KMG là ngôi nhà chung
+          của những người trẻ yêu biểu diễn, truyền thông sáng tạo và kỹ thuật âm thanh sân khấu.
+        </p>
+        <div class="d-flex flex-wrap gap-3">
+          <a href="{% url 'events:list' %}" class="btn btn-warning btn-lg fw-bold px-4 text-dark">
+            <i class="bi bi-calendar2-heart"></i> Xem Show &amp; Đặt Vé
+          </a>
+          {% if user.is_authenticated and user.has_active_club_access %}
+            <a href="{% url 'organization:workspace_home' %}" class="btn btn-outline-light btn-lg fw-semibold px-4">
+              Vào Không gian Nội bộ
+            </a>
+          {% else %}
+            <a href="{% url 'organization:apply_membership' %}" class="btn btn-outline-light btn-lg fw-semibold px-4">
+              Đăng ký Gia nhập KMG
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="row g-3">
+          <div class="col-6">
+            <div class="kmg-stat-box">
+              <div class="fs-2 fw-bolder text-warning">{{ hero_stats.members }}</div>
+              <div class="small opacity-75">Thành viên hoạt động</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="kmg-stat-box">
+              <div class="fs-2 fw-bolder text-warning">{{ hero_stats.departments }}</div>
+              <div class="small opacity-75">Ban chuyên trách</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="kmg-stat-box">
+              <div class="fs-2 fw-bolder text-warning">{{ hero_stats.verified_skills }}</div>
+              <div class="small opacity-75">Kỹ năng đã xác minh</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="kmg-stat-box">
+              <div class="fs-2 fw-bolder text-warning">{{ hero_stats.public_events }}</div>
+              <div class="small opacity-75">Sự kiện công khai</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. GIỚI THIỆU & VĂN HÓA CLB -->
+  <section id="gioi-thieu" class="mb-5 pt-2">
+    <div class="row g-4 align-items-stretch">
+      <div class="col-lg-5">
+        <span class="kmg-kicker mb-2">Bản sắc KMG</span>
+        <h2 class="h2 kmg-section-title mb-3">Sống trọn với âm nhạc, trưởng thành qua từng dự án thật</h2>
+        <p class="text-body-secondary">
+          KMG không chỉ dừng lại ở biểu diễn nghệ thuật. Mỗi chương trình là sự phối hợp nhịp nhàng giữa
+          năng lực chuyên môn âm nhạc, tư duy sản xuất sự kiện chuyên nghiệp và kỷ luật vận hành minh bạch.
+        </p>
+      </div>
+      <div class="col-lg-7">
+        <div class="row g-3 h-100">
+          <div class="col-md-4">
+            <div class="kmg-card p-3 h-100">
+              <i class="bi bi-music-note-beamed fs-3" style="color: var(--kmg-gold);"></i>
+              <h3 class="h6 fw-bold mt-2">Đào tạo &amp; Jam Session</h3>
+              <p class="small text-body-secondary mb-0">Rèn luyện Vocal, Guitar, Piano, Trống và kỹ năng phối hợp Band định kỳ hàng tuần.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="kmg-card p-3 h-100">
+              <i class="bi bi-broadcast-pin fs-3" style="color: var(--kmg-ink);"></i>
+              <h3 class="h6 fw-bold mt-2">Tổ chức Show Thực chiến</h3>
+              <p class="small text-body-secondary mb-0">Trải nghiệm trọn quy trình sản xuất đêm nhạc: truyền thông, bán vé QR, âm thanh &amp; sân khấu.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="kmg-card p-3 h-100">
+              <i class="bi bi-people-fill fs-3 text-success"></i>
+              <h3 class="h6 fw-bold mt-2">Gắn kết Đa Thế hệ</h3>
+              <p class="small text-body-secondary mb-0">Kết nối chặt chẽ giữa Thành viên, Ban Chủ nhiệm và đội ngũ Cố vấn giàu kinh nghiệm.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. CƠ CẤU TỔ CHỨC 3 BAN & BAN ĐIỀU HÀNH -->
+  <section id="co-cau-ban" class="mb-5 pt-2">
+    <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
+      <div>
+        <span class="kmg-kicker mb-2">Cơ cấu tổ chức</span>
+        <h2 class="h2 kmg-section-title mb-0">Các Ban Chuyên Trách tại KMG</h2>
+      </div>
+      <span class="small text-body-secondary">Một thành viên có thể phát triển đa năng ở nhiều Ban</span>
+    </div>
+
+    <div class="row g-4 mb-4">
+      {% for dept in departments %}
+        <div class="col-md-4">
+          <div class="kmg-card kmg-card-hover p-4 h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <span class="kmg-dept-icon"><i class="bi {{ dept.icon }}"></i></span>
+              {% if dept.is_demo %}
+                <span class="badge kmg-badge-gold">Giai đoạn Demo</span>
+              {% else %}
+                <span class="badge bg-primary-subtle text-primary-emphasis">{{ dept.active_members_count }} thành viên</span>
+              {% endif %}
+            </div>
+            <h3 class="h5 fw-bold mb-2">{{ dept.name }}</h3>
+            <p class="small text-body-secondary flex-grow-1">{{ dept.short_description }}</p>
+            {% if dept.custom_categories %}
+              <div class="d-flex flex-wrap gap-1 mt-2">
+                {% for cat in dept.custom_categories %}
+                  <span class="badge bg-body-secondary text-body-emphasis fw-normal">{{ cat }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <div class="col-12">
+          <div class="kmg-card p-4 text-center text-body-secondary">
+            Cơ cấu 3 Ban chuyên trách (Truyền thông sự kiện, Chuyên môn, Kỹ thuật) đang được cập nhật.
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if leadership %}
+      <div class="kmg-card p-4">
+        <h3 class="h6 fw-bold text-uppercase text-body-secondary mb-3" style="letter-spacing: 0.05em;">
+          Ban Chủ nhiệm, Cố vấn &amp; Trưởng các Ban đương nhiệm
+        </h3>
+        <div class="row g-3">
+          {% for appt in leadership %}
+            <div class="col-sm-6 col-lg-3">
+              <div class="d-flex align-items-center gap-3 p-2 rounded border border-secondary-subtle">
+                {% include "partials/avatar.html" with person=appt.user size="avatar-sm" %}
+                <div class="min-w-0">
+                  <div class="fw-bold text-truncate">{{ appt.user.public_name }}</div>
+                  <div class="small text-body-secondary text-truncate">
+                    {{ appt.position.name }}{% if appt.department %} · {{ appt.department.name }}{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- 5. SỰ KIỆN & HOẠT ĐỘNG CÔNG KHAI -->
+  <section id="su-kien" class="mb-5 pt-2">
+    <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
+      <div>
+        <span class="kmg-kicker mb-2">Sân khấu &amp; Khán giả</span>
+        <h2 class="h2 kmg-section-title mb-0">Sự kiện Công khai</h2>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'events:calendar' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-calendar3"></i> Lịch tháng</a>
+        <a href="{% url 'events:list' %}" class="btn btn-sm btn-primary fw-semibold">Xem tất cả &amp; Đặt vé <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      {% for ev in public_upcoming %}
+        <div class="col-md-6 col-lg-4">
+          <div class="kmg-card kmg-card-hover p-4 h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="badge bg-success-subtle text-success-emphasis">{{ ev.get_status_display }}</span>
+              <span class="small text-body-secondary"><i class="bi {{ ev.category_icon }}"></i> {{ ev.get_category_display }}</span>
+            </div>
+            <h3 class="h5 fw-bold mb-2">
+              <a href="{% url 'events:detail' ev.pk %}" class="text-decoration-none text-reset">{{ ev.name }}</a>
+            </h3>
+            <p class="small text-body-secondary mb-3 flex-grow-1">{{ ev.description|truncatechars:120|default:"Đêm nhạc và giao lưu mở cửa đón khán giả của KMG Club." }}</p>
+            <div class="small text-body-secondary border-top pt-2 d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-clock"></i> {{ ev.starts_at|date:"H:i d/m/Y" }}</span>
+              <a href="{% url 'events:detail' ev.pk %}" class="fw-bold text-decoration-none">Đặt vé &rarr;</a>
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        {% for ev in public_past %}
+          <div class="col-md-6 col-lg-4">
+            <div class="kmg-card p-4 h-100 d-flex flex-column">
+              <span class="badge bg-secondary-subtle text-secondary-emphasis align-self-start mb-2">Đã diễn ra</span>
+              <h3 class="h5 fw-bold mb-2"><a href="{% url 'events:detail' ev.pk %}" class="text-decoration-none text-reset">{{ ev.name }}</a></h3>
+              <p class="small text-body-secondary flex-grow-1">{{ ev.location }} · {{ ev.starts_at|date:"d/m/Y" }}</p>
+              <a href="{% url 'events:detail' ev.pk %}" class="small fw-semibold text-decoration-none">Xem tư liệu sự kiện &rarr;</a>
+            </div>
+          </div>
+        {% empty %}
+          <div class="col-12">
+            <div class="kmg-card p-4 text-center text-body-secondary">
+              Hiện chưa có sự kiện công khai mới mở bán vé. Bạn có thể hỏi <a href="{% url 'aiassist:chat' %}">Trợ lý KMG</a> hoặc theo dõi lịch sự kiện!
+            </div>
+          </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- 6. THÀNH VIÊN TIÊU BIỂU -->
+  {% if featured_cards %}
+  <section id="vinh-danh" class="mb-5 pt-2">
+    <span class="kmg-kicker mb-2"><i class="bi bi-award-fill"></i> Gương mặt KMG</span>
+    <h2 class="h2 kmg-section-title mb-4">Thành viên &amp; Nghệ sĩ Tiêu biểu</h2>
+    <div class="row g-4">
+      {% for item in featured_cards %}
+        <div class="col-md-6 col-lg-4">
+          <div class="kmg-card p-4 h-100">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              {% include "partials/avatar.html" with person=item.user size="avatar-md" %}
+              <div>
+                <h3 class="h6 fw-bold mb-0">{{ item.user.public_name }}</h3>
+                <div class="small" style="color: var(--kmg-gold); font-weight: 600;">{{ item.featured_title }}</div>
+                {% if item.departments %}
+                  <div class="small text-body-secondary">{{ item.departments|join:" · " }}</div>
+                {% endif %}
+              </div>
+            </div>
+            {% if item.skills %}
+              <div class="d-flex flex-wrap gap-1">
+                {% for sk in item.skills %}
+                  <span class="badge kmg-badge-gold"><i class="bi bi-patch-check-fill"></i> {{ sk }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if public_honors %}
+  <section class="mb-5 pt-2">
+    <span class="kmg-kicker mb-2"><i class="bi bi-trophy-fill text-warning"></i> Danh hiệu Vinh danh KMG</span>
+    <h2 class="h2 kmg-section-title mb-4">Ghi nhận Cống hiến &amp; Tiến bộ</h2>
+    <div class="row g-4">
+      {% for hon in public_honors %}
+        <div class="col-md-6 col-lg-4">
+          <div class="kmg-card p-4 h-100 d-flex flex-column justify-content-between">
+            <div>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge text-bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>{{ hon.get_scope_display }}</span>
+                {% if hon.department %}<small class="text-body-secondary">{{ hon.department.name }}</small>{% endif %}
+              </div>
+              <h3 class="h6 fw-bold mb-1">{{ hon.title }}</h3>
+              <div class="text-primary small fw-semibold mb-2">{{ hon.recipient.public_name }}</div>
+              <p class="small text-body-secondary fst-italic mb-0">"{{ hon.citation }}"</p>
+            </div>
+            <div class="small text-body-secondary mt-3 border-top pt-2">Vinh danh: {{ hon.verified_at|date:"d/m/Y" }}</div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- 7. ĐĂNG KÝ GIA NHẬP & LIÊN HỆ -->
+  <section id="lien-he" class="mb-5 pt-2">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <span class="kmg-kicker mb-2">Kết nối cùng KMG</span>
+        <h2 class="h2 kmg-section-title mb-3">Tuyển Thành viên &amp; Hợp tác Biểu diễn</h2>
+        <p class="text-body-secondary mb-4">
+          Bạn muốn thử sức ở đợt Casting mới của KMG, mời CLB hợp tác biểu diễn sự kiện, hay cần hỗ trợ
+          về vé tham dự? Hãy để lại lời nhắn hoặc đăng ký tài khoản trực tiếp.
+        </p>
+        <div class="kmg-card p-3 mb-3">
+          <div class="fw-bold mb-1"><i class="bi bi-person-plus-fill text-primary"></i> Quy trình Gia nhập Thành viên KMG</div>
+          <ol class="small text-body-secondary mb-0 ps-3">
+            <li>Đăng ký tài khoản &amp; xác minh Email sinh viên.</li>
+            <li>Chọn Ban nguyện vọng &amp; gửi hồ sơ năng khiếu tại mục <strong>Ứng tuyển CLB</strong>.</li>
+            <li>Tham gia buổi Audition / Phỏng vấn cùng Trưởng ban &amp; nhận mã <code>Member ID</code> chính thức.</li>
+          </ol>
+        </div>
+        <a href="{% url 'aiassist:chat' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-robot"></i> Hỏi nhanh Trợ lý Sự kiện KMG
+        </a>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="kmg-card p-4 shadow-sm">
+          <h3 class="h5 fw-bold mb-3">Gửi tin nhắn liên hệ</h3>
+          <form method="post" action="{% url 'public_portal:home' %}#lien-he">
+            {% csrf_token %}
+            {{ contact_form.website }}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="{{ contact_form.full_name.id_for_label }}">Họ và tên *</label>
+                {{ contact_form.full_name }}
+                {% if contact_form.full_name.errors %}<div class="text-danger small">{{ contact_form.full_name.errors|first }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="{{ contact_form.email.id_for_label }}">Email *</label>
+                {{ contact_form.email }}
+                {% if contact_form.email.errors %}<div class="text-danger small">{{ contact_form.email.errors|first }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="{{ contact_form.phone.id_for_label }}">Số điện thoại</label>
+                {{ contact_form.phone }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="{{ contact_form.topic.id_for_label }}">Chủ đề *</label>
+                {{ contact_form.topic }}
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold" for="{{ contact_form.message.id_for_label }}">Nội dung lời nhắn *</label>
+                {{ contact_form.message }}
+                {% if contact_form.message.errors %}<div class="text-danger small">{{ contact_form.message.errors|first }}</div>{% endif %}
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary fw-bold px-4">
+                  <i class="bi bi-send"></i> Gửi liên hệ tới KMG
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 8. FOOTER -->
+<footer class="kmg-footer py-4 mt-5">
+  <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3 small">
+    <div>
+      <strong class="text-white">KMG Club Management Platform</strong> · Nền tảng Quản trị &amp; Kết nối Nội bộ CLB Âm nhạc KMG.
+    </div>
+    <div class="d-flex gap-3">
+      <a href="{% url 'events:list' %}" class="text-decoration-none text-light opacity-75">Cổng Sự kiện</a>
+      <a href="{% url 'events:calendar' %}" class="text-decoration-none text-light opacity-75">Lịch tháng</a>
+      <a href="{% url 'aiassist:chat' %}" class="text-decoration-none text-light opacity-75">Trợ lý Tra cứu</a>
+      {% if not user.is_authenticated %}
+        <a href="{% url 'accounts:register' %}" class="text-decoration-none text-warning fw-semibold">Đăng ký tài khoản</a>
+      {% endif %}
+    </div>
+  </div>
+</footer>
+
+<script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+<script>
+  (function () {
+    document.querySelectorAll(".themeToggleBtn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var cur = document.documentElement.getAttribute("data-bs-theme") === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-bs-theme", cur);
+        try { localStorage.setItem("theme", cur); } catch (e) {}
+      });
+    });
+  })();
+</script>
+</body>
+</html>

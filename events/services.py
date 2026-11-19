@@ -16,7 +16,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import AuditLog, User
-from events.models import Event, EventStatus
+from events.models import (Event, EventStatus, EventVisibility,
+                           can_view_internal_events)
 from notifications.models import NotificationKind
 from notifications.services import notify_many
 from registrations.models import (Ticket, TicketStatus, WaitlistEntry,
@@ -190,20 +191,20 @@ def event_ics(event: Event) -> str:
 
 
 # ---------------------------------------------------------------------------
-# F8.2 - GIẤY CHỨNG NHẬN THAM GIA
+# F8.2 - GIẤY CHỨNG NHẬN THAM GIA (SEC-07: Khoá ký CERT_SIGNING_KEY độc lập)
 # ---------------------------------------------------------------------------
-# Mã xác thực là chữ ký của Django (HMAC theo SECRET_KEY), không cần bảng mới.
-# ĐỔI SECRET_KEY là MỌI chứng nhận đã cấp mất hiệu lực xác thực.
-_cert_signer = signing.Signer(salt="kmg-certificate")
+def _cert_signer() -> signing.Signer:
+    key = getattr(settings, "CERT_SIGNING_KEY", "") or settings.SECRET_KEY
+    return signing.Signer(key=key, salt="kmg-certificate")
 
 
 def cert_token(ticket: Ticket) -> str:
-    return _cert_signer.sign(ticket.code).split(":", 1)[1]   # chỉ lấy phần chữ ký
+    return _cert_signer().sign(ticket.code).split(":", 1)[1]   # chỉ lấy phần chữ ký
 
 
 def verify_cert_token(code: str, token: str) -> bool:
     try:
-        _cert_signer.unsign(f"{code}:{token}")
+        _cert_signer().unsign(f"{code}:{token}")
         return True
     except signing.BadSignature:
         return False
@@ -285,6 +286,8 @@ def events_for_calendar(user, year: int, month: int):
     start = datetime(year, month, 1, tzinfo=tz)
     end = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=tz)
     qs = Event.objects.filter(starts_at__gte=start, starts_at__lt=end)
+    if not can_view_internal_events(user):
+        qs = qs.filter(visibility=EventVisibility.PUBLIC)
     if not (user.is_authenticated and user.is_staff_btc):
         qs = qs.exclude(status=EventStatus.DRAFT)
     return qs.order_by("starts_at")

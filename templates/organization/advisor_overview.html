@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Cổng Giám sát Tổng quan CLB (Read-Only) — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-eye-fill"></i> Cổng Giám sát Độc lập (INV-04)</span>
+    <h1 class="h3 fw-bold mb-1">Giám sát Hoạt động &amp; Tổ chức CLB KMG</h1>
+    <p class="text-body-secondary mb-0">
+      Không gian tổng hợp minh bạch dành cho Cố vấn và Ban Chủ nhiệm.
+    </p>
+  </div>
+  <a href="{% url 'organization:workspace_home' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Không gian CLB
+  </a>
+</div>
+
+<div class="alert alert-info border-0 shadow-sm small mb-4">
+  <i class="bi bi-shield-lock-fill me-1"></i>
+  <strong>Bất biến Phân quyền Cố vấn (`INV-04` — Hard Read-Only):</strong>
+  Chế độ Giám sát chỉ phục vụ theo dõi cơ cấu các Ban, biến động nhân sự và chính sách vận hành của KMG. Mọi thao tác giao việc, phê duyệt, bổ nhiệm hoặc chỉnh sửa dữ liệu đều bị khóa cứng ở Backend.
+</div>
+
+<!-- Chỉ số tổng quan -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="kmg-card p-3">
+      <div class="small text-body-secondary">Các Ban hoạt động</div>
+      <div class="h3 fw-bold mb-0">{{ departments|length }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kmg-card p-3">
+      <div class="small text-body-secondary">Thành viên chính thức (ACTIVE)</div>
+      <div class="h3 fw-bold text-success mb-0">{{ stats.active_members }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kmg-card p-3">
+      <div class="small text-body-secondary">Thành viên đang tạm khoá</div>
+      <div class="h3 fw-bold text-warning mb-0">{{ stats.suspended_members }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kmg-card p-3">
+      <div class="small text-body-secondary">Kỹ năng đã xác minh</div>
+      <div class="h3 fw-bold text-primary mb-0">{{ stats.verified_skills }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Tổng quan các Ban -->
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-diagram-3 me-2"></i>Cơ cấu các Ban Trực thuộc</h2>
+      <div class="vstack gap-2">
+        {% for d in departments %}
+        <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between">
+          <div>
+            <div class="fw-bold">
+              {{ d.name }}
+              {% if d.is_demo %}<span class="badge text-bg-warning ms-1">Demo</span>{% endif %}
+            </div>
+            <div class="small text-body-secondary">{{ d.active_members_count }} thành viên đang sinh hoạt</div>
+          </div>
+          <a href="{% url 'organization:department_detail' d.slug %}" class="btn btn-sm btn-outline-secondary">
+            Xem Ban (Read-Only)
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Cán bộ Đương nhiệm -->
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-award me-2"></i>Cán bộ &amp; Cố vấn Đương nhiệm</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Nhân sự</th>
+              <th>Chức vụ</th>
+              <th>Phạm vi</th>
+              <th>Nhiệm kỳ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in active_appointments %}
+            <tr>
+              <td class="fw-semibold">{{ a.user.public_name }}</td>
+              <td><span class="badge kmg-badge-gold">{{ a.position.name }}</span></td>
+              <td class="small">{{ a.department.name|default:"Toàn CLB" }}</td>
+              <td class="small text-body-secondary">{{ a.term_label }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 2 & 3: KPI vận hành công việc, Đề xuất cấp CLB & Kho Tài liệu Mật (chỉ đọc — INV-04) -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <a href="{% url 'programs:proposal_hub' %}" class="kmg-card kmg-card-hover p-3 d-block text-decoration-none text-reset">
+      <div class="small text-body-secondary">Đề xuất cấp CLB / Đã duyệt</div>
+      <div class="h4 fw-bold mb-0">{{ escalated_proposals|length }}</div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'programs:training_practice_hub' %}" class="kmg-card kmg-card-hover p-3 d-block text-decoration-none text-reset">
+      <div class="small text-body-secondary">Khóa Đào tạo Chuyên môn</div>
+      <div class="h4 fw-bold text-primary mb-0">{{ programs_stats.training_courses }}</div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'programs:document_vault' %}" class="kmg-card kmg-card-hover p-3 d-block text-decoration-none text-reset">
+      <div class="small text-body-secondary">Tài liệu Kho Mật / Cảnh báo truy cập</div>
+      <div class="h4 fw-bold mb-0">{{ programs_stats.vault_docs }} <small class="text-danger fs-6">({{ programs_stats.security_alerts }} cảnh báo)</small></div>
+    </a>
+  </div>
+</div>
+
+<!-- Phase 5: Quỹ CLB & Vinh danh Thành viên (Hard Read-Only — INV-04) -->
+{% if fund_summary %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Quỹ CLB (đã ghi sổ)</div><div class="h4 fw-bold mb-0">{{ fund_summary.net_club_balance|vnd }}đ</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Thu quỹ đã ghi sổ</div><div class="h4 fw-bold text-success mb-0">{{ fund_summary.confirmed_income|vnd }}đ</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Chi quỹ đã ghi sổ</div><div class="h4 fw-bold text-danger mb-0">{{ fund_summary.confirmed_expense|vnd }}đ</div></div></div>
+  <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Phiếu quỹ chờ duyệt</div><div class="h4 fw-bold text-warning mb-0">{{ fund_summary.pending_count }}</div></div></div>
+</div>
+{% endif %}
+
+{% if advisor_recognitions %}
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 fw-bold mb-0"><i class="bi bi-trophy me-2"></i>Thành viên Tiêu biểu &amp; Vinh danh Gần đây (Read-Only)</h2>
+    <a href="{% url 'evaluations:analytics' %}" class="small text-decoration-none">Mở Trung tâm Phân tích &rarr;</a>
+  </div>
+  <div class="row g-3">
+    {% for rec in advisor_recognitions %}
+    <div class="col-md-4">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="badge text-bg-warning text-dark mb-1">{{ rec.get_scope_display }}</div>
+        <div class="fw-bold">{{ rec.title }}</div>
+        <div class="small text-primary fw-semibold">{{ rec.recipient.public_name }}</div>
+        <div class="small text-body-secondary fst-italic mt-1">"{{ rec.citation }}"</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if escalated_proposals %}
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-lightbulb me-2"></i>Đề xuất Cấp CLB &amp; Hoạt động đã Thẩm định (Read-Only)</h2>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Mã</th><th>Tên đề xuất</th><th>Ban</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        {% for p in escalated_proposals %}
+        <tr>
+          <td><code>{{ p.code }}</code></td>
+          <td><a href="{% url 'programs:proposal_detail' p.pk %}" class="text-decoration-none fw-semibold">{{ p.title }}</a></td>
+          <td class="small">{{ p.department.name }}</td>
+          <td><span class="badge text-bg-light border">{{ p.get_status_display }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <h2 class="h5 fw-bold mb-0"><i class="bi bi-bar-chart-line me-2"></i>Tiến độ công việc tổng hợp theo Ban</h2>
+    <span class="badge text-bg-warning">Hồ sơ cảnh báo đang mở: {{ stats.flagged_cases }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Ban</th><th>Đang mở</th><th>Quá hạn</th><th>Đã duyệt hoàn thành</th></tr></thead>
+      <tbody>
+        {% for row in dept_ops %}
+        <tr>
+          <td class="fw-semibold">{{ row.dept.name }}</td>
+          <td>{{ row.open }}</td>
+          <td class="{% if row.overdue %}text-danger fw-semibold{% endif %}">{{ row.overdue }}</td>
+          <td class="text-success">{{ row.approved }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Sổ cái biến động nhân sự toàn CLB -->
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>Nhật ký Biến động Tổ chức &amp; Vòng đời Thành viên</h2>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Thời điểm</th>
+          <th>Thành viên</th>
+          <th>Sự kiện</th>
+          <th>Chi tiết</th>
+          <th>Người thực hiện</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ev in recent_lifecycle %}
+        <tr>
+          <td class="small text-body-secondary">{{ ev.created_at|date:"d/m/Y H:i" }}</td>
+          <td>
+            <a href="{% url 'organization:member_lifecycle' ev.user.id %}" class="fw-semibold text-decoration-none">
+              {{ ev.user.public_name }}
+            </a>
+          </td>
+          <td><span class="badge text-bg-light border">{{ ev.get_event_type_display }}</span></td>
+          <td class="small">
+            {{ ev.title }}
+            {% if ev.department %}<span class="text-body-secondary">({{ ev.department.name }})</span>{% endif %}
+          </td>
+          <td class="small text-body-secondary">{{ ev.actor.public_name|default:"Hệ thống" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-body-secondary small py-3">Chưa có dữ liệu lịch sử.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Nhật ký điều hành đã tự động che PII (PA-07) -->
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-1"><i class="bi bi-incognito me-2"></i>Nhật ký Điều hành (đã che thông tin cá nhân — PA-07)</h2>
+  <p class="small text-body-secondary mb-3">Email và số điện thoại trong nhật ký được tự động che trước khi hiển thị cho cấp giám sát.</p>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Thời điểm</th><th>Người thực hiện</th><th>Hành động</th><th>Đối tượng</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        {% for e in audit_entries %}
+        <tr>
+          <td class="small text-body-secondary">{{ e.created_at|date:"d/m/Y H:i" }}</td>
+          <td class="small">{{ e.actor }}</td>
+          <td><span class="badge text-bg-light border">{{ e.action }}</span></td>
+          <td class="small">{{ e.target }}</td>
+          <td class="small text-body-secondary">{{ e.note }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center small text-body-secondary py-3">Chưa có nhật ký.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Chính sách vận hành -->
+<div class="kmg-card p-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-journal-check me-2"></i>Chính sách CLB Đang Hiệu lực</h2>
+  <div class="row g-3">
+    {% for pol in policies %}
+    <div class="col-md-6">
+      <div class="border rounded-3 p-3">
+        <div class="d-flex justify-content-between">
+          <strong>{{ pol.title }}</strong>
+          <span class="badge text-bg-secondary">v{{ pol.version_number }}</span>
+        </div>
+        <div class="small text-body-secondary mt-1">Mã chính sách: <code>{{ pol.policy_key }}</code></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

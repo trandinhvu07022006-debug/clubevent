@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Xác minh mã OTP — KMG Club{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6 col-xl-5">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <div class="text-center mb-3">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary mb-2" style="width: 56px; height: 56px;">
+            {% if effective_channel == 'SMS' %}
+              <i class="bi bi-phone-vibrate fs-3"></i>
+            {% else %}
+              <i class="bi bi-envelope-paper-heart fs-3"></i>
+            {% endif %}
+          </div>
+          <h1 class="h4 fw-bold mb-1">Xác minh mã OTP 6 chữ số</h1>
+          <p class="text-body-secondary small mb-0">
+            Mã xác minh đã gửi qua <strong>{{ channel_label }}</strong> tới
+            <span class="badge text-bg-light border">{{ masked_destination }}</span>
+            (hiệu lực {{ otp_expiry_minutes }} phút).
+          </p>
+        </div>
+
+        {% if dev_otp_hint %}
+        <div class="alert alert-warning border-0 small py-2 px-3 mb-3">
+          <div class="fw-bold"><i class="bi bi-terminal me-1"></i>Chế độ Dev/Sandbox (chỉ hiện khi DEBUG=True):</div>
+          <div>Mã OTP vừa phát hành của phiên này là: <code class="fs-6 fw-bold">{{ dev_otp_hint }}</code></div>
+        </div>
+        {% endif %}
+
+        <form method="post" class="mb-3" novalidate>
+          {% csrf_token %}
+          {{ form.channel }}
+          <div class="mb-3">
+            <label class="form-label small fw-semibold d-block text-center" for="{{ form.code.id_for_label }}">
+              {{ form.code.label }}
+            </label>
+            {{ form.code }}
+            {% if form.code.errors %}
+              <div class="text-danger small text-center mt-2">
+                <i class="bi bi-exclamation-circle me-1"></i>{{ form.code.errors|first }}
+              </div>
+            {% endif %}
+          </div>
+          <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">
+            <i class="bi bi-check2-circle me-1"></i>Xác nhận mã OTP
+          </button>
+        </form>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-top pt-3">
+          <form method="post" action="{% url 'accounts:resend_otp' %}" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="channel" value="{{ effective_channel }}">
+            <button type="submit" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-arrow-clockwise me-1"></i>Gửi lại mã OTP ({{ channel_label }})
+            </button>
+          </form>
+
+          {% if can_use_email and can_use_sms %}
+            {% if effective_channel == 'SMS' %}
+            <form method="post" action="{% url 'accounts:resend_otp' %}" class="m-0">
+              {% csrf_token %}
+              <input type="hidden" name="channel" value="EMAIL">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-envelope me-1"></i>Đổi sang nhận qua Email
+              </button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'accounts:resend_otp' %}" class="m-0">
+              {% csrf_token %}
+              <input type="hidden" name="channel" value="SMS">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-chat-dots me-1"></i>Đổi sang nhận qua SMS
+              </button>
+            </form>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <div class="mt-3 p-3 rounded-3 bg-body-tertiary small text-body-secondary">
+          <div class="fw-semibold text-body-emphasis mb-1">
+            <i class="bi bi-diagram-3 me-1 text-primary"></i>Lộ trình mở quyền tài khoản KMG:
+          </div>
+          <ol class="mb-0 ps-3">
+            <li>Xác minh OTP để kích hoạt bảo mật tài khoản (mặc định là <strong>Khách</strong> — đặt vé &amp; theo dõi sự kiện công khai).</li>
+            <li>Được <strong>Chủ nhiệm</strong> hoặc <strong>Phó chủ nhiệm</strong> nâng role &amp; phân vào Ban để mở khoá <strong>Không gian Thành viên KMG</strong>.</li>
+            <li>Các chức vụ <strong>Chủ nhiệm, Phó chủ nhiệm, Trưởng ban</strong> do <strong>Admin Server</strong> trực tiếp nâng cấp.</li>
+          </ol>
+        </div>
+
+        <div class="text-center mt-3">
+          <a href="{% url 'events:list' %}" class="small text-decoration-none text-body-secondary">
+            Tạm bỏ qua, tiếp tục xem sự kiện công khai với tư cách Khách &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

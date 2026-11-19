@@ -199,6 +199,17 @@
         {% endif %}
       </ul>
       {% endif %}
+
+      {% if user.has_active_club_access or user.is_staff_btc or user.is_lead %}
+      <h6 class="sidebar-heading">KMG Platform</h6>
+      <ul class="nav nav-pills flex-column gap-1">
+        <li class="nav-item">
+          <a href="{% url 'organization:workspace_home' %}" class="nav-link d-flex align-items-center gap-2 {% if request.path|slice:':11' == '/workspace/' %}active{% else %}text-body-emphasis{% endif %}" title="Không gian nội bộ CLB">
+            <i class="bi bi-grid-1x2-fill text-primary"></i><span class="nav-text">Không gian CLB</span>
+          </a>
+        </li>
+      </ul>
+      {% endif %}
     </nav>
     {% endwith %}
 

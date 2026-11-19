@@ -19,6 +19,7 @@ from accounts.services import OTPError, send_email_otp
 from core import once
 from core.pagination import paginate
 from core.qr import qr_data_uri
+from core.security import safe_csv_row
 from events.models import Event, TicketType
 
 from .models import Ticket, TicketStatus, WaitlistEntry, WaitlistStatus
@@ -419,12 +420,12 @@ def participant_csv(request, event_id):
     writer.writerow(["Mã vé", "Mã giao dịch", "Họ tên", "MSSV", "Đối tượng", "Trường / đơn vị", "Email",
                      "Loại vé", "Giá", "Trạng thái", "Ngày đặt", "Check-in lúc"])
     for t in participants(event):
-        writer.writerow([
+        writer.writerow(safe_csv_row([
             t.code, t.booking_ref, t.user.full_name, t.user.mssv or "",
             t.user.get_affiliation_display(), t.user.school, t.user.email, t.ticket_type.name,
             t.price, t.get_status_display(),
             timezone.localtime(t.created_at).strftime("%d/%m/%Y %H:%M"),
             timezone.localtime(t.checked_in_at).strftime("%d/%m/%Y %H:%M")
             if t.checked_in_at else "",
-        ])
+        ]))
     return response

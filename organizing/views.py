@@ -1,12 +1,13 @@
 """View cho M3 - Phân công công việc BTC, kèm nút AI gợi ý."""
 import csv
+import mimetypes
 import re
 
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Case, Count, IntegerField, Q, Value, When
-from django.http import HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -19,6 +20,7 @@ from accounts.permissions import lead_required, member_required, staff_required
 from aiassist.services import suggest_tasks
 from core import once
 from core.images import shrink_image
+from core.security import safe_csv_row
 from events.models import Event, EventStatus
 from events.services import budget_summary
 
@@ -652,9 +654,43 @@ def expense_delete(request, pk):
     return redirect("organizing:budget", event_id=event_id)
 
 
+def _serve_expense_receipt(expense: Expense):
+    """Phục vụ tệp hóa đơn từ kho lưu trữ mật (SEC-01)."""
+    if not expense.receipt:
+        raise Http404("Khoản chi này không có ảnh hoá đơn.")
+    try:
+        file_handle = expense.receipt.open("rb")
+    except FileNotFoundError as exc:
+        raise Http404("Không tìm thấy tệp hoá đơn trên máy chủ.") from exc
+    content_type, _ = mimetypes.guess_type(expense.receipt.name)
+    response = FileResponse(
+        file_handle,
+        content_type=content_type or "application/octet-stream",
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@lead_required
+def expense_receipt(request, pk):
+    """SEC-01 - Chỉ Trưởng BTC / người có quyền tài chính mới xem được hoá đơn."""
+    expense = get_object_or_404(Expense, pk=pk)
+    return _serve_expense_receipt(expense)
+
+
+@lead_required
+def private_vault_receipt(request, rel_path):
+    """SEC-01 - Chặn truy cập trực tiếp đường dẫn từ widget form nếu không đủ quyền."""
+    expense = Expense.objects.filter(receipt=rel_path).first()
+    if expense is None:
+        raise Http404("Không tìm thấy chứng từ.")
+    return _serve_expense_receipt(expense)
+
+
 @lead_required
 def budget_csv(request, event_id):
-    """Xuất bảng chi tiêu ra CSV để nộp quyết toán."""
+    """Xuất bảng chi tiêu ra CSV để nộp quyết toán (SEC-02: chống CSV Injection)."""
     event = get_object_or_404(Event, pk=event_id)
     summary = budget_summary(event)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
@@ -664,11 +700,16 @@ def budget_csv(request, event_id):
     writer.writerow(["Ngày chi", "Khoản chi", "Hạng mục", "Số tiền", "Người chi",
                      "Ghi chú"])
     for e in event.expenses.select_related("paid_by"):
-        writer.writerow([e.spent_on.strftime("%d/%m/%Y"), e.title,
-                         e.get_category_display(), e.amount,
-                         e.paid_by.full_name if e.paid_by else "", e.note])
+        writer.writerow(safe_csv_row([
+            e.spent_on.strftime("%d/%m/%Y"),
+            e.title,
+            e.get_category_display(),
+            e.amount,
+            e.paid_by.full_name if e.paid_by else "",
+            e.note,
+        ]))
     writer.writerow([])
-    writer.writerow(["", "Tổng thu (vé đã xác nhận)", "", summary["income"]])
-    writer.writerow(["", "Tổng chi", "", summary["spent"]])
-    writer.writerow(["", "Chênh lệch", "", summary["balance"]])
+    writer.writerow(safe_csv_row(["", "Tổng thu (vé đã xác nhận)", "", summary["income"]]))
+    writer.writerow(safe_csv_row(["", "Tổng chi", "", summary["spent"]]))
+    writer.writerow(safe_csv_row(["", "Chênh lệch", "", summary["balance"]]))
     return response

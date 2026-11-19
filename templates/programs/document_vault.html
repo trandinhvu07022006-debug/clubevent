@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Kho Tài liệu Mật &amp; Phân quyền ACL — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-shield-lock-fill"></i> Confidential Vault · SEC-01 &amp; INV-01</span>
+    <h1 class="h3 fw-bold mb-1">Kho Tài liệu Bảo mật KMG</h1>
+    <p class="text-body-secondary mb-0 small">
+      Tệp được lưu tách biệt tại Kho Mật (ngoài <code>/media/</code>), kiểm tra mã độc &amp; băm SHA-256.
+      <strong>Skill chỉ để lọc/đề xuất UX — quyền truy cập thực tế phụ thuộc hoàn toàn vào ACL (INV-01).</strong>
+    </p>
+  </div>
+  <a href="{% url 'organization:workspace_home' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Không gian CLB
+  </a>
+</div>
+
+<div class="kmg-card p-3 p-md-4 mb-4">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold mb-1">Từ khóa tài liệu</label>
+      <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Mã tài liệu, tiêu đề...">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold mb-1">Ban sở hữu</label>
+      <select name="dept" class="form-select form-select-sm">
+        <option value="">Tất cả các Ban</option>
+        {% for d in departments %}
+          <option value="{{ d.slug }}" {% if selected_dept and selected_dept.id == d.id %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold mb-1">Mức bảo mật</label>
+      <select name="classification" class="form-select form-select-sm">
+        <option value="">Tất cả mức</option>
+        {% for code, label in classifications %}
+          <option value="{{ code }}" {% if selected_classification == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold mb-1">Lọc gợi ý theo Kỹ năng (UX)</label>
+      <select name="skill" class="form-select form-select-sm">
+        <option value="">— Mọi kỹ năng —</option>
+        {% for s in skills %}
+          <option value="{{ s.id }}" {% if selected_skill and selected_skill.id == s.id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1 d-grid">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Lọc</button>
+    </div>
+  </form>
+</div>
+
+<div class="row g-4">
+  <div class="{% if not is_advisor and manageable_depts or not is_advisor and can_manage_club_docs %}col-xl-8{% else %}col-12{% endif %}">
+    <div class="kmg-card p-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-folder2-open me-2"></i>Tài liệu bạn được phép xem ({{ doc_items|length }})</h2>
+        <span class="badge text-bg-light border small">Truy vấn Hai Pha (PA-01): Bảo mật trước · Skill sau</span>
+      </div>
+
+      {% if doc_items %}
+      <div class="vstack gap-3">
+        {% for item in doc_items %}
+        {% with doc=item.document ver=item.latest_version %}
+        <div class="p-3 rounded-3 border">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div>
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <code class="small">{{ doc.code }}</code>
+                <span class="badge {% if doc.classification == 'HIGHLY_RESTRICTED' %}text-bg-danger{% elif doc.classification == 'RESTRICTED' %}text-bg-warning{% elif doc.classification == 'DEPT_INTERNAL' %}text-bg-primary{% else %}text-bg-success{% endif %}">
+                  {{ doc.get_classification_display }}
+                </span>
+                {% if item.is_skill_recommended %}
+                  <span class="badge kmg-badge-gold"><i class="bi bi-stars me-1"></i>Phù hợp kỹ năng của bạn</span>
+                {% endif %}
+                {% if doc.custom_category_label %}
+                  <span class="badge text-bg-light border">{{ doc.custom_category_label }}</span>
+                {% endif %}
+              </div>
+              <h3 class="h6 fw-bold mb-1">
+                <a href="{% url 'programs:document_detail' doc.pk %}" class="text-decoration-none">{{ doc.title }}</a>
+              </h3>
+              {% if doc.description %}
+                <p class="small text-body-secondary mb-2">{{ doc.description|truncatechars:180 }}</p>
+              {% endif %}
+              <div class="small text-body-secondary d-flex flex-wrap gap-3">
+                <span><i class="bi bi-building me-1"></i>{{ doc.department.name|default:"Toàn CLB KMG" }}</span>
+                {% if ver %}
+                  <span><i class="bi bi-file-earmark-lock me-1"></i>v{{ ver.version_number }} · {{ ver.original_filename }} ({{ ver.file_size|filesizeformat }})</span>
+                {% endif %}
+                {% if item.recommended_skills %}
+                  <span><i class="bi bi-music-note me-1"></i>Gợi ý: {% for sk in item.recommended_skills %}{{ sk.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 flex-shrink-0">
+              <a href="{% url 'programs:document_detail' doc.pk %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye me-1"></i>Chi tiết{% if item.can_manage %} &amp; ACL{% endif %}
+              </a>
+              {% if item.can_download and ver %}
+                <a href="{% url 'programs:document_download' doc.pk %}" class="btn btn-sm btn-primary">
+                  <i class="bi bi-download me-1"></i>Tải v{{ ver.version_number }}
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center text-body-secondary py-4 small">
+        <i class="bi bi-lock display-6 d-block mb-2"></i>
+        Không tìm thấy tài liệu nào trong phạm vi quyền truy cập của bạn.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not is_advisor and manageable_depts or not is_advisor and can_manage_club_docs %}
+  <div class="col-xl-4">
+    <div class="kmg-card p-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-cloud-upload me-2 text-primary"></i>Tải lên Tài liệu Mật mới</h2>
+      <form method="post" enctype="multipart/form-data" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_document">
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Tiêu đề tài liệu <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="form-control form-control-sm" maxlength="200" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Ban chủ quản</label>
+          <select name="department_id" class="form-select form-select-sm">
+            {% if can_manage_club_docs %}
+              <option value="">Toàn CLB KMG</option>
+            {% endif %}
+            {% for d in manageable_depts %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Mức độ bảo mật</label>
+          <select name="classification" class="form-select form-select-sm">
+            {% for code, label in classifications %}
+              <option value="{{ code }}" {% if code == 'DEPT_INTERNAL' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Danh mục chuẩn</label>
+          <select name="category_id" class="form-select form-select-sm">
+            <option value="">— Không chọn —</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Nhãn danh mục Ban</label>
+          <input type="text" name="custom_category_label" class="form-control form-control-sm" placeholder="VD: Bản phối / SOP FOH">
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Mô tả tóm tắt</label>
+          <textarea name="description" rows="2" class="form-control form-control-sm"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Gợi ý Kỹ năng liên quan <span class="text-body-secondary fw-normal">(Không cấp quyền)</span></label>
+          <select name="recommended_skill_ids" class="form-select form-select-sm" multiple size="4">
+            {% for s in skills %}
+              <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Tệp đính kèm (tối đa 20MB, chặn HTML/SVG/EXE) <span class="text-danger">*</span></label>
+          <input type="file" name="file" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Ghi chú phiên bản v1</label>
+          <input type="text" name="change_note" class="form-control form-control-sm" value="Tải lên phiên bản đầu tiên">
+        </div>
+        <div class="col-12 mt-2">
+          <button type="submit" class="btn btn-sm btn-primary w-100">
+            <i class="bi bi-lock-fill me-1"></i>Lưu vào Kho Tài liệu Mật
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

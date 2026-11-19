@@ -24,6 +24,22 @@ class EventStatus(models.TextChoices):
     CANCELLED = "CANCELLED", "Đã huỷ"
 
 
+class EventVisibility(models.TextChoices):
+    """INT-01 - Phân tách sự kiện công khai (Guest đặt vé) với sự kiện nội bộ CLB."""
+    PUBLIC = "PUBLIC", "Công khai"
+    INTERNAL = "INTERNAL", "Nội bộ CLB"
+
+
+def can_view_internal_events(user) -> bool:
+    """Chỉ thành viên CLB đang hoạt động, cán bộ/cố vấn hoặc BTC mới xem được sự kiện nội bộ."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    return bool(
+        getattr(user, "is_staff_btc", False)
+        or getattr(user, "has_active_club_access", False)
+    )
+
+
 class EventCategory(models.TextChoices):
     """
     F2.5 - Danh mục sự kiện.
@@ -81,6 +97,9 @@ class Event(models.Model):
     cover = models.ImageField("Ảnh bìa", upload_to="events/", null=True, blank=True)
     status = models.CharField("Trạng thái", max_length=10,
                               choices=EventStatus.choices, default=EventStatus.DRAFT)
+    visibility = models.CharField("Phạm vi hiển thị", max_length=12,
+                                  choices=EventVisibility.choices,
+                                  default=EventVisibility.PUBLIC, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL,
                                    on_delete=models.SET_NULL, null=True,
                                    related_name="events_created",

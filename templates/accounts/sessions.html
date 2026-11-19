@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Quản lý Thiết bị Đăng nhập{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h1 class="h4 fw-bold mb-1">Phiên đăng nhập &amp; Thiết bị</h1>
+    <p class="text-body-secondary small mb-0">Kiểm tra các thiết bị đang truy cập tài khoản KMG của bạn và thu hồi từ xa nếu phát hiện bất thường.</p>
+  </div>
+  <form method="post" action="{% url 'accounts:session_revoke_others' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-danger btn-sm fw-semibold">
+      <i class="bi bi-shield-x"></i> Đăng xuất mọi thiết bị khác
+    </button>
+  </form>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Thiết bị</th>
+          <th>Địa chỉ IP</th>
+          <th>Hoạt động cuối</th>
+          <th>Trạng thái</th>
+          <th class="text-end">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ s.device_label|default:"Trình duyệt Web" }}</div>
+              <div class="small text-body-secondary text-truncate" style="max-width: 320px;">{{ s.user_agent }}</div>
+            </td>
+            <td class="small font-monospace">{{ s.ip_address|default:"—" }}</td>
+            <td class="small">{{ s.last_seen_at|date:"H:i d/m/Y" }}</td>
+            <td>
+              {% if s.session_key == current_session_key and s.is_active_session %}
+                <span class="badge bg-success">Thiết bị hiện tại</span>
+              {% elif s.is_active_session %}
+                <span class="badge bg-primary-subtle text-primary-emphasis">Đang hoạt động</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">Đã thu hồi</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if s.is_active_session and s.session_key != current_session_key %}
+                <form method="post" action="{% url 'accounts:session_revoke' s.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Thu hồi</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-4">Chưa có bản ghi phiên thiết bị nào.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

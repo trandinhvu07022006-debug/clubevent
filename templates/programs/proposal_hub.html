@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Đề xuất Hoạt động &amp; Sáng kiến — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-lightbulb-fill"></i> Proposal Workflow · WF17–WF18 &amp; INV-03</span>
+    <h1 class="h3 fw-bold mb-1">Trung tâm Đề xuất Hoạt động &amp; Sáng kiến</h1>
+    <p class="text-body-secondary mb-0 small">Quy trình 6 trạng thái từ thành viên → Ban sơ duyệt → BCN phê duyệt &amp; chuyển đổi thành Sự kiện / Khóa đào tạo thực thi.</p>
+  </div>
+  <form method="get" class="d-flex flex-wrap gap-2">
+    <select name="dept" class="form-select form-select-sm" style="max-width:210px;">
+      <option value="">Tất cả các Ban</option>
+      {% for d in departments %}
+        <option value="{{ d.slug }}" {% if d.slug == selected_dept_slug %}selected{% endif %}>{{ d.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="status" class="form-select form-select-sm" style="max-width:210px;">
+      <option value="">Mọi trạng thái</option>
+      {% for code, label in proposal_statuses %}
+        <option value="{{ code }}" {% if code == selected_status %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-funnel"></i> Lọc</button>
+  </form>
+</div>
+
+<div class="row g-4">
+  <div class="{% if creatable_depts and not is_advisor %}col-xl-7{% else %}col-12{% endif %}">
+    <div class="kmg-card p-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-collection me-2"></i>Danh sách Đề xuất ({{ proposals|length }})</h2>
+      {% if proposals %}
+      <div class="vstack gap-3">
+        {% for p in proposals %}
+        <div class="p-3 rounded-3 border">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div>
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <code class="small">{{ p.code }}</code>
+                <span class="badge text-bg-light border">{{ p.get_proposal_type_display }}</span>
+                <span class="badge {% if p.scope == 'CLUB' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">{{ p.get_scope_display }}</span>
+                {% if p.is_escalated_to_bcn %}
+                  <span class="badge text-bg-info">Đã trình BCN</span>
+                {% endif %}
+              </div>
+              <h3 class="h6 fw-bold mb-1">
+                <a href="{% url 'programs:proposal_detail' p.pk %}" class="text-decoration-none">{{ p.title }}</a>
+              </h3>
+              <p class="small text-body-secondary mb-2">{{ p.summary|truncatechars:180 }}</p>
+              <div class="small text-body-secondary d-flex flex-wrap gap-3">
+                <span><i class="bi bi-diagram-3 me-1"></i>{{ p.department.name }}</span>
+                <span><i class="bi bi-person me-1"></i>{{ p.proposer.public_name }}</span>
+                {% if p.estimated_budget %}<span><i class="bi bi-cash-coin me-1"></i>Dự trù: {{ p.estimated_budget }}đ</span>{% endif %}
+              </div>
+            </div>
+            <div class="text-end flex-shrink-0">
+              <span class="badge {% if p.status == 'APPROVED' or p.status == 'COMPLETED' %}text-bg-success{% elif p.status == 'REJECTED' %}text-bg-danger{% elif p.status == 'UNDER_REVIEW' or p.status == 'IN_PROGRESS' %}text-bg-primary{% elif p.status == 'SUBMITTED' %}text-bg-info{% else %}text-bg-secondary{% endif %}">
+                {{ p.get_status_display }}
+              </span>
+              <div class="mt-2">
+                <a href="{% url 'programs:proposal_detail' p.pk %}" class="btn btn-sm btn-outline-primary">Xem &amp; Thẩm định</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-body-secondary small mb-0">Chưa có đề xuất hoạt động nào trong bộ lọc hiện tại.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if creatable_depts and not is_advisor %}
+  <div class="col-xl-5">
+    <div class="kmg-card p-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-file-earmark-plus me-2 text-primary"></i>Gửi Đề xuất Hoạt động mới</h2>
+      <form method="post" enctype="multipart/form-data" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_proposal">
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Tên đề xuất <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="form-control form-control-sm" maxlength="200" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Ban chủ quản <span class="text-danger">*</span></label>
+          <select name="department_id" class="form-select form-select-sm" required>
+            {% for d in creatable_depts %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Loại đề xuất</label>
+          <select name="proposal_type" class="form-select form-select-sm">
+            {% for code, label in proposal_types %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Phạm vi</label>
+          <select name="scope" class="form-select form-select-sm">
+            {% for code, label in proposal_scopes %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Dự trù kinh phí (VNĐ)</label>
+          <input type="number" name="estimated_budget" value="0" min="0" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Thời gian dự kiến</label>
+          <input type="datetime-local" name="proposed_start_at" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Địa điểm dự kiến</label>
+          <input type="text" name="proposed_location" class="form-control form-control-sm" placeholder="VD: Phòng Studio B204">
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Nội dung &amp; Kế hoạch chi tiết <span class="text-danger">*</span></label>
+          <textarea name="summary" rows="3" class="form-control form-control-sm" required></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Mục tiêu &amp; Kết quả kỳ vọng</label>
+          <textarea name="objectives" rows="2" class="form-control form-control-sm"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Tệp kế hoạch đính kèm (tùy chọn)</label>
+          <input type="file" name="attachment" class="form-control form-control-sm">
+        </div>
+        <div class="col-12 form-check ms-2 small">
+          <input class="form-check-input" type="checkbox" name="submit_immediately" value="1" id="propSubmitNow" checked>
+          <label class="form-check-label" for="propSubmitNow">Gửi ngay lên Ban xem xét sau khi tạo</label>
+        </div>
+        <div class="col-12 mt-2">
+          <button type="submit" class="btn btn-sm btn-primary w-100">Tạo Đề xuất Hoạt động</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

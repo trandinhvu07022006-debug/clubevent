@@ -37,7 +37,10 @@ if _env_file.exists():
         os.environ.setdefault(_k.strip(), _v)
 
 SECRET_KEY = env("SECRET_KEY", "dev-only-doi-key-nay-truoc-khi-deploy")
+CERT_SIGNING_KEY = env("CERT_SIGNING_KEY", "dev-only-cert-signing-key-32chars!!")
+CHAT_MASTER_KEK = env("CHAT_MASTER_KEK", "dev-only-chat-master-kek-32chars!!")
 DEBUG = env_bool("DEBUG", True)
+ALLOW_DEMO_SEED = env_bool("ALLOW_DEMO_SEED", True)
 ALLOWED_HOSTS = [h for h in env("ALLOWED_HOSTS", "*").split(",") if h]
 # Bắt buộc khi truy cập qua HTTPS của tên miền khác (ngrok, host thật), nếu
 # không mọi form POST bị chặn CSRF 403. Ví dụ: https://abc.ngrok-free.app
@@ -64,6 +67,16 @@ INSTALLED_APPS = [
     "notifications",  # M7 - Nền tảng thông báo chung
     "pages",          # Trang giới thiệu công khai + Tổng quan theo vai trò
     "recruitment",    # Tuyển thành viên theo đợt (Khách -> Thành viên)
+    # KMG Enterprise Club Management Platform (Phase 1 -> Phase 5 & Deployment)
+    "core",
+    "organization",
+    "operations",
+    "programs",
+    "social",
+    "finance",
+    "evaluations",
+    "public_portal",
+    "deployment",
 ]
 
 MIDDLEWARE = [
@@ -255,25 +268,25 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Mật khẩu băm bằng bcrypt. Cả bcrypt và PBKDF2 đều là hàm băm CHẬM và có
-# SALT - đúng yêu cầu cho mật khẩu. Tuyệt đối không dùng MD5/SHA1 vì chúng
-# nhanh, nên dò mật khẩu bằng brute-force rất dễ.
-#
-# Dò xem máy đã cài thư viện bcrypt chưa. Nếu chưa thì dùng PBKDF2 có sẵn
-# trong Django để dự án vẫn chạy được - tránh cảnh bạn nào quên
-# `pip install -r requirements.txt` là không chạy nổi.
+# Mật khẩu ưu tiên băm bằng Argon2id (chuẩn OWASP cao nhất hiện nay), tiếp theo là
+# BCryptSHA256 (tương thích toàn bộ mật khẩu tài khoản cũ) và PBKDF2 fallback.
+PASSWORD_HASHERS = []
+try:
+    import argon2  # noqa: F401
+
+    PASSWORD_HASHERS.append("django.contrib.auth.hashers.Argon2PasswordHasher")
+except ImportError:
+    pass
 try:
     import bcrypt  # noqa: F401
 
-    PASSWORD_HASHERS = [
-        "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
-        "django.contrib.auth.hashers.PBKDF2PasswordHasher",
-    ]
+    PASSWORD_HASHERS.append("django.contrib.auth.hashers.BCryptSHA256PasswordHasher")
 except ImportError:
-    PASSWORD_HASHERS = [
-        "django.contrib.auth.hashers.PBKDF2PasswordHasher",
-        "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
-    ]
+    pass
+PASSWORD_HASHERS.extend([
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+])
 
 LANGUAGE_CODE = "vi"
 TIME_ZONE = "Asia/Ho_Chi_Minh"
@@ -301,6 +314,10 @@ if not DEBUG:
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+PRIVATE_VAULT_ROOT = Path(env("PRIVATE_VAULT_ROOT", str(BASE_DIR / "private_vault")))
+PRIVATE_VAULT_ROOT.mkdir(parents=True, exist_ok=True)
+
+TEST_RUNNER = "core.test_runner.KMGTestRunner"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

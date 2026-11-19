@@ -1,4 +1,5 @@
 """Tầng SERVICE cho M3 - Công việc BTC, các Ban và ngân sách sự kiện."""
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Q
 from django.urls import reverse
@@ -216,7 +217,21 @@ def _remind_one(pk, overdue: bool, now) -> int:
     return 1
 
 
+def is_legacy_expense_locked(expense: Expense) -> bool:
+    """`CM-03`: Khóa sửa/xóa khoản chi sự kiện cũ sau khi giao dịch sổ cái liên kết đã CONFIRMED."""
+    if not expense or not expense.pk:
+        return False
+    from finance.models import FinancialTransaction, TransactionStatus
+    return FinancialTransaction.objects.using(expense._state.db).filter(
+        legacy_expense_id=expense.pk, status=TransactionStatus.CONFIRMED
+    ).exists()
+
+
 def save_expense(actor, expense: Expense, is_new: bool) -> Expense:
+    if not is_new and is_legacy_expense_locked(expense):
+        raise PermissionDenied(
+            "Khoản chi này đã được duyệt ghi sổ cái tài chính (CONFIRMED), không thể chỉnh sửa (CM-03)."
+        )
     expense.save()
     AuditLog.write(actor, "Thêm khoản chi" if is_new else "Sửa khoản chi",
                    expense.event.name, f"{expense.title} - {expense.amount}đ")
@@ -224,6 +239,10 @@ def save_expense(actor, expense: Expense, is_new: bool) -> Expense:
 
 
 def delete_expense(actor, expense: Expense):
+    if is_legacy_expense_locked(expense):
+        raise PermissionDenied(
+            "Khoản chi này đã được duyệt ghi sổ cái tài chính (CONFIRMED), không thể xoá (CM-03)."
+        )
     AuditLog.write(actor, "Xoá khoản chi", expense.event.name,
                    f"{expense.title} - {expense.amount}đ")
     expense.delete()

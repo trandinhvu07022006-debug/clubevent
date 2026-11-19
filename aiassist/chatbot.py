@@ -214,8 +214,13 @@ def _answer_with_ai(question, history=None):
     except AIError:
         return None
 
-    from events.models import Event
-    names = dict(Event.objects.filter(pk__in=data["event_ids"]).values_list("pk", "name"))
+    from events.models import Event, EventVisibility
+    names = dict(
+        Event.objects.filter(
+            pk__in=data["event_ids"],
+            visibility=EventVisibility.PUBLIC,
+        ).values_list("pk", "name")
+    )
     links = [{"label": names[pk], "url": reverse("events:detail", args=[pk])}
              for pk in data["event_ids"] if pk in names]
     return {"intent": "ai", "source": "ai", "text": data["answer"], "links": links}
@@ -225,11 +230,13 @@ def _answer_with_ai(question, history=None):
 # Các hàm trả lời cho từng ý định. Mỗi hàm tự truy vấn DB.
 # --------------------------------------------------------------------------
 def _upcoming_events(user):
-    from events.models import Event, EventStatus
+    from events.models import Event, EventStatus, EventVisibility, can_view_internal_events
 
     events = (Event.objects
-              .filter(status=EventStatus.OPEN, starts_at__gte=timezone.now())
-              .order_by("starts_at")[:5])
+              .filter(status=EventStatus.OPEN, starts_at__gte=timezone.now()))
+    if not can_view_internal_events(user):
+        events = events.filter(visibility=EventVisibility.PUBLIC)
+    events = events.order_by("starts_at")[:5]
     if not events:
         return {"text": "Hiện chưa có sự kiện nào đang mở đăng ký.", "links": []}
 
@@ -243,12 +250,14 @@ def _upcoming_events(user):
 
 
 def _seats_left(user):
-    from events.models import Event, EventStatus
+    from events.models import Event, EventStatus, EventVisibility, can_view_internal_events
 
     events = (Event.objects
               .filter(status=EventStatus.OPEN, starts_at__gte=timezone.now())
-              .prefetch_related("ticket_types")
-              .order_by("starts_at")[:5])
+              .prefetch_related("ticket_types"))
+    if not can_view_internal_events(user):
+        events = events.filter(visibility=EventVisibility.PUBLIC)
+    events = events.order_by("starts_at")[:5]
     if not events:
         return {"text": "Hiện chưa có sự kiện nào đang mở đăng ký.", "links": []}
 

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Xử lý Báo cáo Vi phạm Tin nhắn (`BE-07`) — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+  <div>
+    <span class="kmg-kicker mb-1"><i class="bi bi-shield-exclamation"></i> Zero-Admin-Read Evidence Vault · BE-07</span>
+    <h1 class="h3 fw-bold mb-1">Bằng chứng Tố cáo Tin nhắn Vi phạm</h1>
+    <p class="text-body-secondary small mb-0">
+      Chế độ `BE-07`: Chủ nhiệm / Phó CN Nhân sự chỉ thấy nguyên văn tin nhắn bị tố cáo đã đóng dấu `HMAC-SHA256`, hoàn toàn không có quyền đọc các tin nhắn khác trong hộp thư.
+    </p>
+  </div>
+  <a href="{% url 'social:messaging_inbox' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Quay lại Nhắn tin
+  </a>
+</div>
+
+{% for it in reports %}
+  <div class="kmg-card p-4 mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+      <div>
+        <strong>Hồ sơ #{{ it.report.id }}</strong> · Người tố cáo: <strong>{{ it.report.reporter.public_name }}</strong>
+        → Đối tượng bị phản ánh: <strong class="text-danger">{{ it.report.reported_user.public_name }}</strong>
+      </div>
+      <div class="d-flex gap-1">
+        {% if it.hmac_valid %}
+          <span class="badge text-bg-success"><i class="bi bi-patch-check-fill me-1"></i>HMAC-SHA256 Hợp lệ</span>
+        {% else %}
+          <span class="badge text-bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>HMAC Không khớp</span>
+        {% endif %}
+        <span class="badge text-bg-secondary">{{ it.report.get_status_display }}</span>
+      </div>
+    </div>
+
+    <div class="small text-body-secondary mb-2">
+      <strong>Lý do báo cáo:</strong> {{ it.report.reason }}
+    </div>
+    <div class="border rounded-3 p-3 bg-body-tertiary mb-3">
+      <div class="small fw-semibold text-body-secondary mb-1">Bản chụp nguyên văn tin nhắn bị tố cáo:</div>
+      <div style="white-space: pre-line;">{{ it.report.verified_plaintext_snapshot }}</div>
+    </div>
+
+    {% if it.can_adjudicate %}
+    <form method="post" class="row g-2 align-items-center">
+      {% csrf_token %}
+      <input type="hidden" name="report_id" value="{{ it.report.id }}">
+      <div class="col-md-4">
+        <select name="status" class="form-select form-select-sm">
+          {% for s_code, s_label in status_choices %}
+            <option value="{{ s_code }}">{{ s_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <input type="text" name="resolution_note" class="form-control form-control-sm" placeholder="Kết luận xem xét kỷ luật...">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-sm btn-danger w-100">Chốt kết luận</button>
+      </div>
+    </form>
+    {% elif it.report.resolution_note %}
+      <div class="small text-body-secondary"><strong>Kết luận ({{ it.report.handled_by.public_name|default:"BCN" }}):</strong> {{ it.report.resolution_note }}</div>
+    {% endif %}
+  </div>
+{% empty %}
+  <div class="kmg-card p-5 text-center text-body-secondary">
+    <i class="bi bi-shield-check fs-1 d-block mb-2 text-success"></i>
+    Chưa có tố cáo tin nhắn vi phạm nào.
+  </div>
+{% endfor %}
+{% endblock %}

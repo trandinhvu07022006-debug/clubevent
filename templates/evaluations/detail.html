@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Phiếu Đánh giá · {{ ev.member.public_name }} — {{ ev.department.name }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'evaluations:hub' %}" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Quay lại Cổng Đánh giá &amp; Vinh danh</a>
+
+<div class="kmg-card p-4 my-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <span class="kmg-kicker mb-1">{{ ev.cycle.code }} · {{ ev.department.name }}</span>
+      <h1 class="h4 fw-bold mb-1">Phiếu Đánh giá: {{ ev.member.public_name }}</h1>
+      <p class="text-body-secondary small mb-0">Người soạn: {{ ev.drafted_by.public_name }}{% if ev.finalized_by %} · Người chốt: {{ ev.finalized_by.public_name }} ({{ ev.finalized_at|date:"d/m/Y H:i" }}){% endif %}</p>
+    </div>
+    {% if ev.status == 'CONFIRMED' %}
+      <span class="badge text-bg-success py-2 px-3"><i class="bi bi-lock-fill me-1"></i>Đã chốt chính thức</span>
+    {% else %}
+      <span class="badge text-bg-warning py-2 px-3"><i class="bi bi-pencil me-1"></i>Bản nháp (nội bộ Ban)</span>
+    {% endif %}
+  </div>
+
+  <!-- Snapshot số liệu tự động (Phase 2 & 3) -->
+  {% if ev.telemetry_snapshot %}
+  <div class="alert alert-light border small mb-4">
+    <div class="fw-bold mb-1"><i class="bi bi-cpu me-1 text-primary"></i>Minh chứng số liệu tự động trong phạm vi {{ ev.department.name }}:</div>
+    <div class="row g-2">
+      <div class="col-md-3">Nhiệm vụ hoàn thành: <strong>{{ ev.telemetry_snapshot.tasks_approved }}/{{ ev.telemetry_snapshot.tasks_total }}</strong></div>
+      <div class="col-md-3">Có mặt sự kiện: <strong>{{ ev.telemetry_snapshot.events_present }}/{{ ev.telemetry_snapshot.events_total }}</strong></div>
+      <div class="col-md-3">Tập luyện Band: <strong>{{ ev.telemetry_snapshot.practice_attended }}/{{ ev.telemetry_snapshot.practice_total }}</strong></div>
+      <div class="col-md-3">Kỹ năng xác minh: <strong>{{ ev.telemetry_snapshot.verified_skills }}</strong></div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if ev.status == 'DRAFT' and can_draft %}
+  <!-- FORM CHỈNH SỬA BẢN NHÁP (7 TIÊU CHÍ) -->
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_draft">
+    <h2 class="h6 fw-bold mb-3">7 Tiêu chí Đánh giá Phát triển (Chỉ thị 3.3)</h2>
+    <div class="vstack gap-3 mb-4">
+      {% for code, label in criteria_choices %}
+      <div class="border rounded-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+          <strong>{{ label }}</strong>
+          <select name="criterion_{{ code }}" class="form-select form-select-sm" style="max-width:220px;">
+            {% for lvl, ltxt in rating_levels %}
+              <option value="{{ lvl }}" {% for s in scores %}{% if s.criterion == code and s.rating_level == lvl %}selected{% endif %}{% endfor %}>{{ lvl }} - {{ ltxt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <input name="comment_{{ code }}" class="form-control form-control-sm" placeholder="Nhận xét định tính cho tiêu chí này" value="{% for s in scores %}{% if s.criterion == code %}{{ s.comment }}{% endif %}{% endfor %}">
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Nhận định tổng quát</label>
+        <select name="overall_rating" class="form-select form-select-sm" required>
+          <option value="">— Chọn nhận định —</option>
+          {% for r, rlbl in overall_ratings %}
+            <option value="{{ r }}" {% if ev.overall_rating == r %}selected{% endif %}>{{ rlbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-8">
+        <label class="form-label small fw-semibold">Điểm mạnh ghi nhận</label>
+        <input name="strengths" class="form-control form-control-sm" value="{{ ev.strengths }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Định hướng cải thiện (xây dựng)</label>
+        <textarea name="growth_areas" rows="2" class="form-control form-control-sm">{{ ev.growth_areas }}</textarea>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Kế hoạch phát triển kỳ tới</label>
+        <textarea name="development_plan" rows="2" class="form-control form-control-sm">{{ ev.development_plan }}</textarea>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Lưu bản nháp</button>
+      {% if can_finalize %}
+      <button type="submit" form="finalizeForm" class="btn btn-success btn-sm"><i class="bi bi-lock me-1"></i>Chốt chính thức</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if can_finalize %}
+  <form id="finalizeForm" method="post" class="d-none">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="finalize">
+  </form>
+  {% endif %}
+
+  {% else %}
+  <!-- BẢNG ĐIỂM CHÍNH THỨC ĐÃ CHỐT HOẶC XEM CHỈ ĐỌC -->
+  <h2 class="h6 fw-bold mb-3">Kết quả 7 Tiêu chí</h2>
+  <div class="table-responsive mb-4">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Tiêu chí</th><th>Minh chứng tự động</th><th>Mức độ</th><th>Nhận xét</th></tr></thead>
+      <tbody>
+        {% for s in scores %}
+        <tr>
+          <td class="fw-semibold">{{ s.get_criterion_display }}</td>
+          <td class="small text-body-secondary">{{ s.auto_evidence }}</td>
+          <td><span class="badge text-bg-light border">{{ s.get_rating_level_display }}</span></td>
+          <td class="small">{{ s.comment|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="row g-3 small border-top pt-3 mb-4">
+    <div class="col-md-4"><strong>Nhận định tổng quát:</strong> <span class="badge text-bg-success">{{ ev.get_overall_rating_display }}</span></div>
+    <div class="col-md-4"><strong>Điểm mạnh:</strong> {{ ev.strengths|default:"—" }}</div>
+    <div class="col-md-4"><strong>Định hướng phát triển:</strong> {{ ev.growth_areas|default:"—" }}</div>
+    {% if ev.development_plan %}<div class="col-12"><strong>Kế hoạch kỳ tới:</strong> {{ ev.development_plan }}</div>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- BE-06: DIỄN ĐÀN PHẢN HỒI HAI CHIỀU NHẸ NHÀNG -->
+{% if ev.status == 'CONFIRMED' %}
+<div class="kmg-card p-4">
+  <h2 class="h6 fw-bold mb-2"><i class="bi bi-chat-quote me-2"></i>Trao đổi &amp; Phản hồi Hai chiều (BE-06)</h2>
+  <p class="small text-body-secondary mb-3">Không gian phản hồi xây dựng giữa Thành viên và Cán bộ Ban — hoàn toàn tách biệt với thủ tục Khiếu nại/Kỷ luật.</p>
+
+  <div class="vstack gap-2 mb-3">
+    {% for resp in responses %}
+    <div class="border rounded-3 p-3 {% if resp.is_member_response %}bg-light-subtle{% else %}bg-primary-subtle{% endif %}">
+      <div class="d-flex justify-content-between small fw-semibold mb-1">
+        <span>{{ resp.author.public_name }} {% if resp.is_member_response %}(Thành viên){% else %}(Cán bộ Ban){% endif %}</span>
+        <span class="text-body-secondary">{{ resp.created_at|date:"H:i d/m/Y" }}</span>
+      </div>
+      <div class="small">{{ resp.message|linebreaksbr }}</div>
+    </div>
+    {% empty %}
+    <p class="small text-body-secondary mb-0">Chưa có phản hồi nào trên phiếu này.</p>
+    {% endfor %}
+  </div>
+
+  {% if not is_advisor %}
+  <form method="post" class="mt-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="submit_response">
+    <textarea name="message" rows="2" class="form-control form-control-sm mb-2" placeholder="Nhập ý kiến phản hồi hoặc câu hỏi trao đổi..." required></textarea>
+    <button class="btn btn-sm btn-outline-primary"><i class="bi bi-send me-1"></i>Gửi phản hồi</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

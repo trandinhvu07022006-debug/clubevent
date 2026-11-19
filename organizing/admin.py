@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from finance.admin import LedgerReadOnlyAdmin
+
 from .models import Department, Expense, Task
 
 
@@ -12,7 +14,7 @@ class TaskAdmin(admin.ModelAdmin):
 
 
 @admin.register(Expense)
-class ExpenseAdmin(admin.ModelAdmin):
+class ExpenseAdmin(LedgerReadOnlyAdmin):
     list_display = ("title", "event", "category", "amount", "paid_by", "spent_on")
     list_filter = ("category", "event")
     search_fields = ("title", "note")

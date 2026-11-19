@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Đánh giá 7 Tiêu chí &amp; Vinh danh — KMG{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-clipboard2-pulse"></i> Phase 5 · Chỉ thị 3.3 Nhà tài trợ</span>
+    <h1 class="h3 fw-bold mb-1">Đánh giá Phát triển &amp; Vinh danh</h1>
+    <p class="text-body-secondary mb-0 small">7 Tiêu chí phát triển cá nhân · Tách biệt hoàn toàn với Kỷ luật · Vinh danh định tính không dùng leaderboard điểm số.</p>
+  </div>
+  <a href="{% url 'evaluations:analytics' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-bar-chart-line me-1"></i>Trung tâm Phân tích &amp; Báo cáo</a>
+</div>
+
+{% if is_advisor %}
+<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>Chế độ Cố vấn (INV-04) — chỉ xem tổng hợp tại Cổng Giám sát &amp; Phân tích, không can thiệp phiếu đánh giá cá nhân.</div>
+{% endif %}
+
+<!-- Phiếu đánh giá của cá nhân -->
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-person-check me-2"></i>Phiếu Đánh giá Cá nhân của Bạn</h2>
+  <div class="row g-3">
+    {% for ev in my_evaluations %}
+      <div class="col-md-6">
+        <div class="border rounded-3 p-3 h-100 d-flex flex-column justify-content-between">
+          <div>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="badge kmg-badge-gold">{{ ev.cycle.code }}</span>
+              <span class="badge text-bg-success">{{ ev.get_overall_rating_display|default:ev.get_status_display }}</span>
+            </div>
+            <div class="fw-bold mb-1">{{ ev.department.name }}</div>
+            <div class="small text-body-secondary mb-2">Chốt ngày: {{ ev.finalized_at|date:"d/m/Y H:i" }} bởi {{ ev.finalized_by.public_name }}</div>
+            {% if ev.strengths %}<div class="small text-muted mb-1"><strong>Điểm mạnh:</strong> {{ ev.strengths|truncatechars:80 }}</div>{% endif %}
+          </div>
+          <a href="{% url 'evaluations:detail' ev.pk %}" class="btn btn-sm btn-outline-primary mt-2">Xem chi tiết &amp; Phản hồi hai chiều (BE-06)</a>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12"><p class="small text-body-secondary mb-0">Bạn chưa có phiếu đánh giá chính thức nào được chốt trong kỳ này.</p></div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if can_review %}
+<!-- Khu vực Cán bộ Ban: Lập nháp & Chốt đánh giá trong phạm vi Ban -->
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <h2 class="h5 fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Đánh giá Thành viên trong Ban bạn Quản lý</h2>
+    <span class="badge text-bg-primary">Kỳ hiện tại: {{ current_cycle.code }}</span>
+  </div>
+  <p class="small text-body-secondary mb-3">Thành viên sinh hoạt ở nhiều Ban sẽ được đánh giá độc lập theo từng Ban. Bạn chỉ soạn và chốt phiếu trong phạm vi Ban mình phụ trách.</p>
+
+  {% if managed_members %}
+  <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+    <span class="small fw-semibold">Soạn phiếu mới cho:</span>
+    {% for dm in managed_members %}
+      <a href="{% url 'evaluations:draft_new' %}?member_id={{ dm.user.id }}&amp;dept_id={{ dm.department.id }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-pencil-square me-1"></i>{{ dm.user.public_name }} ({{ dm.department.name }})
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Thành viên</th><th>Ban</th><th>Trạng thái</th><th>Nhận định</th><th>Thao tác</th></tr></thead>
+      <tbody>
+        {% for ev in evaluations_to_review %}
+        <tr>
+          <td><strong>{{ ev.member.public_name }}</strong> <small class="text-body-secondary">(@{{ ev.member.username }})</small></td>
+          <td class="small">{{ ev.department.name }}</td>
+          <td>{% if ev.status == 'CONFIRMED' %}<span class="badge text-bg-success">Đã chốt</span>{% else %}<span class="badge text-bg-warning">Bản nháp</span>{% endif %}</td>
+          <td class="small">{{ ev.get_overall_rating_display|default:"—" }}</td>
+          <td><a href="{% url 'evaluations:detail' ev.pk %}" class="btn btn-sm btn-primary py-0">Mở phiếu</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center small text-body-secondary py-3">Chưa có phiếu đánh giá nào được lập trong kỳ này.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Vinh danh thành viên (Tách biệt khỏi điểm số) -->
+<div class="kmg-card p-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <h2 class="h5 fw-bold mb-0"><i class="bi bi-trophy me-2"></i>Bảng Vinh danh Thành viên Tiêu biểu</h2>
+    {% if not is_advisor %}
+    <button class="btn btn-sm btn-outline-warning text-dark" data-bs-toggle="collapse" data-bs-target="#nominateBox"><i class="bi bi-star me-1"></i>Đề cử Vinh danh</button>
+    {% endif %}
+  </div>
+
+  <div class="collapse mb-4" id="nominateBox">
+    <div class="border rounded-3 p-3 bg-light-subtle">
+      <h3 class="h6 fw-bold mb-2">Đề cử danh hiệu vinh danh</h3>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="nominate_recognition">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Người được đề cử (INV-03 không tự đề cử)</label>
+          <select name="recipient_id" class="form-select form-select-sm" required>
+            {% for dm in managed_members %}
+              <option value="{{ dm.user.id }}">{{ dm.user.public_name }} ({{ dm.department.name }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Phạm vi</label>
+          <select name="scope" class="form-select form-select-sm">
+            {% for v, l in scopes %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Ban</label>
+          <select name="department_id" class="form-select form-select-sm">
+            <option value="">— Cấp CLB —</option>
+            {% for d in review_depts %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6"><input name="title" class="form-control form-control-sm" placeholder="Danh hiệu vinh danh" required></div>
+        <div class="col-md-4 d-flex align-items-center"><div class="form-check"><input type="checkbox" name="is_public" value="1" class="form-check-input" id="chkPub"><label class="form-check-label small" for="chkPub">Xuất hiện Trang chủ</label></div></div>
+        <div class="col-12"><textarea name="citation" rows="2" class="form-control form-control-sm" placeholder="Lời vinh danh định tính ghi nhận đóng góp..." required></textarea></div>
+        <div class="col-12"><button class="btn btn-sm btn-warning fw-semibold text-dark">Gửi đề cử</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {% for r in recognitions %}
+      <div class="col-md-6 col-lg-4">
+        <div class="border rounded-3 p-3 h-100 d-flex flex-column justify-content-between">
+          <div>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="badge text-bg-warning text-dark"><i class="bi bi-award-fill me-1"></i>{{ r.get_scope_display }}</span>
+              {% if r.status == 'VERIFIED' %}<span class="badge text-bg-success">Đã xác nhận</span>{% else %}<span class="badge text-bg-secondary">{{ r.get_status_display }}</span>{% endif %}
+            </div>
+            <div class="fw-bold">{{ r.title }}</div>
+            <div class="text-primary small fw-semibold">{{ r.recipient.public_name }}</div>
+            <div class="small text-body-secondary fst-italic mt-2 mb-2">"{{ r.citation }}"</div>
+          </div>
+          {% if r.status == 'PROPOSED' and can_finalize_club %}
+          <form method="post" class="mt-2 d-flex gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="verify_recognition">
+            <input type="hidden" name="recognition_id" value="{{ r.id }}">
+            <button name="decision" value="approve" class="btn btn-sm btn-success py-0">Xác nhận</button>
+            <button name="decision" value="reject" class="btn btn-sm btn-outline-danger py-0">Từ chối</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12"><p class="small text-body-secondary mb-0">Chưa có danh hiệu vinh danh nào được ghi nhận.</p></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,673 @@
+{% extends "base.html" %}
+{% block title %}{{ dept.name }} — Không gian Ban Chuyên biệt KMG{% endblock %}
+
+{% block content %}
+<div class="mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <a href="{% url 'organization:workspace_home' %}" class="text-decoration-none small">
+    <i class="bi bi-arrow-left me-1"></i>Quay lại Không gian Nội bộ CLB
+  </a>
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'programs:proposal_hub' %}?dept={{ dept.slug }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-lightbulb me-1"></i>Đề xuất Ban
+    </a>
+    <a href="{% url 'programs:training_practice_hub' %}?dept={{ dept.slug }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-music-note-list me-1"></i>Đào tạo &amp; Lịch tập
+    </a>
+    <a href="{% url 'programs:document_vault' %}?dept={{ dept.slug }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-shield-lock me-1"></i>Kho Tài liệu Ban
+    </a>
+  </div>
+</div>
+
+<!-- Header Chuyên biệt theo từng Ban (Truyền thông / Chuyên môn / Kỹ thuật Demo) -->
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+    <div class="d-flex align-items-start gap-3">
+      <span class="kmg-dept-icon"><i class="bi {{ dept.icon }}"></i></span>
+      <div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+          <h1 class="h3 fw-bold mb-0">{{ dept.name }}</h1>
+          {% if dept.is_demo %}
+            <span class="badge text-bg-warning">Giai đoạn Demo</span>
+          {% endif %}
+          {% if dept.code == 'MEDIA_EVENT' %}
+            <span class="badge kmg-badge-gold">Truyền thông · Ấn phẩm · Kịch bản Show</span>
+          {% elif dept.code == 'SPECIALTY' %}
+            <span class="badge kmg-badge-gold">Chuyên môn Âm nhạc · Đào tạo · Rehearsal</span>
+          {% elif dept.code == 'TECHNICAL' %}
+            <span class="badge kmg-badge-gold">Kỹ thuật Âm thanh FOH · Ánh sáng · Stage Spec</span>
+          {% endif %}
+        </div>
+        <p class="text-body-secondary mb-2">{{ dept.description|default:dept.short_description }}</p>
+        {% if dept.custom_categories %}
+        <div class="d-flex flex-wrap gap-1">
+          {% for cat in dept.custom_categories %}
+            <span class="badge text-bg-light border">{{ cat }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      {% if access_mode == 'MANAGE' %}
+        <span class="badge text-bg-primary py-2 px-3"><i class="bi bi-sliders me-1"></i>Chế độ Điều hành Ban (MANAGE)</span>
+      {% elif access_mode == 'MEMBER' %}
+        <span class="badge text-bg-success py-2 px-3"><i class="bi bi-person-check me-1"></i>Thành viên Ban (MEMBER)</span>
+      {% else %}
+        <span class="badge text-bg-secondary py-2 px-3"><i class="bi bi-eye me-1"></i>Xem chéo Ban / Giám sát (READ_ONLY)</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if access_mode == 'READ_ONLY' %}
+<div class="alert alert-secondary border-0 shadow-sm small mb-4">
+  <i class="bi bi-info-circle-fill me-1"></i>
+  <strong>Chế độ Xem chéo Ban (Cross-Department Read-Only):</strong>
+  Bạn được xem cơ cấu cán bộ, danh sách thành viên (ẩn thông tin liên hệ riêng tư theo cài đặt bảo mật), hạng mục chuyên môn công khai và số liệu tổng hợp của <strong>{{ dept.name }}</strong>; mọi thao tác điều hành và tài liệu nội bộ/mật của Ban đều được khóa cứng ở tầng Backend.
+</div>
+{% endif %}
+
+<!-- Thanh Tab Phân hệ Cổng Ban Hybrid (Bootstrap Tabs giữ nguyên cấu trúc vận hành chuẩn) -->
+<ul class="nav nav-tabs mb-4" id="deptPortalTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'overview' %}active{% endif %}" id="tab-overview-btn" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button" role="tab">
+      <i class="bi bi-people me-1"></i>Tổng quan &amp; Nhân sự
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'ops' %}active{% endif %}" id="tab-ops-btn" data-bs-toggle="tab" data-bs-target="#tab-ops" type="button" role="tab">
+      <i class="bi bi-kanban me-1"></i>Công việc &amp; Sự kiện ({{ dept_task_stats.open }})
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'specialty' %}active{% endif %}" id="tab-specialty-btn" data-bs-toggle="tab" data-bs-target="#tab-specialty" type="button" role="tab">
+      <i class="bi bi-stars me-1"></i>Chuyên môn Ban ({{ showcase_entries|length }})
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'training' %}active{% endif %}" id="tab-training-btn" data-bs-toggle="tab" data-bs-target="#tab-training" type="button" role="tab">
+      <i class="bi bi-music-note-beamed me-1"></i>Đào tạo &amp; Lịch tập ({{ dept_courses|length }})
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'proposals' %}active{% endif %}" id="tab-proposals-btn" data-bs-toggle="tab" data-bs-target="#tab-proposals" type="button" role="tab">
+      <i class="bi bi-lightbulb me-1"></i>Đề xuất Ban ({{ dept_proposals|length }})
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'vault' %}active{% endif %}" id="tab-vault-btn" data-bs-toggle="tab" data-bs-target="#tab-vault" type="button" role="tab">
+      <i class="bi bi-shield-lock me-1"></i>Kho Tài liệu Mật ({{ dept_vault_docs|length }})
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="deptPortalTabsContent">
+  <!-- TAB 1: TỔNG QUAN & NHÂN SỰ -->
+  <div class="tab-pane fade {% if active_tab == 'overview' %}show active{% endif %}" id="tab-overview" role="tabpanel">
+    <div class="row g-4 mb-4">
+      <!-- Ban Điều hành cấp Ban -->
+      <div class="col-lg-5">
+        <div class="kmg-card p-4 h-100">
+          <h2 class="h5 fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>Cán bộ Điều hành Ban</h2>
+          {% if officers %}
+          <ul class="list-group list-group-flush">
+            {% for appt in officers %}
+            <li class="list-group-item px-0 bg-transparent">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{{ appt.user.public_name }}</strong>
+                  <div class="small text-body-secondary">
+                    {{ appt.position.name }} · Nhiệm kỳ {{ appt.term_label }}
+                    {% if appt.title_note %}· {{ appt.title_note }}{% endif %}
+                  </div>
+                </div>
+                <span class="badge kmg-badge-gold">{{ appt.position.name }}</span>
+              </div>
+              {% for g in appt.permission_grants.all %}
+                {% if g.is_currently_effective %}
+                  <div class="mt-1">
+                    <span class="badge text-bg-info small">{{ g.get_bundle_code_display }}</span>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-body-secondary small mb-0">Ban hiện chưa có quyết định bổ nhiệm cán bộ đương nhiệm.</p>
+          {% endif %}
+
+          {% if perms.can_appoint_deputy %}
+          <div class="border-top mt-3 pt-3">
+            <h3 class="h6 fw-bold mb-2">Bổ nhiệm Phó ban</h3>
+            <form method="post" action="{% url 'organization:department_appoint_deputy' dept.slug %}" class="row g-2">
+              {% csrf_token %}
+              <div class="col-12">
+                <select name="user_id" class="form-select form-select-sm" required>
+                  <option value="">-- Chọn thành viên đang sinh hoạt tại Ban --</option>
+                  {% for item in roster %}
+                    <option value="{{ item.user.id }}">{{ item.user.public_name }} (@{{ item.user.username }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-5">
+                <input type="text" name="term_label" class="form-control form-control-sm" value="2026-2027" placeholder="Nhiệm kỳ">
+              </div>
+              <div class="col-7">
+                <input type="text" name="title_note" class="form-control form-control-sm" placeholder="Mảng phụ trách (VD: Đào tạo)">
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                  <i class="bi bi-person-plus me-1"></i>Ra quyết định bổ nhiệm Phó ban
+                </button>
+              </div>
+            </form>
+          </div>
+          {% endif %}
+
+          {% if perms.can_delegate and active_deputies %}
+          <div class="border-top mt-3 pt-3">
+            <h3 class="h6 fw-bold mb-2">Ủy quyền Gói năng lực cho Phó ban (Chỉ thị 3.1)</h3>
+            <form method="post" action="{% url 'organization:department_grant_bundle' dept.slug %}" class="row g-2">
+              {% csrf_token %}
+              <div class="col-12">
+                <select name="appointment_id" class="form-select form-select-sm" required>
+                  {% for dep in active_deputies %}
+                    <option value="{{ dep.id }}">{{ dep.user.public_name }} ({{ dep.position.name }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12">
+                <select name="bundle_code" class="form-select form-select-sm" required>
+                  {% for code, label in deputy_bundle_choices %}
+                    <option value="{{ code }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12">
+                <input type="text" name="reason" class="form-control form-control-sm" value="Phân công điều hành trong Ban" placeholder="Lý do ủy quyền">
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-sm btn-primary w-100">
+                  <i class="bi bi-key me-1"></i>Cấp gói quyền cho Phó ban
+                </button>
+              </div>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Danh sách Thành viên Ban (Tự động che PII theo quyền riêng tư Data Privacy Rule 10) -->
+      <div class="col-lg-7">
+        <div class="kmg-card p-4 h-100">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-people me-2"></i>Danh sách Thành viên {{ dept.name }} ({{ roster|length }})</h2>
+            <span class="small text-body-secondary">Bảo vệ dữ liệu cá nhân theo Data Privacy Rule 10</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Thành viên</th>
+                  <th>Email liên hệ</th>
+                  <th>Điện thoại</th>
+                  <th>Kỹ năng đã xác minh</th>
+                  <th>Ngày vào Ban</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in roster %}
+                <tr>
+                  <td>
+                    <div class="fw-semibold">{{ item.user.public_name }}</div>
+                    <div class="small text-body-secondary">@{{ item.user.username }}</div>
+                  </td>
+                  <td class="small">{{ item.contact.email }}</td>
+                  <td class="small">{{ item.contact.phone }}</td>
+                  <td>
+                    {% for us in item.verified_skills %}
+                      <span class="badge text-bg-light border me-1">{{ us.skill.name }}</span>
+                    {% empty %}
+                      <span class="small text-body-secondary">—</span>
+                    {% endfor %}
+                  </td>
+                  <td class="small text-body-secondary">{{ item.membership.joined_at|date:"d/m/Y" }}</td>
+                  <td class="text-end">
+                    {% if perms.can_manage_members or item.user.id == user.id %}
+                    <a href="{% url 'organization:member_lifecycle' item.user.id %}" class="btn btn-sm btn-outline-secondary">
+                      Lịch sử
+                    </a>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center text-body-secondary py-4">Chưa có thành viên nào trong Ban.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if perms.can_screen_apps or perms.can_verify_skills %}
+    <div class="row g-4 mb-4">
+      {% if perms.can_screen_apps %}
+      <div class="col-lg-6">
+        <div class="kmg-card p-4 h-100">
+          <h2 class="h5 fw-bold mb-3">
+            <i class="bi bi-person-lines-fill me-2"></i>Đơn ứng tuyển chờ Ban sơ duyệt ({{ pending_applications|length }})
+          </h2>
+          {% for app in pending_applications %}
+          <div class="border rounded-3 p-3 mb-2">
+            <div class="d-flex justify-content-between">
+              <strong>{{ app.user.public_name }} (@{{ app.user.username }})</strong>
+              <span class="small text-body-secondary">{{ app.created_at|date:"d/m/Y" }}</span>
+            </div>
+            {% if app.declared_skills_text %}
+              <div class="small mt-1"><strong>Kỹ năng tự khai:</strong> {{ app.declared_skills_text }}</div>
+            {% endif %}
+            <div class="small text-body-secondary mt-1">{{ app.motivation }}</div>
+            <form method="post" action="{% url 'organization:department_screen_application' dept.slug app.pk %}" class="d-flex gap-2 mt-2">
+              {% csrf_token %}
+              <input type="text" name="screening_note" class="form-control form-control-sm" placeholder="Nhận xét chuyên môn của Ban..." value="Đạt sơ duyệt chuyên môn tại {{ dept.name }}">
+              <button type="submit" class="btn btn-sm btn-success flex-shrink-0">Đạt sơ duyệt</button>
+            </form>
+          </div>
+          {% empty %}
+          <p class="text-body-secondary small mb-0">Không có đơn ứng tuyển mới nào chờ sơ duyệt.</p>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if perms.can_verify_skills %}
+      <div class="col-lg-6">
+        <div class="kmg-card p-4 h-100">
+          <h2 class="h5 fw-bold mb-3">
+            <i class="bi bi-patch-check me-2"></i>Kỹ năng thành viên chờ xác minh ({{ pending_skills|length }})
+          </h2>
+          {% for us in pending_skills %}
+          <div class="border rounded-3 p-3 mb-2">
+            <div class="d-flex justify-content-between">
+              <strong>{{ us.user.public_name }} — {{ us.skill.name }}</strong>
+              <span class="badge text-bg-light border">{{ us.get_proficiency_display }}</span>
+            </div>
+            {% if us.experience_note %}
+              <div class="small text-body-secondary mt-1">{{ us.experience_note }}</div>
+            {% endif %}
+            <form method="post" action="{% url 'organization:department_verify_skill' dept.slug us.pk %}" class="d-flex flex-wrap gap-2 mt-2">
+              {% csrf_token %}
+              <input type="text" name="review_note" class="form-control form-control-sm flex-grow-1" placeholder="Nhận xét thẩm định...">
+              <button type="submit" name="decision" value="approve" class="btn btn-sm btn-success">Xác minh</button>
+              <button type="submit" name="decision" value="reject" class="btn btn-sm btn-outline-danger">Chưa đạt</button>
+            </form>
+          </div>
+          {% empty %}
+          <p class="text-body-secondary small mb-0">Không có khai báo kỹ năng nào đang chờ xác minh.</p>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- TAB 2: CÔNG VIỆC & SỰ KIỆN CỦA BAN (Khoá READ_ONLY chéo Ban) -->
+  <div class="tab-pane fade {% if active_tab == 'ops' %}show active{% endif %}" id="tab-ops" role="tabpanel">
+    <div class="row g-4 mb-4">
+      <div class="col-lg-7">
+        <div class="kmg-card p-4 h-100">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Tiến độ Công việc {{ dept.name }}</h2>
+            {% if task_scope_mode != 'AGGREGATE_ONLY' %}
+              <a href="{% url 'operations:task_list' %}" class="btn btn-sm btn-outline-primary">
+                {% if perms.can_assign_tasks %}<i class="bi bi-plus-circle me-1"></i>Giao việc / Điều phối{% else %}Không gian Công việc{% endif %}
+              </a>
+            {% endif %}
+          </div>
+
+          <div class="row g-2 mb-3 text-center">
+            <div class="col-3">
+              <div class="p-2 rounded-3 bg-body-tertiary">
+                <div class="fw-bold fs-5">{{ dept_task_stats.total }}</div>
+                <div class="small text-body-secondary">Tổng việc</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="p-2 rounded-3 bg-body-tertiary">
+                <div class="fw-bold fs-5 text-primary">{{ dept_task_stats.open }}</div>
+                <div class="small text-body-secondary">Đang mở</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="p-2 rounded-3 bg-body-tertiary">
+                <div class="fw-bold fs-5 text-danger">{{ dept_task_stats.overdue }}</div>
+                <div class="small text-body-secondary">Quá hạn</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="p-2 rounded-3 bg-body-tertiary">
+                <div class="fw-bold fs-5 text-success">{{ dept_task_stats.completion_rate }}%</div>
+                <div class="small text-body-secondary">Hoàn thành</div>
+              </div>
+            </div>
+          </div>
+
+          {% if task_scope_mode == 'AGGREGATE_ONLY' %}
+            <div class="alert alert-light border small mb-0">
+              <i class="bi bi-shield-lock me-1"></i>
+              Ở chế độ xem chéo Ban / Giám sát (<code>READ_ONLY</code>), hệ thống chỉ hiển thị số liệu tiến độ tổng hợp và bảo mật chi tiết nhiệm vụ cá nhân của Ban.
+            </div>
+          {% else %}
+            {% if dept_task_stats.reassignment and perms.can_assign_tasks %}
+            <div class="alert alert-warning small py-2 mb-2">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Có <strong>{{ dept_task_stats.reassignment }}</strong> công việc cần phân công lại (nhân sự chuyển Ban hoặc tạm nghỉ).
+            </div>
+            {% endif %}
+            {% if dept_tasks %}
+              <div class="vstack gap-2">
+                {% for task in dept_tasks %}
+                <a href="{% url 'operations:task_detail' task.pk %}" class="p-2 px-3 rounded-3 border text-decoration-none text-reset d-flex justify-content-between align-items-center gap-2">
+                  <div>
+                    <div class="fw-semibold">{{ task.title }}</div>
+                    <div class="small text-body-secondary">
+                      Hạn: {{ task.deadline|date:"d/m/Y H:i" }} · Tiến độ {{ task.progress_percent }}%
+                      {% if task.is_overdue %}<span class="badge text-bg-danger ms-1">Trễ hạn</span>{% endif %}
+                      {% if task.reassignment_needed %}<span class="badge text-bg-warning ms-1">Cần giao lại</span>{% endif %}
+                    </div>
+                  </div>
+                  <span class="badge text-bg-light border">{{ task.get_workflow_status_display }}</span>
+                </a>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-body-secondary small mb-0">
+                {% if task_scope_mode == 'PERSONAL_SELF' %}Bạn hiện chưa được giao nhiệm vụ nào trong Ban này.{% else %}Ban chưa có nhiệm vụ nào đang mở.{% endif %}
+              </p>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="kmg-card p-4 h-100">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-calendar2-event me-2"></i>Sự kiện của Ban</h2>
+            {% if access_mode != 'READ_ONLY' %}
+              <a href="{% url 'operations:event_hub' %}" class="btn btn-sm btn-outline-secondary">Trung tâm Sự kiện</a>
+            {% endif %}
+          </div>
+          {% if dept_events %}
+            <div class="vstack gap-2">
+              {% for ce in dept_events %}
+              <div class="p-3 rounded-3 border">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  {% if access_mode != 'READ_ONLY' %}
+                    <a href="{% url 'operations:event_detail' ce.pk %}" class="fw-semibold text-decoration-none">{{ ce.event.name }}</a>
+                  {% else %}
+                    <span class="fw-semibold">{{ ce.event.name }}</span>
+                  {% endif %}
+                  <span class="badge text-bg-light border">{{ ce.get_event_scope_display }}</span>
+                </div>
+                <div class="small text-body-secondary mt-1">
+                  {{ ce.event.starts_at|date:"d/m/Y H:i" }} · {{ ce.event.location|default:"Chưa cập nhật" }} · {{ ce.get_approval_status_display }}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-body-secondary small mb-0">Ban chưa có sự kiện nào đã ban hành.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: KHÔNG GIAN CHUYÊN MÔN RIÊNG CỦA BAN (`DepartmentShowcaseItem`) -->
+  <div class="tab-pane fade {% if active_tab == 'specialty' %}show active{% endif %}" id="tab-specialty" role="tabpanel">
+    <div class="row g-4">
+      <div class="{% if can_add_showcase %}col-lg-7{% else %}col-12{% endif %}">
+        <div class="kmg-card p-4 h-100">
+          <h2 class="h5 fw-bold mb-3">
+            {% if dept.code == 'MEDIA_EVENT' %}
+              <i class="bi bi-camera-reels me-2"></i>Portfolio Truyền thông, Ấn phẩm &amp; Kế hoạch Show
+            {% elif dept.code == 'SPECIALTY' %}
+              <i class="bi bi-music-note-beamed me-2"></i>Kho Tiết mục, Hòa âm &amp; Tiêu chuẩn Chuyên môn
+            {% elif dept.code == 'TECHNICAL' %}
+              <i class="bi bi-sliders2-vertical me-2"></i>Hệ thống Thiết bị Âm thanh FOH &amp; Stage Spec (Demo)
+            {% else %}
+              <i class="bi bi-stars me-2"></i>Nội dung Chuyên môn {{ dept.name }}
+            {% endif %}
+          </h2>
+          {% if showcase_entries %}
+          <div class="vstack gap-3">
+            {% for entry in showcase_entries %}
+            {% with sc=entry.item %}
+            <div class="p-3 rounded-3 border">
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                <div class="d-flex flex-wrap gap-1 align-items-center">
+                  {% if sc.is_pinned %}<span class="badge kmg-badge-gold"><i class="bi bi-pin-angle-fill me-1"></i>Ghim</span>{% endif %}
+                  <span class="badge text-bg-light border">{{ sc.category_label }}</span>
+                  <span class="badge text-bg-secondary">{{ sc.get_item_type_display }}</span>
+                </div>
+                <span class="small text-body-secondary">{{ sc.created_at|date:"d/m/Y" }}</span>
+              </div>
+              <h3 class="h6 fw-bold mb-1">{{ sc.title }}</h3>
+              <p class="small text-body-secondary mb-2">{{ sc.summary }}</p>
+              <div class="d-flex flex-wrap gap-2">
+                {% if sc.external_url %}
+                  <a href="{{ sc.external_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Tài nguyên tham khảo
+                  </a>
+                {% endif %}
+                {% if entry.can_access_doc %}
+                  <a href="{% url 'programs:document_detail' sc.linked_document_id %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-file-earmark-lock me-1"></i>Mở tài liệu đính kèm
+                  </a>
+                {% elif sc.linked_document_id %}
+                  <span class="badge text-bg-light border small"><i class="bi bi-lock me-1"></i>Có tài liệu gắn ACL</span>
+                {% endif %}
+              </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-body-secondary small mb-0">Ban chưa bổ sung mục chuyên môn nổi bật nào.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if can_add_showcase %}
+      <div class="col-lg-5">
+        <div class="kmg-card p-4 h-100">
+          <h2 class="h5 fw-bold mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Thêm mục Chuyên môn Ban</h2>
+          <form method="post" action="{% url 'programs:department_add_showcase' dept.slug %}" class="row g-2">
+            {% csrf_token %}
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Tiêu đề <span class="text-danger">*</span></label>
+              <input type="text" name="title" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Danh mục Ban</label>
+              <input type="text" name="category_label" class="form-control form-control-sm" value="{{ dept.custom_categories.0|default:'Chuyên môn Ban' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Loại nội dung</label>
+              <select name="item_type" class="form-select form-select-sm">
+                {% for code, label in showcase_types %}
+                  <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Mô tả / Thông số / Kịch bản <span class="text-danger">*</span></label>
+              <textarea name="summary" rows="3" class="form-control form-control-sm" required></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Liên kết HTTPS (tùy chọn)</label>
+              <input type="url" name="external_url" class="form-control form-control-sm" placeholder="https://...">
+            </div>
+            <div class="col-12 form-check ms-2 small">
+              <input class="form-check-input" type="checkbox" name="is_pinned" value="1" id="pinShowcase">
+              <label class="form-check-label" for="pinShowcase">Ghim nổi bật trên đầu trang Chuyên môn Ban</label>
+            </div>
+            <div class="col-12 mt-2">
+              <button type="submit" class="btn btn-sm btn-primary w-100">Lưu mục Chuyên môn</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- TAB 4: ĐÀO TẠO CHUYÊN MÔN & LỊCH TẬP BAND -->
+  <div class="tab-pane fade {% if active_tab == 'training' %}show active{% endif %}" id="tab-training" role="tabpanel">
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="kmg-card p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-mortarboard me-2"></i>Khóa Đào tạo tại Ban ({{ dept_courses|length }})</h2>
+            <a href="{% url 'programs:training_practice_hub' %}?dept={{ dept.slug }}" class="btn btn-sm btn-outline-primary">Mở trang Đào tạo</a>
+          </div>
+          {% for c in dept_courses %}
+          <div class="border rounded-3 p-3 mb-2 small">
+            <div class="fw-bold">{{ c.title }}</div>
+            <div class="text-body-secondary mt-1">
+              GV: {{ c.instructor.public_name|default:"—" }} · {{ c.starts_at|date:"H:i d/m/Y" }} · Sĩ số {{ c.active_enrollments_count }}/{{ c.capacity }}
+            </div>
+          </div>
+          {% empty %}
+          <p class="text-body-secondary small mb-0">Ban chưa mở khóa đào tạo nào.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="kmg-card p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-mic me-2"></i>Lịch Tập luyện Band ({{ dept_practices_count }})</h2>
+            <a href="{% url 'programs:training_practice_hub' %}?dept={{ dept.slug }}" class="btn btn-sm btn-outline-primary">Xem toàn bộ</a>
+          </div>
+          {% if access_mode == 'READ_ONLY' %}
+          <div class="alert alert-light border small mb-0">
+            <i class="bi bi-shield-lock me-1"></i>
+            Ở chế độ xem chéo Ban (<code>READ_ONLY</code>), hệ thống chỉ hiển thị số lượng ({{ dept_practices_count }} buổi tập) và ẩn danh sách thành viên tham gia buổi tập riêng.
+          </div>
+          {% else %}
+            {% for ps in dept_practices %}
+            <div class="border rounded-3 p-3 mb-2 small">
+              <div class="fw-bold">{{ ps.title }}</div>
+              <div class="text-body-secondary mt-1">{{ ps.starts_at|date:"H:i d/m/Y" }} · {{ ps.location }}</div>
+            </div>
+            {% empty %}
+            <p class="text-body-secondary small mb-0">Ban chưa có buổi tập luyện nào được lên lịch.</p>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 5: ĐỀ XUẤT HOẠT ĐỘNG BAN -->
+  <div class="tab-pane fade {% if active_tab == 'proposals' %}show active{% endif %}" id="tab-proposals" role="tabpanel">
+    <div class="kmg-card p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-lightbulb me-2"></i>Đề xuất Hoạt động của {{ dept.name }} ({{ dept_proposals|length }})</h2>
+        <a href="{% url 'programs:proposal_hub' %}?dept={{ dept.slug }}" class="btn btn-sm btn-primary">Mở Trung tâm Đề xuất</a>
+      </div>
+      {% for p in dept_proposals %}
+      <div class="border rounded-3 p-3 mb-2 d-flex justify-content-between align-items-center gap-2">
+        <div>
+          <code class="small me-1">{{ p.code }}</code>
+          <a href="{% url 'programs:proposal_detail' p.pk %}" class="fw-semibold text-decoration-none">{{ p.title }}</a>
+          <div class="small text-body-secondary">Người đề xuất: {{ p.proposer.public_name }} · {{ p.get_scope_display }}</div>
+        </div>
+        <span class="badge text-bg-light border">{{ p.get_status_display }}</span>
+      </div>
+      {% empty %}
+      <p class="text-body-secondary small mb-0">Chưa có đề xuất hoạt động nào trong phạm vi hiển thị.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- TAB 6: KHO TÀI LIỆU MẬT & PHÂN QUYỀN ACL (`WF20`, `INV-01`, `PA-01`) -->
+  <div class="tab-pane fade {% if active_tab == 'vault' %}show active{% endif %}" id="tab-vault" role="tabpanel">
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="kmg-card p-4 h-100">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-shield-lock me-2"></i>Tài liệu Kho Mật bạn được phép xem ({{ dept_vault_docs|length }})</h2>
+            <a href="{% url 'programs:document_vault' %}?dept={{ dept.slug }}" class="btn btn-sm btn-primary">Mở Kho Tài liệu Đầy đủ</a>
+          </div>
+          {% for item in dept_vault_docs %}
+          {% with d=item.document %}
+          <div class="border rounded-3 p-3 mb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+              <div class="fw-semibold"><code>{{ d.code }}</code> · <a href="{% url 'programs:document_detail' d.pk %}" class="text-decoration-none">{{ d.title }}</a></div>
+              <div class="small text-body-secondary">
+                <span class="badge text-bg-light border me-1">{{ d.get_classification_display }}</span>
+                {% if item.is_skill_recommended %}<span class="badge kmg-badge-gold">Gợi ý theo kỹ năng</span>{% endif %}
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <a href="{% url 'programs:document_detail' d.pk %}" class="btn btn-sm btn-outline-primary">Chi tiết</a>
+              {% if item.can_download and item.latest_version %}
+                <a href="{% url 'programs:document_download' d.pk %}" class="btn btn-sm btn-primary">Tải tệp</a>
+              {% endif %}
+            </div>
+          </div>
+          {% endwith %}
+          {% empty %}
+          <p class="text-body-secondary small mb-0">Không có tài liệu Kho Mật nào trong phạm vi ACL của bạn tại Ban này.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Minh họa Kiểm tra Quy tắc ACL Mẫu (Phase 1 ResourceAccessRule) -->
+      <div class="col-lg-5">
+        <div class="kmg-card p-4 h-100">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-folder2-open me-2"></i>Quy tắc ACL Mẫu (Chỉ thị 3.4)</h2>
+            <span class="badge text-bg-light border small">Skill &ne; Permission</span>
+          </div>
+          {% if resources %}
+          <div class="vstack gap-2">
+            {% for item in resources %}
+            <div class="p-3 rounded-3 border d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold small">{{ item.rule.title }}</div>
+                <div class="small text-body-secondary">
+                  <span class="badge text-bg-light border me-1">{{ item.rule.get_classification_display }}</span>
+                  {% if item.rule.recommended_skill %}
+                    <span>· Gợi ý: <strong>{{ item.rule.recommended_skill.name }}</strong></span>
+                  {% endif %}
+                </div>
+              </div>
+              <div>
+                {% if item.can_access %}
+                  <span class="badge text-bg-success"><i class="bi bi-unlock-fill me-1"></i>Được cấp quyền truy cập</span>
+                {% else %}
+                  <span class="badge text-bg-secondary"><i class="bi bi-lock-fill me-1"></i>Đã khoá theo ACL</span>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-body-secondary small mb-0">Ban chưa cấu hình quy tắc mẫu nào.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

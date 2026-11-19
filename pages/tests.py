@@ -36,6 +36,20 @@ class Base(TestCase):
 
 
 class PublicPagesTests(Base):
+    def setUp(self):
+        super().setUp()
+        from pages.models import ClubOfficer
+        if not ClubOfficer.objects.filter(is_current=True).exists():
+            for name, position, order in [
+                ("Trần Nhật Hoàng", "Chủ nhiệm", 0),
+                ("Trần Đình Vũ", "Phó chủ nhiệm", 1),
+                ("Lưu Nhật Linh", "Trưởng ban Chuyên môn", 2),
+                ("Phan Tiến Đạt", "Trưởng ban Truyền thông & Sự kiện", 3),
+            ]:
+                ClubOfficer.objects.create(
+                    name=name, position=position, order=order,
+                    term="2026 - 2027", is_current=True)
+
     def test_guest_sees_landing_with_two_paths(self):
         r = self.client.get("/")
         self.assertEqual(r.status_code, 200)

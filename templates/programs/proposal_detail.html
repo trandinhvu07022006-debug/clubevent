@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}{{ proposal.code }} — {{ proposal.title }}{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'programs:proposal_hub' %}" class="text-decoration-none small">
+    <i class="bi bi-arrow-left me-1"></i>Quay lại Trung tâm Đề xuất Hoạt động
+  </a>
+</div>
+
+<div class="kmg-card p-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+    <div>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <code>{{ proposal.code }}</code>
+        <span class="badge text-bg-light border">{{ proposal.get_proposal_type_display }}</span>
+        <span class="badge {% if proposal.scope == 'CLUB' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">{{ proposal.get_scope_display }}</span>
+        {% if proposal.is_escalated_to_bcn %}
+          <span class="badge text-bg-info">Đã trình Ban Chủ nhiệm</span>
+        {% endif %}
+      </div>
+      <h1 class="h3 fw-bold mb-1">{{ proposal.title }}</h1>
+      <div class="small text-body-secondary d-flex flex-wrap gap-3">
+        <span><i class="bi bi-diagram-3 me-1"></i>{{ proposal.department.name }}</span>
+        <span><i class="bi bi-person me-1"></i>Người đề xuất: {{ proposal.proposer.public_name }}</span>
+        <span><i class="bi bi-cash-coin me-1"></i>Dự trù: {{ proposal.estimated_budget }} VNĐ</span>
+        {% if proposal.proposed_start_at %}
+          <span><i class="bi bi-calendar3 me-1"></i>{{ proposal.proposed_start_at|date:"H:i d/m/Y" }}</span>
+        {% endif %}
+        {% if proposal.proposed_location %}
+          <span><i class="bi bi-geo-alt me-1"></i>{{ proposal.proposed_location }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="text-end">
+      <span class="badge py-2 px-3 {% if proposal.status == 'APPROVED' or proposal.status == 'COMPLETED' %}text-bg-success{% elif proposal.status == 'REJECTED' %}text-bg-danger{% elif proposal.status == 'UNDER_REVIEW' or proposal.status == 'IN_PROGRESS' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">
+        {{ proposal.get_status_display }}
+      </span>
+    </div>
+  </div>
+
+  <hr class="my-3">
+  <h2 class="h6 fw-bold">Nội dung &amp; Kế hoạch triển khai</h2>
+  <p class="small mb-3" style="white-space: pre-line;">{{ proposal.summary }}</p>
+  {% if proposal.objectives %}
+    <h2 class="h6 fw-bold">Mục tiêu &amp; Kết quả kỳ vọng</h2>
+    <p class="small mb-3" style="white-space: pre-line;">{{ proposal.objectives }}</p>
+  {% endif %}
+  {% if proposal.decision_note %}
+    <div class="alert alert-light border small mb-0">
+      <strong>Kết luận gần nhất:</strong> {{ proposal.decision_note }}
+      {% if proposal.approved_by %} · Người duyệt: {{ proposal.approved_by.public_name }}{% endif %}
+    </div>
+  {% endif %}
+
+  {% if proposal.linked_event %}
+  <div class="alert alert-success border-0 small mt-3 mb-0 d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-calendar2-check me-1"></i>Đã khởi tạo thành Sự kiện: <strong>{{ proposal.linked_event.event.name }}</strong></span>
+    <a href="{% url 'operations:event_detail' proposal.linked_event_id %}" class="btn btn-sm btn-success">Mở Sự kiện</a>
+  </div>
+  {% elif proposal.linked_course %}
+  <div class="alert alert-success border-0 small mt-3 mb-0 d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-mortarboard me-1"></i>Đã khởi tạo thành Khóa đào tạo: <strong>{{ proposal.linked_course.title }}</strong></span>
+    <a href="{% url 'programs:training_practice_hub' %}" class="btn btn-sm btn-success">Mở Trung tâm Đào tạo</a>
+  </div>
+  {% endif %}
+</div>
+
+{% if is_advisor %}
+<div class="alert alert-info border-0 shadow-sm small mb-4">
+  <i class="bi bi-shield-lock-fill me-1"></i>
+  <strong>Chế độ Cố vấn Read-Only (INV-04):</strong> Bạn chỉ được xem tiến trình thẩm định, các biểu mẫu phê duyệt và bình luận bị ẩn hoàn toàn.
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-journal-check me-2"></i>Biên bản Thẩm định (Bất biến · {{ reviews|length }})</h2>
+      {% for rev in reviews %}
+      <div class="border rounded-3 p-3 mb-2">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <strong>{{ rev.reviewer.public_name }} <span class="badge text-bg-light border ms-1">{{ rev.stage }}</span></strong>
+          <span class="badge {% if rev.decision == 'APPROVE' %}text-bg-success{% elif rev.decision == 'REJECT' or rev.decision == 'REQUEST_REVISION' %}text-bg-danger{% else %}text-bg-info{% endif %}">
+            {{ rev.get_decision_display }}
+          </span>
+        </div>
+        <div class="small">{{ rev.feedback }}</div>
+        <div class="text-body-secondary mt-1" style="font-size:0.75rem;">{{ rev.created_at|date:"H:i d/m/Y" }}</div>
+      </div>
+      {% empty %}
+      <p class="text-body-secondary small mb-0">Chưa có biên bản thẩm định nào.</p>
+      {% endfor %}
+    </div>
+
+    <div class="kmg-card p-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-chat-left-text me-2"></i>Thảo luận &amp; Góp ý ({{ comments|length }})</h2>
+      {% for c in comments %}
+      <div class="border-bottom py-2">
+        <div class="d-flex justify-content-between small">
+          <strong>{{ c.author.public_name }}</strong>
+          <span class="text-body-secondary">{{ c.created_at|date:"H:i d/m/Y" }}</span>
+        </div>
+        <div class="small mt-1">{{ c.body }}</div>
+      </div>
+      {% empty %}
+      <p class="text-body-secondary small mb-3">Chưa có góp ý thảo luận nào.</p>
+      {% endfor %}
+
+      {% if not is_advisor %}
+      <form method="post" class="mt-3 d-flex gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="comment">
+        <input type="text" name="body" class="form-control form-control-sm" placeholder="Nhập góp ý xây dựng đề xuất..." required>
+        <button type="submit" class="btn btn-sm btn-outline-primary flex-shrink-0">Gửi góp ý</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not is_advisor %}
+  <div class="col-lg-5">
+    {% if can_submit %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h6 fw-bold mb-2">Nộp / Gửi lại Đề xuất</h2>
+      <p class="small text-body-secondary mb-3">Gửi đề xuất lên Trưởng ban phụ trách để bắt đầu quy trình sơ duyệt.</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="submit">
+        <button type="submit" class="btn btn-sm btn-primary w-100">Gửi duyệt ngay</button>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if can_review %}
+    <div class="kmg-card p-4 mb-4">
+      <h2 class="h5 fw-bold mb-2"><i class="bi bi-stamp me-2 text-primary"></i>Thẩm định Đề xuất</h2>
+      <p class="small text-body-secondary mb-3">
+        Tác giả không được tự phê duyệt (INV-03). Đề xuất Toàn CLB hoặc đã trình BCN chỉ Chủ nhiệm / Phó CN mới được duyệt cuối. Bắt buộc ghi nhận xét khi yêu cầu sửa hoặc từ chối.
+      </p>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="review">
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Quyết định</label>
+          <select name="decision" class="form-select form-select-sm" required>
+            {% for code, label in decisions %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Nhận xét &amp; Lý do thẩm định</label>
+          <textarea name="feedback" rows="3" class="form-control form-control-sm" placeholder="Nhập nhận xét chi tiết..."></textarea>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-sm btn-primary w-100">Ghi nhận Thẩm định</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if can_convert %}
+    <div class="kmg-card p-4">
+      <h2 class="h5 fw-bold mb-2"><i class="bi bi-arrow-repeat me-2 text-success"></i>Chuyển đổi thành Thực thi</h2>
+      <p class="small text-body-secondary mb-3">Đề xuất đã được phê duyệt. Khởi tạo trực tiếp thành kế hoạch Sự kiện hoặc Khóa đào tạo:</p>
+      <div class="vstack gap-2">
+        {% if can_convert_event %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="convert_event">
+          <button type="submit" class="btn btn-sm btn-success w-100">
+            <i class="bi bi-calendar-plus me-1"></i>Khởi tạo Dự thảo Sự kiện
+          </button>
+        </form>
+        {% endif %}
+        {% if can_convert_course %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="convert_course">
+          <button type="submit" class="btn btn-sm btn-outline-success w-100">
+            <i class="bi bi-mortarboard me-1"></i>Khởi tạo Khóa Đào tạo
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

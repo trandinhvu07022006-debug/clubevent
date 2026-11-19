@@ -593,10 +593,12 @@ def build_assistant_context() -> tuple[str, set[int]]:
     """
     from django.utils import timezone
 
-    from events.models import Event, EventStatus
+    from events.models import Event, EventStatus, EventVisibility
 
     now = timezone.now()
-    public = (Event.objects.exclude(status=EventStatus.DRAFT)
+    public = (Event.objects
+              .filter(visibility=EventVisibility.PUBLIC)
+              .exclude(status=EventStatus.DRAFT)
               .prefetch_related("ticket_types"))
     upcoming = list(public.filter(starts_at__gte=now).order_by("starts_at")[:ASSISTANT_MAX_EVENTS])
     past = list(public.filter(starts_at__lt=now).order_by("-starts_at")

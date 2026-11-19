@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Phiếu {{ tx.tx_code }} — Quỹ CLB KMG{% endblock %}
+
+{% block content %}
+<a href="{% url 'finance:hub' %}" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Quỹ &amp; Tài chính CLB</a>
+
+<div class="kmg-card p-4 my-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h1 class="h4 fw-bold mb-1"><code>{{ tx.tx_code }}</code> — {{ tx.title }}</h1>
+      <div class="small text-body-secondary">{{ tx.get_tx_type_display }} · {{ tx.category.name }} · {{ tx.department.name|default:"Toàn CLB" }} · {{ tx.transaction_date|date:"d/m/Y" }}</div>
+    </div>
+    {% if tx.status == 'CONFIRMED' %}
+      <span class="badge text-bg-success py-2 px-3"><i class="bi bi-lock-fill me-1"></i>{{ tx.get_status_display }}</span>
+    {% elif tx.status == 'REJECTED' %}
+      <span class="badge text-bg-danger py-2 px-3">{{ tx.get_status_display }}</span>
+    {% else %}
+      <span class="badge text-bg-warning py-2 px-3">{{ tx.get_status_display }}</span>
+    {% endif %}
+  </div>
+  <div class="row g-3 small">
+    <div class="col-md-4"><div class="text-body-secondary">Số tiền</div><div class="h5 fw-bold {% if tx.signed_amount < 0 %}text-danger{% else %}text-success{% endif %}">{{ tx.signed_amount|vnd }}đ</div></div>
+    <div class="col-md-4"><div class="text-body-secondary">Người lập (Maker)</div><div class="fw-semibold">{{ tx.created_by.public_name }}</div></div>
+    <div class="col-md-4"><div class="text-body-secondary">Người duyệt (Checker)</div><div class="fw-semibold">{{ tx.approved_by.public_name|default:"—" }} {% if tx.approved_at %}<span class="text-body-secondary">({{ tx.approved_at|date:"H:i d/m/Y" }})</span>{% endif %}</div></div>
+  </div>
+  {% if tx.description %}<p class="small mt-3 mb-0">{{ tx.description|linebreaksbr }}</p>{% endif %}
+  {% if tx.rejection_reason %}<div class="alert alert-danger small mt-3 mb-0">Lý do từ chối: {{ tx.rejection_reason }}</div>{% endif %}
+  {% if tx.adjusted_from %}<div class="small mt-3">Điều chỉnh cho phiếu gốc: <a href="{% url 'finance:transaction_detail' tx.adjusted_from.pk %}"><code>{{ tx.adjusted_from.tx_code }}</code></a> ({{ tx.get_adjustment_direction_display }})</div>{% endif %}
+  {% if tx.legacy_expense %}<div class="small mt-2"><i class="bi bi-link-45deg"></i>Liên kết khoản chi sự kiện cũ (CM-03): {{ tx.legacy_expense.title }}</div>{% endif %}
+  {% if tx.receipt %}<a href="{% url 'finance:transaction_receipt' tx.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary mt-3"><i class="bi bi-receipt me-1"></i>Xem chứng từ bảo mật</a>{% endif %}
+</div>
+
+{% if tx.status == 'PENDING_APPROVAL' %}
+  {% if can_review %}
+  <div class="kmg-card p-4 mb-3">
+    <h2 class="h6 fw-bold mb-3"><i class="bi bi-check2-square me-1"></i>Duyệt độc lập (Checker)</h2>
+    <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="approve"><button class="btn btn-success btn-sm"><i class="bi bi-lock me-1"></i>Duyệt ghi sổ (bất biến)</button></form>
+    <form method="post" class="d-flex gap-2 mt-2">{% csrf_token %}<input type="hidden" name="action" value="reject"><input name="rejection_reason" class="form-control form-control-sm" placeholder="Lý do từ chối" required><button class="btn btn-outline-danger btn-sm text-nowrap">Từ chối</button></form>
+  </div>
+  {% elif is_self_maker %}
+  <div class="alert alert-warning small"><i class="bi bi-person-x me-1"></i>Bạn là người lập phiếu nên không thể tự duyệt (INV-03). Phiếu đang chờ một Checker khác.</div>
+  {% endif %}
+{% endif %}
+
+{% if tx.status == 'CONFIRMED' %}
+<div class="alert alert-secondary small"><i class="bi bi-shield-lock me-1"></i>Giao dịch đã CONFIRMED là bất biến — không thể sửa hoặc xoá. Sai sót được xử lý bằng bút toán điều chỉnh.</div>
+  {% if can_adjust %}
+  <div class="kmg-card p-4 mb-3">
+    <h2 class="h6 fw-bold mb-3">Lập bút toán điều chỉnh (ADJUSTMENT)</h2>
+    <form method="post" enctype="multipart/form-data" class="row g-2">
+      {% csrf_token %}<input type="hidden" name="action" value="adjust">
+      <div class="col-md-3"><select name="direction" class="form-select form-select-sm">{% for v, l in directions %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><input name="amount" type="number" min="1" class="form-control form-control-sm" placeholder="Số tiền" required></div>
+      <div class="col-md-6"><input name="reason" class="form-control form-control-sm" placeholder="Lý do kế toán bắt buộc" required></div>
+      <div class="col-12"><button class="btn btn-outline-primary btn-sm">Gửi bút toán chờ duyệt</button></div>
+    </form>
+  </div>
+  {% endif %}
+{% endif %}
+
+{% if adjustments %}
+<div class="kmg-card p-4">
+  <h2 class="h6 fw-bold mb-2">Các bút toán điều chỉnh liên quan</h2>
+  {% for a in adjustments %}
+    <div class="small border-bottom py-1"><a href="{% url 'finance:transaction_detail' a.pk %}"><code>{{ a.tx_code }}</code></a> · {{ a.get_adjustment_direction_display }} {{ a.amount|vnd }}đ · {{ a.get_status_display }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

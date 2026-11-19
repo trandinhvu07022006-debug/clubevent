@@ -5,9 +5,13 @@ Task có máy trạng thái: Chưa làm -> Đang làm -> Xong (và lùi lại đ
 Đây là module làm nên ý nghĩa "hỗ trợ tổ chức" của đề tài.
 """
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, router, transaction
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
+from core.storage import private_vault_storage
 from events.models import Event
 
 
@@ -169,6 +173,49 @@ class ExpenseCategory(models.TextChoices):
     OTHER = "OTHER", "Khác"
 
 
+def _lock_editable_expenses(using, ids):
+    """Khóa Expense rồi phiếu liên kết, không tin reverse relation đã cache."""
+    try:
+        from finance.models import FinancialTransaction, TransactionStatus
+    except ImportError:
+        return
+
+    ids = list(ids)
+    list(Expense.objects.using(using).select_for_update().filter(pk__in=ids).order_by("pk").values_list("pk", flat=True))
+    statuses = FinancialTransaction.objects.using(using).select_for_update().filter(
+        legacy_expense_id__in=ids
+    ).order_by("pk").values_list("status", flat=True)
+    if TransactionStatus.CONFIRMED in statuses:
+        raise ValidationError("Khoản chi đã ghi sổ CONFIRMED không thể sửa hoặc xoá (CM-03).")
+
+
+class ExpenseQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        with transaction.atomic(using=self.db):
+            ids = list(self.order_by("pk").values_list("pk", flat=True))
+            _lock_editable_expenses(self.db, ids)
+            locked = self.filter(pk__in=ids)
+            return super(ExpenseQuerySet, locked).update(**kwargs)
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        objs = tuple(objs)
+        with transaction.atomic(using=self.db):
+            _lock_editable_expenses(self.db, [obj.pk for obj in objs])
+            return super().bulk_update(objs, fields, batch_size=batch_size)
+
+    def bulk_create(self, objs, **kwargs):
+        if kwargs.get("update_conflicts"):
+            raise ValidationError("Không upsert khoản chi; hãy dùng dịch vụ nghiệp vụ.")
+        return super().bulk_create(objs, **kwargs)
+
+    def delete(self):
+        with transaction.atomic(using=self.db):
+            ids = list(self.order_by("pk").values_list("pk", flat=True))
+            _lock_editable_expenses(self.db, ids)
+            locked = self.filter(pk__in=ids)
+            return super(ExpenseQuerySet, locked).delete()
+
+
 class Expense(models.Model):
     """
     Ngân sách sự kiện - một khoản chi.
@@ -177,6 +224,8 @@ class Expense(models.Model):
     chi. Chỉ Trưởng BTC trở lên được xem vì đây là dữ liệu tài chính.
     """
 
+    objects = ExpenseQuerySet.as_manager()
+
     event = models.ForeignKey(Event, on_delete=models.CASCADE,
                               related_name="expenses", verbose_name="Sự kiện")
     title = models.CharField("Khoản chi", max_length=200)
@@ -184,14 +233,15 @@ class Expense(models.Model):
                                 choices=ExpenseCategory.choices,
                                 default=ExpenseCategory.OTHER)
     amount = models.PositiveIntegerField("Số tiền (VNĐ)")
-    paid_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+    paid_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                                 null=True, blank=True, related_name="expenses_paid",
                                 verbose_name="Người chi")
     spent_on = models.DateField("Ngày chi", default=timezone.localdate)
     note = models.CharField("Ghi chú", max_length=255, blank=True)
     receipt = models.ImageField("Ảnh hoá đơn", upload_to="receipts/",
+                                storage=private_vault_storage,
                                 null=True, blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                                    null=True, related_name="+", verbose_name="Người ghi")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -202,3 +252,21 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.amount}đ"
+
+    def save(self, *args, **kwargs):
+        using = kwargs.get("using") or router.db_for_write(type(self), instance=self)
+        with transaction.atomic(using=using):
+            if self.pk:
+                _lock_editable_expenses(using, [self.pk])
+            return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        using = kwargs.get("using") or router.db_for_write(type(self), instance=self)
+        with transaction.atomic(using=using):
+            _lock_editable_expenses(using, [self.pk])
+            return super().delete(*args, **kwargs)
+
+
+@receiver(pre_delete, sender=Expense)
+def _protect_confirmed_expense(sender, instance, using, **kwargs):
+    _lock_editable_expenses(using, [instance.pk])

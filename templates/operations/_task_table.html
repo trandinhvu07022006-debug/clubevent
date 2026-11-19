@@ -1,0 +1,51 @@
+<div class="table-responsive">
+  <table class="table table-sm align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Nhiệm vụ</th>
+        <th>Ban</th>
+        {% if show_assignees %}<th>Người thực hiện</th>{% endif %}
+        <th>Hạn</th>
+        <th>Trạng thái</th>
+        <th style="width:110px;">Tiến độ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tasks %}
+      <tr>
+        <td>
+          <a href="{% url 'operations:task_detail' t.pk %}" class="fw-semibold text-decoration-none">{{ t.title }}</a>
+          <div class="small text-body-secondary">
+            {{ t.get_priority_display }}{% if t.event %} · <i class="bi bi-calendar-event"></i> {{ t.event.name }}{% endif %}
+            {% if t.reassignment_needed %} · <span class="text-warning-emphasis fw-semibold">Cần giao lại</span>{% endif %}
+          </div>
+        </td>
+        <td class="small">{{ t.department.name }}</td>
+        {% if show_assignees %}
+        <td class="small">
+          {% for a in t.assignees.all %}{% if a.is_active %}<span class="badge text-bg-light border me-1">{{ a.user.public_name }}{% if a.role == 'LEAD' %} ★{% endif %}</span>{% endif %}{% endfor %}
+        </td>
+        {% endif %}
+        <td class="small {% if t.is_overdue %}text-danger fw-semibold{% endif %}">
+          {{ t.deadline|date:"H:i d/m" }}{% if t.is_overdue %}<div>Quá hạn</div>{% endif %}
+        </td>
+        <td>
+          {% if t.workflow_status == 'APPROVED' %}<span class="badge text-bg-success">{{ t.get_workflow_status_display }}</span>
+          {% elif t.workflow_status == 'REJECTED' or t.workflow_status == 'CANCELLED' %}<span class="badge text-bg-danger">{{ t.get_workflow_status_display }}</span>
+          {% elif t.workflow_status == 'SUBMITTED' or t.workflow_status == 'UNDER_REVIEW' %}<span class="badge text-bg-info">{{ t.get_workflow_status_display }}</span>
+          {% elif t.workflow_status == 'REVISION_REQUESTED' %}<span class="badge text-bg-warning">{{ t.get_workflow_status_display }}</span>
+          {% else %}<span class="badge text-bg-secondary">{{ t.get_workflow_status_display }}</span>{% endif %}
+        </td>
+        <td>
+          <div class="progress" style="height:6px;" role="progressbar" aria-valuenow="{{ t.progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: {{ t.progress_percent }}%"></div>
+          </div>
+          <span class="small text-body-secondary">{{ t.progress_percent }}%</span>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="text-center text-body-secondary small py-3">{{ empty_text }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

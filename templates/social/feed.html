@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Mạng xã hội Nội bộ KMG — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-stars"></i> KMG Internal Social</span>
+    <h1 class="h3 fw-bold mb-1">Mạng xã hội Nội bộ KMG</h1>
+    <p class="text-body-secondary small mb-0">
+      Không gian giao lưu, chia sẻ âm nhạc &amp; sinh hoạt nội bộ với phân quyền phạm vi đa lớp (`PA-05`).
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'social:messaging_inbox' %}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-shield-lock me-1"></i>Nhắn tin Bảo mật
+    </a>
+    <a href="{% url 'social:music_hub' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-music-note-beamed me-1"></i>Playlist &amp; Tặng nhạc
+    </a>
+  </div>
+</div>
+
+<!-- Bộ lọc phạm vi -->
+<ul class="nav nav-pills gap-1 mb-4">
+  <li class="nav-item">
+    <a class="nav-link {% if scope == 'ALL' %}active{% endif %}" href="{% url 'social:feed' %}?scope=ALL">Tất cả bảng tin</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if scope == 'CLUB' %}active{% endif %}" href="{% url 'social:feed' %}?scope=CLUB">Toàn CLB</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if scope == 'MY_DEPTS' %}active{% endif %}" href="{% url 'social:feed' %}?scope=MY_DEPTS">Ban của tôi</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if scope == 'CUSTOM' %}active{% endif %}" href="{% url 'social:feed' %}?scope=CUSTOM">Nhóm tùy chọn</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if scope == 'PERSONAL' %}active{% endif %}" href="{% url 'social:feed' %}?scope=PERSONAL"><i class="bi bi-lock me-1"></i>Nhật ký riêng tư</a>
+  </li>
+  {% if can_moderate_any %}
+  <li class="nav-item ms-auto">
+    <a class="nav-link {% if scope == 'MODERATION' %}active bg-danger{% else %}text-danger border border-danger-subtle{% endif %}" href="{% url 'social:feed' %}?scope=MODERATION">
+      <i class="bi bi-shield-exclamation me-1"></i>Kiểm duyệt ({{ moderation_queue|length }})
+    </a>
+  </li>
+  {% endif %}
+</ul>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    {% if scope != 'MODERATION' and not is_advisor %}
+    <div class="kmg-card p-3 p-md-4 mb-4">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-pencil-square me-2 text-primary"></i>Đăng bài viết mới</h2>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_post">
+        <div class="mb-2">
+          <textarea name="content" class="form-control" rows="3" placeholder="Chia sẻ cảm hứng âm nhạc, khoảnh khắc tập band hoặc ghi chú cá nhân..."></textarea>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold mb-1">Phạm vi hiển thị</label>
+            <select name="visibility" id="postVisSelect" class="form-select form-select-sm">
+              {% for v_code, v_label in visibility_choices %}
+                <option value="{{ v_code }}" {% if v_code == 'CLUB' %}selected{% endif %}>{{ v_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold mb-1">Ban (nếu Nội bộ Ban)</label>
+            <select name="department_id" class="form-select form-select-sm">
+              <option value="">-- Không áp dụng --</option>
+              {% for d in postable_depts %}
+                <option value="{{ d.id }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold mb-1">Liên kết đính kèm (tuỳ chọn)</label>
+            <input type="url" name="link_url" class="form-control form-control-sm" placeholder="https://...">
+          </div>
+        </div>
+        <div class="mb-2" id="customAudienceWrapper">
+          <label class="form-label small fw-semibold mb-1">Thành viên được xem (chỉ dùng cho Nhóm tùy chọn)</label>
+          <select name="audience_user_ids" class="form-select form-select-sm" multiple size="3">
+            {% for p in peer_members %}
+              <option value="{{ p.id }}">{{ p.public_name }} (@{{ p.username }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2">
+          <div>
+            <input type="file" name="attachments" class="form-control form-control-sm" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.mp3,.wav">
+            <div class="form-text" style="font-size:0.72rem;">Ảnh/tệp lưu tại Kho Bảo mật riêng tư (`SEC-01`), tự động xoá EXIF.</div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm px-4">
+            <i class="bi bi-send me-1"></i>Đăng bài
+          </button>
+        </div>
+      </form>
+    </div>
+    {% elif is_advisor %}
+    <div class="alert alert-info small border-0 shadow-sm mb-4">
+      <i class="bi bi-eye me-1"></i>Bạn đang truy cập Mạng xã hội Nội bộ ở chế độ <strong>Cố vấn Chỉ đọc (`INV-04`)</strong>.
+    </div>
+    {% endif %}
+
+    {% if scope == 'MODERATION' %}
+      <div class="kmg-card p-4">
+        <h2 class="h5 fw-bold mb-3"><i class="bi bi-shield-check me-2 text-danger"></i>Hàng đợi Kiểm duyệt Theo Phạm vi</h2>
+        <p class="small text-body-secondary mb-3">
+          Bạn chỉ nhìn thấy báo cáo của các phạm vi mình được phân quyền kiểm duyệt (`WF19`). Bài viết <code>PERSONAL</code> hoặc của Ban khác tuyệt đối không bao giờ xuất hiện.
+        </p>
+        {% for r in moderation_queue %}
+          <div class="border rounded-3 p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <strong>
+                Bài #{{ r.post_id }} · {{ r.post.author.public_name }}
+                <span class="badge text-bg-light border">{{ r.post.get_visibility_display }}{% if r.post.department %} · {{ r.post.department.name }}{% endif %}</span>
+              </strong>
+              <span class="small text-body-secondary">{{ r.created_at|date:"H:i d/m/Y" }}</span>
+            </div>
+            <div class="small mb-2">{{ r.post.content|truncatechars:240 }}</div>
+            <div class="small text-warning-emphasis mb-2"><strong>Lý do báo cáo ({{ r.reporter.public_name }}):</strong> {{ r.reason }}</div>
+            <form method="post" class="row g-2 align-items-center">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="moderate_post">
+              <input type="hidden" name="post_id" value="{{ r.post_id }}">
+              <input type="hidden" name="report_id" value="{{ r.id }}">
+              <div class="col-md-4">
+                <select name="mod_action" class="form-select form-select-sm">
+                  {% for m_code, m_label in mod_action_choices %}
+                    <option value="{{ m_code }}">{{ m_label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-5">
+                <input type="text" name="note" class="form-control form-control-sm" placeholder="Kết luận kiểm duyệt...">
+              </div>
+              <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-danger w-100">Xử lý báo cáo</button>
+              </div>
+            </form>
+          </div>
+        {% empty %}
+          <p class="small text-body-secondary mb-0">Không có báo cáo nào đang chờ xử lý trong phạm vi quản lý của bạn.</p>
+        {% endfor %}
+      </div>
+    {% else %}
+      {% for item in posts %}
+        {% include "social/partials/post_card.html" with item=item %}
+      {% empty %}
+        <div class="kmg-card p-4 text-center text-body-secondary">
+          <i class="bi bi-chat-square-heart fs-2 d-block mb-2"></i>
+          Chưa có bài viết nào trong phạm vi này.
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="col-lg-4">
+    <div class="kmg-card p-3 p-md-4 mb-3">
+      <h2 class="h6 fw-bold mb-2"><i class="bi bi-shield-lock text-primary me-1"></i>Nguyên tắc Phạm vi &amp; Bảo mật</h2>
+      <ul class="small text-body-secondary ps-3 mb-0">
+        <li class="mb-1"><strong>Nhật ký riêng tư (`PERSONAL`):</strong> Chỉ mình bạn đọc được, không đưa vào hàng đợi kiểm duyệt.</li>
+        <li class="mb-1"><strong>Kiểm tra kép chia sẻ (`PA-05`):</strong> Chia sẻ bài Nội bộ Ban ra Toàn CLB vẫn tự động che nội dung gốc với người ngoài Ban.</li>
+        <li><strong>Lưu trữ Private Vault (`SEC-01`):</strong> Ảnh/tệp đính kèm không phục vụ công khai tại <code>/media/</code>.</li>
+      </ul>
+    </div>
+    <div class="kmg-card p-3 p-md-4">
+      <h2 class="h6 fw-bold mb-2"><i class="bi bi-diagram-3 me-1"></i>Lọc nhanh theo Ban của bạn</h2>
+      <div class="d-flex flex-column gap-1">
+        {% for d in postable_depts %}
+          <a href="{% url 'social:feed' %}?scope=DEPARTMENT&dept={{ d.slug }}" class="btn btn-sm {% if selected_dept and selected_dept.id == d.id %}btn-primary{% else %}btn-outline-secondary{% endif %} text-start">
+            <i class="bi {{ d.icon }} me-1"></i>{{ d.name }}
+          </a>
+        {% empty %}
+          <span class="small text-body-secondary">Bạn chưa thuộc Ban chuyên môn cụ thể.</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

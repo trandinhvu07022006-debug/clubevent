@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Quỹ &amp; Tài chính CLB — KMG{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-cash-coin"></i> Phase 5 · Sổ cái Bất biến (WF22)</span>
+    <h1 class="h3 fw-bold mb-1">Quỹ &amp; Tài chính CLB</h1>
+    <p class="text-body-secondary mb-0 small">Maker-Checker độc lập (INV-03) · Giao dịch đã duyệt không thể sửa/xoá — chỉ điều chỉnh bằng bút toán ADJUSTMENT.</p>
+  </div>
+  {% if can_export %}
+  <a href="{% url 'finance:ledger_csv' %}" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>Xuất sổ cái CSV</a>
+  {% endif %}
+</div>
+
+{% if is_advisor %}
+<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>Chế độ Cố vấn — chỉ xem báo cáo tổng hợp (INV-04).</div>
+{% endif %}
+
+{% if summary %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Tổng thu đã ghi sổ</div><div class="h4 fw-bold text-success mb-0">{{ summary.confirmed_income|vnd }}đ</div></div></div>
+  <div class="col-6 col-xl-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Tổng chi đã ghi sổ</div><div class="h4 fw-bold text-danger mb-0">{{ summary.confirmed_expense|vnd }}đ</div></div></div>
+  <div class="col-6 col-xl-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Số dư quỹ CLB</div><div class="h4 fw-bold mb-0">{{ summary.net_club_balance|vnd }}đ</div></div></div>
+  <div class="col-6 col-xl-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Phiếu chờ duyệt</div><div class="h4 fw-bold text-warning mb-0">{{ summary.pending_count }}</div></div></div>
+</div>
+<div class="alert alert-light border small mb-4">
+  <i class="bi bi-link-45deg me-1"></i>Đối chiếu hệ thống cũ (chỉ đọc · CM-03): doanh thu vé đã xác nhận <strong>{{ summary.legacy_ticket_revenue|vnd }}đ</strong> ·
+  tổng khoản chi sự kiện <strong>{{ summary.legacy_expense_total|vnd }}đ</strong> · đã khoá sổ cái <strong>{{ summary.legacy_expense_locked_count }}</strong> khoản.
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3">Thu chi theo Ban (đã ghi sổ)</h2>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Ban</th><th class="text-end">Thu</th><th class="text-end">Chi</th><th class="text-end">Chênh lệch</th></tr></thead>
+        <tbody>
+          {% for r in summary.by_department %}
+          <tr><td>{{ r.department.name }}</td><td class="text-end text-success">{{ r.income|vnd }}</td><td class="text-end text-danger">{{ r.expense|vnd }}</td><td class="text-end fw-semibold">{{ r.net|vnd }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3">Phiếu chờ Checker duyệt ({{ pending_txs|length }})</h2>
+      {% for tx in pending_txs %}
+        <div class="d-flex justify-content-between border-bottom py-1 small">
+          <a href="{% url 'finance:transaction_detail' tx.pk %}" class="text-decoration-none"><code>{{ tx.tx_code }}</code> {{ tx.title|truncatechars:50 }}</a>
+          <span class="fw-semibold">{{ tx.amount|vnd }}đ</span>
+        </div>
+      {% empty %}
+        <p class="small text-body-secondary mb-0">Không có phiếu chờ duyệt.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if can_make or proposable_depts %}
+<div class="row g-4 mb-4">
+  <div class="col-lg-{% if can_make %}7{% else %}12{% endif %}">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-plus-circle me-1"></i>{% if can_make %}Lập phiếu thu / chi (Maker){% else %}Đề xuất phiếu chi cho Ban (PA-06){% endif %}</h2>
+      <form method="post" enctype="multipart/form-data" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_transaction">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Loại phiếu</label>
+          <select name="tx_type" class="form-select form-select-sm">
+            {% if can_make %}<option value="INCOME">Phiếu thu</option>{% endif %}
+            <option value="EXPENSE">Phiếu chi</option>
+          </select>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label small fw-semibold">Danh mục</label>
+          <select name="category_id" class="form-select form-select-sm">
+            {% for c in categories %}<option value="{{ c.pk }}">{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-8"><label class="form-label small fw-semibold">Nội dung</label><input name="title" class="form-control form-control-sm" required maxlength="200"></div>
+        <div class="col-md-4"><label class="form-label small fw-semibold">Số tiền (VND)</label><input name="amount" type="number" min="1" class="form-control form-control-sm" required></div>
+        <div class="col-md-4"><label class="form-label small fw-semibold">Ngày phát sinh</label><input name="transaction_date" type="date" class="form-control form-control-sm"></div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Ban liên quan</label>
+          <select name="department_id" class="form-select form-select-sm" {% if not can_make %}required{% endif %}>
+            {% if can_make %}<option value="">— Toàn CLB —</option>{% for d in departments %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}
+            {% else %}{% for d in proposable_depts %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}{% endif %}
+          </select>
+        </div>
+        {% if club_events %}
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Sự kiện của Ban</label>
+          <select name="club_event_id" class="form-select form-select-sm"><option value="">— Không gắn —</option>{% for ce in club_events %}<option value="{{ ce.pk }}">{{ ce.event.name }}</option>{% endfor %}</select>
+        </div>
+        {% endif %}
+        <div class="col-md-4"><label class="form-label small fw-semibold">Chứng từ (PDF/PNG/JPG/WEBP)</label><input name="receipt" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" class="form-control form-control-sm"></div>
+        <div class="col-12"><textarea name="description" rows="2" class="form-control form-control-sm" placeholder="Diễn giải chi tiết (tuỳ chọn)"></textarea></div>
+        <div class="col-12"><button class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Gửi phiếu chờ duyệt</button></div>
+      </form>
+    </div>
+  </div>
+  {% if can_make %}
+  <div class="col-lg-5">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-piggy-bank me-1"></i>Ghi nhận đóng góp quỹ thành viên</h2>
+      <form method="post" enctype="multipart/form-data" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="record_contribution">
+        <div class="col-12"><select name="member_id" class="form-select form-select-sm" required>{% for m in active_members %}<option value="{{ m.pk }}">{{ m.public_name }} (@{{ m.username }})</option>{% endfor %}</select></div>
+        <div class="col-6"><input name="period_label" class="form-control form-control-sm" placeholder="Kỳ quỹ, vd 2026-HK1"></div>
+        <div class="col-6"><input name="amount" type="number" min="1" class="form-control form-control-sm" placeholder="Số tiền" required></div>
+        <div class="col-12"><input name="title" class="form-control form-control-sm" placeholder="Khoản đóng góp"></div>
+        <div class="col-6"><input name="paid_on" type="date" class="form-control form-control-sm"></div>
+        <div class="col-6"><select name="department_id" class="form-select form-select-sm"><option value="">— Ban —</option>{% for d in departments %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}</select></div>
+        <div class="col-12"><button class="btn btn-outline-primary btn-sm">Ghi nhận &amp; tạo phiếu thu</button></div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if recent_txs or dept_txs %}
+<div class="kmg-card p-4 mb-4">
+  <h2 class="h6 fw-bold mb-3"><i class="bi bi-journal-text me-1"></i>{% if recent_txs %}Sổ cái gần đây{% else %}Phiếu tài chính của Ban bạn quản lý{% endif %}</h2>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Mã phiếu</th><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Ban</th><th class="text-end">Số tiền</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        {% for tx in recent_txs|default:dept_txs %}
+        <tr>
+          <td><a href="{% url 'finance:transaction_detail' tx.pk %}"><code>{{ tx.tx_code }}</code></a></td>
+          <td class="small">{{ tx.transaction_date|date:"d/m/Y" }}</td>
+          <td class="small">{{ tx.get_tx_type_display }}</td>
+          <td class="small">{{ tx.title|truncatechars:60 }}</td>
+          <td class="small">{{ tx.department.name|default:"Toàn CLB" }}</td>
+          <td class="text-end fw-semibold {% if tx.signed_amount < 0 %}text-danger{% else %}text-success{% endif %}">{{ tx.signed_amount|vnd }}đ</td>
+          <td>{% if tx.status == 'CONFIRMED' %}<span class="badge text-bg-success"><i class="bi bi-lock-fill"></i> {{ tx.get_status_display }}</span>{% elif tx.status == 'REJECTED' %}<span class="badge text-bg-danger">{{ tx.get_status_display }}</span>{% else %}<span class="badge text-bg-warning">{{ tx.get_status_display }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="kmg-card p-4">
+  <h2 class="h6 fw-bold mb-3"><i class="bi bi-person-badge me-1"></i>Đóng góp quỹ của tôi</h2>
+  {% for c in my_contributions %}
+    <div class="d-flex justify-content-between border-bottom py-1 small">
+      <span>{{ c.period_label }} · {{ c.title }}</span>
+      <span><strong>{{ c.amount|vnd }}đ</strong> <span class="badge text-bg-light border">{{ c.get_status_display }}</span></span>
+    </div>
+  {% empty %}
+    <p class="small text-body-secondary mb-0">Chưa có khoản đóng góp nào được ghi nhận.</p>
+  {% endfor %}
+</div>
+{% endblock %}

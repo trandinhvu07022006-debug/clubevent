@@ -114,6 +114,6 @@ class PasswordHashTests(TestCase):
         user = User.objects.create_user(username="x", password="matkhau123",
                                         mssv="A9")
         self.assertNotEqual(user.password, "matkhau123")
-        # Băm chậm có salt: bcrypt hoặc pbkdf2, KHÔNG phải md5/sha1
-        self.assertTrue(user.password.startswith(("bcrypt", "pbkdf2")))
+        # Băm chậm có salt: argon2, bcrypt hoặc pbkdf2, KHÔNG phải md5/sha1
+        self.assertTrue(user.password.startswith(("argon2", "bcrypt", "pbkdf2")))
         self.assertTrue(user.check_password("matkhau123"))

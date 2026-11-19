@@ -6,13 +6,16 @@ Django>=5.0,<6.0
 # nên cài dễ hơn trên Windows.
 PyMySQL>=1.1.0
 
-# Băm mật khẩu bcrypt. Nếu máy không cài được, dự án tự chuyển sang PBKDF2
-# có sẵn trong Django (xem config/settings.py).
+# Băm mật khẩu chuẩn Argon2id (ưu tiên) + bcrypt (tương thích ngược) + PBKDF2 fallback.
+argon2-cffi>=23.1.0
 bcrypt>=4.0.0
 
 # Sinh mã QR cho vé. Pillow là thư viện xử lý ảnh mà qrcode cần.
 qrcode>=7.4
 Pillow>=10.0
+
+# Mã hóa phong bì AES-256-GCM cho Nhắn tin nội bộ bảo mật (Phase 4 — INV-05).
+cryptography>=44.0
 
 # Phục vụ file static khi DEBUG=False. Không có nó thì deploy lên host thật
 # là mất sạch CSS và JavaScript.

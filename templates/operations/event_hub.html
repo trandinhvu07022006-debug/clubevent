@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Sự kiện Nội bộ &amp; RSVP — KMG Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2"><i class="bi bi-calendar2-heart-fill"></i> Sự kiện Kép · WF09–WF12</span>
+    <h1 class="h3 fw-bold mb-1">Trung tâm Sự kiện Nội bộ CLB</h1>
+    <p class="text-body-secondary mb-0 small">Sự kiện Ban, sự kiện toàn CLB có RSVP và đề xuất Show công khai. Đề xuất chưa duyệt luôn ở chế độ Nội bộ, không hiện lên trang chủ (INT-01).</p>
+  </div>
+  <a href="{% url 'events:list' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-ticket-perforated me-1"></i>Hệ thống vé công khai</a>
+</div>
+
+{% if can_approve_club_event and pending_bcn_events %}
+<div class="alert alert-info border-0 shadow-sm small mb-4">
+  <i class="bi bi-inbox-fill me-1"></i><strong>{{ pending_bcn_events|length }} đề xuất sự kiện cấp CLB đang chờ Ban Chủ nhiệm phê duyệt:</strong>
+  {% for ce in pending_bcn_events %}<a href="{% url 'operations:event_detail' ce.pk %}" class="badge text-bg-info text-decoration-none ms-1">{{ ce.event.name }}</a>{% endfor %}
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="{% if proposable_depts %}col-xl-8{% else %}col-12{% endif %}">
+    <div class="kmg-card p-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-calendar-week me-2"></i>Danh sách sự kiện ({{ club_events|length }})</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Sự kiện</th><th>Cấp</th><th>Ban chủ trì</th><th>Thời gian</th><th>Phê duyệt</th><th>RSVP của tôi</th></tr></thead>
+          <tbody>
+            {% for ce in club_events %}
+            <tr>
+              <td>
+                <a href="{% url 'operations:event_detail' ce.pk %}" class="fw-semibold text-decoration-none">{{ ce.event.name }}</a>
+                <div class="small text-body-secondary">{{ ce.event.location }}</div>
+              </td>
+              <td><span class="badge text-bg-light border">{{ ce.get_event_scope_display }}</span></td>
+              <td class="small">{{ ce.lead_department.name }}
+                {% for r in ce.department_roles.all %}{% if r.role_type != 'LEAD' %}<div class="text-body-secondary">+ {{ r.department.name }}</div>{% endif %}{% endfor %}
+              </td>
+              <td class="small">{{ ce.event.starts_at|date:"H:i d/m/Y" }}</td>
+              <td><span class="badge {% if ce.approval_status == 'PUBLISHED' %}text-bg-success{% elif ce.approval_status == 'REJECTED' or ce.approval_status == 'CANCELLED' %}text-bg-danger{% elif ce.approval_status == 'SUBMITTED' %}text-bg-info{% else %}text-bg-secondary{% endif %}">{{ ce.get_approval_status_display }}</span></td>
+              <td class="small">
+                {% if ce.my_attendance %}{{ ce.my_attendance.get_rsvp_status_display }}{% else %}<span class="text-body-secondary">—</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-body-secondary small py-3">Chưa có sự kiện nội bộ nào.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if proposable_depts %}
+  <div class="col-xl-4">
+    <div class="kmg-card p-4">
+      <h2 class="h5 fw-bold mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Lập kế hoạch sự kiện</h2>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_club_event">
+        <div class="col-12"><label class="form-label small fw-semibold">Tên sự kiện *</label><input name="name" class="form-control form-control-sm" required></div>
+        <div class="col-12"><label class="form-label small fw-semibold">Địa điểm *</label><input name="location" class="form-control form-control-sm" required></div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Cấp sự kiện</label>
+          <select name="event_scope" class="form-select form-select-sm">
+            {% for code, label in scope_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Ban chủ trì</label>
+          <select name="lead_department_id" class="form-select form-select-sm">
+            {% for d in proposable_depts %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold d-block">Ban đồng tổ chức (CF-05)</label>
+          {% for d in departments %}
+          <div class="form-check form-check-inline small"><input class="form-check-input" type="checkbox" name="support_department_ids" value="{{ d.id }}" id="sup{{ d.id }}"><label class="form-check-label" for="sup{{ d.id }}">{{ d.name }}</label></div>
+          {% endfor %}
+        </div>
+        <div class="col-6"><label class="form-label small fw-semibold">Diễn ra *</label><input type="datetime-local" name="starts_at" value="{{ default_starts }}" class="form-control form-control-sm" required></div>
+        <div class="col-6"><label class="form-label small fw-semibold">Chốt RSVP</label><input type="datetime-local" name="rsvp_freeze_at" value="{{ default_freeze }}" class="form-control form-control-sm"></div>
+        <div class="col-6">
+          <label class="form-label small fw-semibold">Danh mục</label>
+          <select name="category" class="form-select form-select-sm">{% for code, label in category_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-3"><label class="form-label small fw-semibold">Sức chứa</label><input type="number" name="capacity" value="100" min="1" class="form-control form-control-sm"></div>
+        <div class="col-3"><label class="form-label small fw-semibold">Ngân sách</label><input type="number" name="budget" value="0" min="0" class="form-control form-control-sm"></div>
+        <div class="col-12"><label class="form-label small fw-semibold">Tờ trình / mục tiêu</label><textarea name="proposal_note" rows="2" class="form-control form-control-sm"></textarea></div>
+        <div class="col-12 form-check ms-2 small"><input class="form-check-input" type="checkbox" name="submit_immediately" value="1" id="subNow" checked><label class="form-check-label" for="subNow">Gửi duyệt ngay sau khi tạo</label></div>
+        <div class="col-12"><button class="btn btn-sm btn-primary w-100">Tạo kế hoạch sự kiện</button></div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
