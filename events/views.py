@@ -333,3 +333,31 @@ def certificate_verify(request, code, token):
         "ticket": ticket,
         "masked_mssv": mask_mssv(ticket.user.mssv or "") if ticket else "",
     })
+
+
+@lead_required
+def event_media_ai(request, pk):
+    """Trợ lý AI tạo nội dung truyền thông cho sự kiện (mô tả, kịch bản, fanpage)."""
+    event = get_object_or_404(Event, pk=pk)
+    from aiassist.services import generate_event_content
+
+    if request.method == "POST" and request.POST.get("action") == "apply_description":
+        new_desc = request.POST.get("description", "").strip()
+        if new_desc:
+            event.description = new_desc[:2000]
+            event.save(update_fields=["description"])
+            messages.success(request, "Đã cập nhật mô tả mới vào sự kiện thành công!")
+            return redirect("events:detail", pk=event.pk)
+
+    content, used_ai, error = generate_event_content(event)
+    if not used_ai and error:
+        messages.warning(
+            request,
+            f"Không gọi được AI ({error}) nên đang hiển thị nội dung mẫu mặc định."
+        )
+
+    return render(request, "events/media_ai.html", {
+        "event": event,
+        "content": content,
+        "used_ai": used_ai,
+    })

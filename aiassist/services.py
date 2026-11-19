@@ -460,7 +460,88 @@ def screen_application(application) -> tuple[dict, bool, str]:
 
 
 # ---------------------------------------------------------------------------
-# Chức năng 4: trợ lý hỏi đáp - nhánh AI cho câu hỏi ngoài 8 ý định có sẵn
+# Chức năng 4: tạo nội dung truyền thông sự kiện (mô tả, kịch bản, fanpage)
+# ---------------------------------------------------------------------------
+MARKETING_PROMPT = """Bạn là chuyên viên truyền thông sự kiện cho câu lạc bộ sinh viên Việt Nam.
+
+Thông tin sự kiện:
+- Tên sự kiện: {name}
+- Thể loại: {category}
+- Thời gian: {start_time}
+- Địa điểm: {location}
+- Quy mô dự kiến: {capacity} người
+- Mô tả sơ bộ hiện tại: {description}
+
+YÊU CẦU: Hãy tạo gói nội dung truyền thông cho sự kiện này gồm:
+1. "description": Đoạn văn giới thiệu sự kiện hấp dẫn, khơi gợi cảm xúc (khoảng 3-4 câu).
+2. "agenda": Kịch bản khung thời gian timeline chi tiết của chương trình (các mốc từ đón khách đến bế mạc).
+3. "social_post": Bài viết đăng Fanpage Facebook theo phong cách sinh viên, có tiêu đề bắt mắt, icon sinh động, tóm tắt thời gian - địa điểm - quyền lợi, hashtag phù hợp (#CLB #SinhVien...) và lời kêu gọi đăng ký vé (Call to Action).
+
+Chỉ trả về JSON đúng định dạng sau, không thêm markdown fence hay bất kỳ lời dẫn nào:
+{{"description": "...", "agenda": "...", "social_post": "..."}}"""
+
+
+def _fallback_marketing(event: Event) -> dict:
+    from django.utils import timezone
+    start = timezone.localtime(event.starts_at)
+    start_str = start.strftime("%H:%M ngày %d/%m/%Y")
+    cat = event.get_category_display() if hasattr(event, "get_category_display") else "CLB"
+    return {
+        "description": (f"Chào mừng bạn đến với {event.name}! Sự kiện mang đến không gian giao lưu, "
+                        f"kết nối và trải nghiệm ý nghĩa dành cho các bạn sinh viên tại {event.location}."),
+        "agenda": (f"• Khung giờ dự kiến ({start_str}):\n"
+                   f"- 30 phút trước: Check-in đón khách & ổn định chỗ ngồi\n"
+                   f"- Bắt đầu: Khai mạc chương trình & giới thiệu nội dung\n"
+                   f"- Hoạt động chính: Giao lưu, chia sẻ và biểu diễn theo chủ đề\n"
+                   f"- Bế mạc: Chụp ảnh lưu niệm & gửi lời cảm ơn"),
+        "social_post": (f"🔥 CHÍNH THỨC MỞ ĐĂNG KÝ: {event.name.upper()} 🔥\n\n"
+                        f"Bạn đã sẵn sàng cho một trải nghiệm bùng nổ cùng CLB chưa?\n\n"
+                        f"⏰ Thời gian: {start_str}\n"
+                        f"📍 Địa điểm: {event.location}\n"
+                        f"🎟 Đăng ký ngay vé tham dự trên hệ thống KMG Club Event!\n\n"
+                        f"#KMGClub #Event #SinhVien #{cat.replace(' ', '')}"),
+    }
+
+
+def generate_event_content(event: Event) -> tuple[dict, bool, str]:
+    """
+    Sinh nội dung truyền thông sự kiện bằng AI (mô tả, kịch bản, bài đăng fanpage).
+    Trả về (dict_content, đã_dùng_ai, thông_báo_lỗi).
+    """
+    from django.utils import timezone
+    start = timezone.localtime(event.starts_at)
+    cat = event.get_category_display() if hasattr(event, "get_category_display") else "Chung"
+
+    prompt = MARKETING_PROMPT.format(
+        name=event.name,
+        category=cat,
+        start_time=start.strftime("%H:%M ngày %d/%m/%Y"),
+        location=event.location or "Hội trường CLB",
+        capacity=event.capacity or 100,
+        description=(event.description or "Chưa có mô tả")[:400],
+    )
+    fallback = _fallback_marketing(event)
+
+    try:
+        data = _ask_ai(prompt)
+        if not isinstance(data, dict):
+            raise AIError("AI trả về sai cấu trúc.")
+        desc = str(data.get("description", "")).strip()
+        agenda = str(data.get("agenda", "")).strip()
+        post = str(data.get("social_post", "")).strip()
+        if not (desc or post):
+            raise AIError("AI không sinh được nội dung bài viết.")
+        return {
+            "description": desc or fallback["description"],
+            "agenda": agenda or fallback["agenda"],
+            "social_post": post or fallback["social_post"],
+        }, True, ""
+    except AIError as e:
+        return fallback, False, str(e)
+
+
+# ---------------------------------------------------------------------------
+# Chức năng 5: trợ lý hỏi đáp - nhánh AI cho câu hỏi ngoài 8 ý định có sẵn
 # ---------------------------------------------------------------------------
 # Kỹ thuật: "grounding" (neo vào dữ liệu). AI KHÔNG được tự biết gì về CLB:
 # mọi thông tin nó dùng đều do server lấy từ CSDL và đưa vào prompt, kèm lệnh

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Truyền thông AI: {{ event.name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="small mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'events:list' %}">Sự kiện</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'events:detail' event.pk %}">{{ event.name }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Trợ lý Truyền thông AI</li>
+  </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+  <div>
+    <span class="kicker text-primary"><i class="bi bi-stars"></i> AI Copilot</span>
+    <h1 class="h3 fw-bold mb-1">Gói Nội dung Truyền thông</h1>
+    <p class="text-body-secondary small mb-0">
+      {{ event.name }} · {{ event.starts_at|date:"H:i d/m/Y" }} · {{ event.location }}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'events:media_ai' event.pk %}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-arrow-repeat"></i> Tạo lại bằng AI
+    </a>
+    <a href="{% url 'events:detail' event.pk %}" class="btn btn-secondary btn-sm">
+      Quay lại
+    </a>
+  </div>
+</div>
+
+{% if used_ai %}
+  <div class="alert alert-success d-flex align-items-center gap-2 small py-2 mb-4">
+    <i class="bi bi-check-circle-fill"></i>
+    <span>Nội dung được tạo tự động bởi AI dựa trên thông tin thời gian, địa điểm và quy mô của sự kiện.</span>
+  </div>
+{% endif %}
+
+<div class="row g-4">
+  <!-- Card 1: Bài đăng Fanpage -->
+  <div class="col-lg-6">
+    <section class="panel h-100 shadow-sm border border-primary-subtle">
+      <div class="panel-head bg-primary-subtle d-flex justify-content-between align-items-center py-2 px-3">
+        <h2 class="h6 mb-0 text-primary-emphasis d-flex align-items-center gap-2">
+          <i class="bi bi-facebook"></i> Bài viết đăng Fanpage / Mạng xã hội
+        </h2>
+        <button type="button" class="btn btn-sm btn-primary" onclick="copyText('social-post-text', this)">
+          <i class="bi bi-clipboard"></i> Sao chép
+        </button>
+      </div>
+      <div class="panel-body">
+        <div class="p-3 bg-body-tertiary rounded border font-monospace small" id="social-post-text" style="white-space: pre-wrap; min-height: 280px; max-height: 450px; overflow-y: auto;">{{ content.social_post }}</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Card 2: Kịch bản Timeline & Mô tả -->
+  <div class="col-lg-6 d-flex flex-column gap-4">
+    <!-- Kịch bản chương trình -->
+    <section class="panel shadow-sm">
+      <div class="panel-head d-flex justify-content-between align-items-center py-2 px-3">
+        <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-clock-history text-primary"></i> Kịch bản chương trình (Agenda)
+        </h2>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyText('agenda-text', this)">
+          <i class="bi bi-clipboard"></i> Sao chép
+        </button>
+      </div>
+      <div class="panel-body">
+        <div class="p-3 bg-body-tertiary rounded border small" id="agenda-text" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;">{{ content.agenda }}</div>
+      </div>
+    </section>
+
+    <!-- Mô tả sự kiện -->
+    <section class="panel shadow-sm">
+      <div class="panel-head py-2 px-3">
+        <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-card-text text-primary"></i> Đoạn mô tả sự kiện
+        </h2>
+      </div>
+      <div class="panel-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="apply_description">
+          <textarea name="description" class="form-control form-control-sm mb-3" rows="4" maxlength="2000" required>{{ content.description }}</textarea>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="small text-body-secondary">Bấm để lưu mô tả này vào thông tin chính của sự kiện.</span>
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="bi bi-check2"></i> Áp dụng vào sự kiện
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+function copyText(elementId, btn) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check2"></i> Đã sao chép!';
+    btn.classList.replace('btn-outline-secondary', 'btn-success');
+    btn.classList.replace('btn-primary', 'btn-success');
+    setTimeout(() => {
+      btn.innerHTML = original;
+      btn.classList.replace('btn-success', 'btn-outline-secondary');
+      btn.classList.replace('btn-success', 'btn-primary');
+    }, 2000);
+  });
+}
+</script>
+{% endblock %}

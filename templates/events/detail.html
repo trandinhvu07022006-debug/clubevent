@@ -72,6 +72,7 @@
                 {% if event.status != 'CANCELLED' and event.status != 'DONE' %}
                   <a href="{% url 'events:update' event.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Sửa sự kiện</a>
                 {% endif %}
+                <a href="{% url 'events:media_ai' event.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-stars"></i> Truyền thông AI</a>
                 <a href="{% url 'organizing:budget' event.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-wallet2"></i> Ngân sách</a>
               </div>
 

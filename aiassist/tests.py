@@ -372,3 +372,41 @@ class ScreenApplicationTests(TestCase):
         self.assertNotIn("SV001", prompt)
         self.assertIn("Ban Truyền thông", prompt)
         self.assertIn("Photoshop, quay video", prompt)
+
+
+class GenerateEventContentTests(TestCase):
+    """Test chức năng sinh nội dung truyền thông sự kiện (mô tả, agenda, fanpage)."""
+
+    def setUp(self):
+        from events.models import EventCategory
+        now = timezone.now()
+        self.event = Event.objects.create(
+            name="Đêm Nhạc Acoustic", location="Hội trường A",
+            starts_at=now + timezone.timedelta(days=10),
+            register_deadline=now + timezone.timedelta(days=8),
+            capacity=150, status=EventStatus.OPEN,
+            category=EventCategory.MUSIC,
+        )
+
+    @patch("aiassist.services._ask_ai")
+    def test_generate_event_content_success(self, mock_ask):
+        mock_ask.return_value = {
+            "description": "Đêm nhạc đặc sắc sinh viên.",
+            "agenda": "19:00 Khai mạc",
+            "social_post": "Đăng ký ngay thôi các bạn!",
+        }
+        from .services import generate_event_content
+        res, used_ai, error = generate_event_content(self.event)
+        self.assertTrue(used_ai)
+        self.assertEqual(res["description"], "Đêm nhạc đặc sắc sinh viên.")
+        self.assertEqual(res["agenda"], "19:00 Khai mạc")
+        self.assertEqual(res["social_post"], "Đăng ký ngay thôi các bạn!")
+
+    @patch("aiassist.services._ask_ai", side_effect=AIError("Timeout"))
+    def test_generate_event_content_fallback_on_error(self, mock_ask):
+        from .services import generate_event_content
+        res, used_ai, error = generate_event_content(self.event)
+        self.assertFalse(used_ai)
+        self.assertIn("Timeout", error)
+        self.assertIn("ĐÊM NHẠC ACOUSTIC", res["social_post"])
+        self.assertIn("Hội trường A", res["description"])

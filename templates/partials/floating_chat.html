@@ -1,0 +1,291 @@
+{% if request.resolver_match.namespace != 'aiassist' or request.resolver_match.url_name != 'chat' %}
+<!-- Floating Chat Widget -->
+<style>
+  #floating-chat-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1060;
+  }
+  #floating-chat-btn {
+    width: 52px;
+    height: 52px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  #floating-chat-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  }
+  #floating-chat-box {
+    position: fixed;
+    bottom: 86px;
+    right: 24px;
+    width: 350px;
+    max-width: calc(100vw - 32px);
+    height: 480px;
+    max-height: calc(100vh - 120px);
+    border-radius: 16px;
+    overflow: hidden;
+    z-index: 1060;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    animation: floatingSlideUp 0.25s ease-out;
+  }
+  @keyframes floatingSlideUp {
+    from { opacity: 0; transform: translateY(12px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .fchat-msg {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    line-height: 1.4;
+    word-break: break-word;
+    font-size: 0.85rem;
+  }
+  .fchat-user {
+    align-self: flex-end;
+    background: var(--bs-primary);
+    color: #fff;
+    border-bottom-right-radius: 2px;
+    margin-left: auto;
+  }
+  .fchat-bot {
+    align-self: flex-start;
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    border: 1px solid var(--bs-border-color);
+    border-bottom-left-radius: 2px;
+    margin-right: auto;
+  }
+  .fchat-typing {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    padding: 8px 12px;
+  }
+  .fchat-typing .dot {
+    width: 6px;
+    height: 6px;
+    background: var(--bs-secondary);
+    border-radius: 50%;
+    animation: fchatTyping 1.4s infinite ease-in-out both;
+  }
+  .fchat-typing .dot:nth-child(1) { animation-delay: -0.32s; }
+  .fchat-typing .dot:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes fchatTyping {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+  }
+  .fchat-ai-tag {
+    font-size: 0.7rem;
+    color: var(--bs-primary);
+    font-weight: 500;
+    margin-top: 4px;
+    border-top: 1px dashed var(--bs-border-color);
+    padding-top: 3px;
+  }
+  .fchat-links {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .fchat-links a {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-decoration: none;
+  }
+</style>
+
+<div id="floating-chat-container">
+  <button id="floating-chat-btn" class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
+          type="button" aria-label="Mở Trợ lý KMG" title="Hỏi trợ lý sự kiện">
+    <i class="bi bi-chat-dots-fill fs-5" id="fchat-ico-open"></i>
+    <i class="bi bi-x-lg fs-5 d-none" id="fchat-ico-close"></i>
+  </button>
+
+  <div id="floating-chat-box" class="card border-0 bg-body d-none">
+    <!-- Header -->
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2 px-3 border-0">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-robot"></i>
+        <span class="fw-semibold small">Trợ lý KMG</span>
+        <span class="badge bg-white text-primary rounded-pill" style="font-size: 0.65rem;">AI</span>
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <button type="button" class="btn btn-sm btn-link text-white p-1 text-decoration-none" id="fchat-clear-btn" title="Làm mới hội thoại">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-link text-white p-1 text-decoration-none" id="fchat-close-btn" title="Đóng">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages Log -->
+    <div class="card-body p-2 d-flex flex-column gap-2 overflow-y-auto" id="fchat-log">
+      <div class="fchat-msg fchat-bot">
+        <i class="bi bi-robot text-primary"></i> Chào bạn! Mình là trợ lý sự kiện KMG. Bạn có thể hỏi nhanh về lịch sự kiện, còn vé không, hay cách đăng ký.
+      </div>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="px-2 py-1 border-top bg-body-tertiary d-flex gap-1 overflow-x-auto" id="fchat-suggestions" style="white-space: nowrap; scrollbar-width: none;">
+      <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill small" style="font-size: 0.75rem;" data-q="Sắp tới có sự kiện gì?">Sự kiện sắp tới?</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill small" style="font-size: 0.75rem;" data-q="Còn vé không?">Còn vé không?</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill small" style="font-size: 0.75rem;" data-q="Đăng ký thế nào?">Cách đăng ký?</button>
+    </div>
+
+    <!-- Footer Input Form -->
+    <div class="card-footer p-2 bg-body border-top">
+      <form id="fchat-form" data-api="{% url 'aiassist:chat_api' %}">
+        {% csrf_token %}
+        <div class="input-group input-group-sm">
+          <input id="fchat-input" class="form-control rounded-start-pill ps-3" placeholder="Nhập câu hỏi..." maxlength="500" autocomplete="off" required>
+          <button type="submit" class="btn btn-primary rounded-end-pill px-3" aria-label="Gửi">
+            <i class="bi bi-send-fill"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const btn = document.getElementById("floating-chat-btn");
+  const box = document.getElementById("floating-chat-box");
+  const closeBtn = document.getElementById("fchat-close-btn");
+  const clearBtn = document.getElementById("fchat-clear-btn");
+  const icoOpen = document.getElementById("fchat-ico-open");
+  const icoClose = document.getElementById("fchat-ico-close");
+  const form = document.getElementById("fchat-form");
+  const input = document.getElementById("fchat-input");
+  const log = document.getElementById("fchat-log");
+  const suggestions = document.getElementById("fchat-suggestions");
+  if (!btn || !box || !form || !input || !log) return;
+
+  const csrf = form.querySelector("[name=csrfmiddlewaretoken]") ? form.querySelector("[name=csrfmiddlewaretoken]").value : "";
+  const apiUrl = form.dataset.api || "/troly/hoi/";
+  let isOpen = false;
+  let busy = false;
+
+  function toggleBox(show) {
+    isOpen = (typeof show === "boolean") ? show : !isOpen;
+    if (isOpen) {
+      box.classList.remove("d-none");
+      icoOpen.classList.add("d-none");
+      icoClose.classList.remove("d-none");
+      input.focus();
+      log.scrollTop = log.scrollHeight;
+    } else {
+      box.classList.add("d-none");
+      icoOpen.classList.remove("d-none");
+      icoClose.classList.add("d-none");
+    }
+  }
+
+  btn.addEventListener("click", () => toggleBox());
+  if (closeBtn) closeBtn.addEventListener("click", () => toggleBox(false));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isOpen) toggleBox(false);
+  });
+
+  function addMsg(text, who, links, source) {
+    const div = document.createElement("div");
+    div.className = "fchat-msg fchat-" + who;
+    div.textContent = text;
+    if (source === "ai") {
+      const tag = document.createElement("div");
+      tag.className = "fchat-ai-tag";
+      tag.textContent = "✨ Trả lời bởi AI";
+      div.appendChild(tag);
+    }
+    if (links && links.length) {
+      const linkBox = document.createElement("div");
+      linkBox.className = "fchat-links";
+      links.slice(0, 3).forEach((l) => {
+        const a = document.createElement("a");
+        a.href = l.url;
+        a.className = "btn btn-sm btn-outline-primary py-0 px-2";
+        a.textContent = l.label;
+        linkBox.appendChild(a);
+      });
+      div.appendChild(linkBox);
+    }
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+
+  function addTyping() {
+    const div = document.createElement("div");
+    div.className = "fchat-msg fchat-bot fchat-typing";
+    div.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+
+  function ask(question) {
+    question = (question || "").trim();
+    if (!question || busy) return;
+    busy = true;
+    input.disabled = true;
+    addMsg(question, "user");
+    input.value = "";
+    const waiting = addTyping();
+
+    fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+      body: JSON.stringify({ question: question }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        waiting.remove();
+        addMsg(data.text || data.error || "Không có kết quả.", "bot", data.links, data.source);
+      })
+      .catch(() => {
+        waiting.remove();
+        addMsg("Không kết nối được máy chủ.", "bot");
+      })
+      .finally(() => {
+        busy = false;
+        input.disabled = false;
+        input.focus();
+      });
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    ask(input.value);
+  });
+
+  if (suggestions) {
+    suggestions.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-q]");
+      if (b) ask(b.dataset.q);
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      if (busy) return;
+      fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+        body: JSON.stringify({ action: "clear" }),
+      }).then(() => {
+        log.innerHTML = '<div class="fchat-msg fchat-bot"><i class="bi bi-robot text-primary"></i> Chào bạn! Mình là trợ lý sự kiện KMG. Bạn có thể hỏi nhanh về lịch sự kiện, còn vé không, hay cách đăng ký.</div>';
+      });
+    });
+  }
+})();
+</script>
+{% endif %}
