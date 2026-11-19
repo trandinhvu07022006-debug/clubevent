@@ -89,8 +89,15 @@ class VerifyServiceTests(OTPBase):
             verify_email_otp(self.guest, code)
 
     def test_wrong_code_counts_attempts_then_burns(self):
-        send_email_otp(self.guest)
+        otp = send_email_otp(self.guest)
         code = code_in_last_mail()
+        # Nhập rỗng hoặc không đúng 6 số thì báo lỗi nhưng KHÔNG trừ lượt thử
+        for bad in ("", "   ", "123", "abcdef", "12 34"):
+            with self.assertRaises(OTPError):
+                verify_email_otp(self.guest, bad)
+        otp.refresh_from_db()
+        self.assertEqual(otp.attempts, 0)
+
         for _ in range(5):
             with self.assertRaises(OTPError):
                 verify_email_otp(self.guest, wrong(code))

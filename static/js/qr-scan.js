@@ -312,12 +312,12 @@
     }
     if (recentBox && d.recent) {
       if (!d.recent.length) {
-        recentBox.replaceChildren(el("li", "list-group-item text-muted small", "Chưa có ai check-in."));
+        recentBox.replaceChildren(el("li", "list-group-item text-body-secondary small", "Chưa có ai check-in."));
       } else {
         recentBox.replaceChildren.apply(recentBox, d.recent.map(function (r) {
           var li = el("li", "list-group-item d-flex justify-content-between small");
           li.appendChild(el("span", "text-truncate me-2", r.name));
-          li.appendChild(el("span", "text-muted", r.at));
+          li.appendChild(el("span", "text-body-secondary", r.at));
           return li;
         }));
       }

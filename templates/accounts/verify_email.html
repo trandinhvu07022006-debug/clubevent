@@ -4,7 +4,11 @@
 {% block content %}
 <nav aria-label="breadcrumb" class="small mb-3">
   <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'accounts:profile' %}">Tài khoản</a></li>
+    {% if next %}
+      <li class="breadcrumb-item"><a href="{{ next }}">Quay lại</a></li>
+    {% else %}
+      <li class="breadcrumb-item"><a href="{% url 'accounts:profile' %}">Tài khoản</a></li>
+    {% endif %}
     <li class="breadcrumb-item active" aria-current="page">Xác minh email</li>
   </ol>
 </nav>

@@ -183,3 +183,18 @@ class TransferTests(Base):
         r = self.client.post(reverse("registrations:transfer", args=[self.ticket.pk]),
                              {"recipient": "khongco"})
         self.assertContains(r, "Không tìm thấy tài khoản")
+
+    def test_unverified_giver_cannot_transfer(self):
+        self.owner.email_verified_at = None
+        self.owner.save()
+        with self.assertRaisesMessage(BookingError, "xác minh email"):
+            transfer_ticket(self.owner, self.ticket.pk, "binh")
+
+    def test_transfer_cancels_recipient_waitlist(self):
+        from registrations.models import WaitlistEntry, WaitlistStatus
+        w = WaitlistEntry.objects.create(ticket_type=self.tt, user=self.friend,
+                                         status=WaitlistStatus.WAITING)
+        transfer_ticket(self.owner, self.ticket.pk, "binh")
+        w.refresh_from_db()
+        self.assertEqual(w.status, WaitlistStatus.CANCELLED)
+        self.assertIsNotNone(w.resolved_at)

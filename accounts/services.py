@@ -97,9 +97,14 @@ def send_email_otp(user: User) -> EmailOTP:
 
 def verify_email_otp(user: User, code: str) -> None:
     """Kiểm tra mã. Đúng thì đánh dấu email đã xác minh; sai thì ném OTPError."""
+    code = (code or "").strip().replace(" ", "")
+    if not code:
+        raise OTPError("Vui lòng nhập mã xác minh 6 số.")
+    if len(code) != 6 or not code.isdigit():
+        raise OTPError("Mã xác minh phải gồm đúng 6 chữ số.")
     # Ném lỗi SAU khi transaction đã commit: ném bên trong atomic thì lần
     # đếm sai bị rollback theo, kẻ dò mã sẽ được thử vô hạn.
-    error = _check_otp(user, (code or "").strip().replace(" ", ""))
+    error = _check_otp(user, code)
     if error:
         raise OTPError(error)
 

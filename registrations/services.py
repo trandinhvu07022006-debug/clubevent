@@ -538,6 +538,8 @@ def checkin_progress_data(event: Event) -> dict:
 # ---------------------------------------------------------------------------
 def transfer_block_reason(ticket: Ticket) -> str:
     """Lý do vé KHÔNG chuyển được ("" = chuyển được). Dùng cả cho giao diện."""
+    if ticket.user.needs_email_verification:
+        return "Bạn cần xác minh email trước khi chuyển nhượng vé."
     if ticket.status != TicketStatus.CONFIRMED:
         return "Chỉ chuyển được vé đã xác nhận và chưa check-in."
     limit = ticket.event.starts_at - timezone.timedelta(
@@ -609,6 +611,18 @@ def transfer_ticket(user: User, ticket_id: int, recipient: str) -> Ticket:
                                   old_code=old_code)
     AuditLog.write(user, "Chuyển nhượng vé", old_code,
                    f"{user} -> {to_user} - {event.name} - mã mới {ticket.code}")
+
+    # Nếu người nhận đang ở trong danh sách chờ của sự kiện này, huỷ 1 lượt chờ
+    # vì họ đã có vé, nhường suất cho người xếp hàng tiếp theo
+    waiting_entry = (WaitlistEntry.objects
+                     .filter(ticket_type__event=event, user=to_user,
+                             status=WaitlistStatus.WAITING)
+                     .order_by("created_at", "id")
+                     .first())
+    if waiting_entry:
+        waiting_entry.status = WaitlistStatus.CANCELLED
+        waiting_entry.resolved_at = timezone.now()
+        waiting_entry.save(update_fields=["status", "resolved_at"])
 
     my_tickets_url = reverse("registrations:my_tickets")
     giver = user.full_name or user.username
