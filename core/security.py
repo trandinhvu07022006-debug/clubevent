@@ -137,13 +137,15 @@ def is_rate_limited(
     window_seconds: int,
     identifier: str = "",
     record: bool = True,
+    per_ip: bool = True,
 ) -> bool:
     """
     Kiểm tra (và ghi nhận nếu chưa vượt ngưỡng) giới hạn tần suất theo IP + scope (SEC-06).
 
     Trả về `True` nếu đã chạm/vượt ngưỡng `limit` trong `window_seconds`.
+    `per_ip=False` thì đếm chung cho mọi IP (ví dụ theo tài khoản).
     """
-    ip = get_client_ip(request)
+    ip = get_client_ip(request) if per_ip else "*"
     key = _rate_cache_key(scope, ip, identifier)
     try:
         return _rate_event(key, window_seconds, limit, record)
@@ -151,6 +153,21 @@ def is_rate_limited(
         # Không mở cửa bỏ qua chống spam khi Redis mất kết nối, không log URL/secret.
         logger.warning("Rate limit unavailable: %s", type(exc).__name__)
         return True
+
+
+def reset_global_rate_limit(scope: str, identifier: str) -> None:
+    """Xoá bộ đếm đã tạo bằng `is_rate_limited(..., per_ip=False)`."""
+    key = _rate_cache_key(scope, "*", identifier)
+    try:
+        backend = caches["default"]
+        if isinstance(backend, RedisCache):
+            redis_key = backend.make_and_validate_key(f"rl-v2:{key}")
+            backend._cache.get_client(redis_key, write=True).delete(redis_key)
+        else:
+            cache.delete(key)
+    except Exception as exc:
+        # Không xoá được thì bộ đếm tự hết hạn, không làm hỏng việc đăng nhập
+        logger.warning("Rate reset unavailable: %s", type(exc).__name__)
 
 
 def record_rate_event(

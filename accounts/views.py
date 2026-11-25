@@ -54,6 +54,7 @@ from .services import (
     set_account_lock_state,
     verify_otp_challenge,
 )
+from .throttle import blocked_response, login_blocked
 
 
 def _store_dev_otp_hint(request, challenge: OTPVerificationChallenge, raw_code: str) -> None:
@@ -86,20 +87,12 @@ class AppLoginView(LoginView):
     redirect_authenticated_user = True
 
     def post(self, request, *args, **kwargs):
-        if is_rate_limited(
-            request,
-            scope="auth_login",
-            limit=20,
-            window_seconds=300,
-        ):
+        if login_blocked(request):
             messages.error(
                 request,
                 "Bạn thử đăng nhập quá nhiều lần liên tiếp. Vui lòng chờ vài phút.",
             )
-            return HttpResponse(
-                "Quá nhiều yêu cầu đăng nhập. Vui lòng thử lại sau.",
-                status=429,
-            )
+            return blocked_response()
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):

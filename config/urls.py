@@ -4,6 +4,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from accounts.throttle import throttle_login
 from core.health import health
 from notifications import views as notification_views
 
@@ -11,6 +12,8 @@ urlpatterns = [
     path("health/", health, name="health"),
     path("manifest.webmanifest", notification_views.pwa_manifest_view, name="pwa_manifest"),
     path("sw.js", notification_views.pwa_service_worker_view, name="pwa_service_worker"),
+    # Phải đứng TRƯỚC admin.site.urls để mọi lượt đăng nhập admin bị giới hạn
+    path("admin/login/", throttle_login(admin.site.login)),
     path("admin/", admin.site.urls),
     path("", include("pages.urls")),
     path("", include("events.urls")),

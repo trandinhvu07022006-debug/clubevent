@@ -46,9 +46,21 @@ ALLOWED_HOSTS = [h for h in env("ALLOWED_HOSTS", "*").split(",") if h]
 # không mọi form POST bị chặn CSRF 403. Ví dụ: https://abc.ngrok-free.app
 CSRF_TRUSTED_ORIGINS = [o for o in env("CSRF_TRUSTED_ORIGINS", "").split(",") if o]
 
-# Deploy thật mà quên đổi SECRET_KEY thì báo lỗi ngay, không chạy với key yếu
-if not DEBUG and SECRET_KEY.startswith("dev-only"):
-    raise ImproperlyConfigured("Phải đổi SECRET_KEY trong .env trước khi deploy!")
+# DEBUG=False mà khoá còn để trống hoặc còn giá trị mặc định (repo công khai nên
+# ai cũng đọc được) thì dừng ngay, không khởi động
+if not DEBUG:
+    _weak_keys = [
+        name for name, value in (
+            ("SECRET_KEY", SECRET_KEY),
+            ("CERT_SIGNING_KEY", CERT_SIGNING_KEY),
+            ("CHAT_MASTER_KEK", CHAT_MASTER_KEK),
+        )
+        if not value.strip() or value.startswith("dev-only")
+    ]
+    if _weak_keys:
+        raise ImproperlyConfigured(
+            f"Phải đặt {', '.join(_weak_keys)} trong .env trước khi chạy với DEBUG=False!"
+        )
 
 INSTALLED_APPS = [
     "django.contrib.admin",
