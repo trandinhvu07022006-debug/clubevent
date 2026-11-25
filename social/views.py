@@ -265,7 +265,8 @@ def social_feed(request):
         from core.security import is_rate_limited
         if not is_rate_limited(request, scope="kmg_ai_assist", limit=20, window_seconds=300):
             ai_digest, ai_digest_used, _ = summarize_social_feed(
-                [getattr(p, "content", "") for p in posts[:12]]
+                [getattr(p, "content", "") for p in posts[:12]],
+                names=tuple(p.author.full_name for p in posts[:12]),
             )
 
     return render(

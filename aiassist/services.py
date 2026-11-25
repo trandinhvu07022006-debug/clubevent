@@ -15,6 +15,7 @@ Nguyên tắc thiết kế:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -24,6 +25,9 @@ import urllib.request
 from typing import TYPE_CHECKING
 
 from django.conf import settings
+
+from . import schemas
+from .privacy import redact
 
 if TYPE_CHECKING:
     from events.models import Event
@@ -87,9 +91,13 @@ def _call_gemini(prompt: str, model: str, response_schema: dict | None = None) -
     # thông báo lỗi, gắn key vào đó là có ngày lộ key.
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{model}:generateContent")
-    gen_config: dict = {"temperature": 0.4, "responseMimeType": "application/json"}
+    gen_config: dict = {"temperature": 0.4}
     if response_schema:
-        gen_config["responseSchema"] = response_schema
+        # Dạng hiện hành của generateContent (responseSchema đã bị đánh dấu cũ)
+        gen_config["responseFormat"] = {
+            "text": {"mimeType": "APPLICATION_JSON", "schema": response_schema}}
+    else:
+        gen_config["responseMimeType"] = "application/json"
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": gen_config,
@@ -121,6 +129,22 @@ def _call_openai(prompt: str, model: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 
+def _generate(prompt: str, model: str, response_schema: dict | None) -> str:
+    """Một lần gọi nhà cung cấp AI đang cấu hình."""
+    if settings.AI_PROVIDER == "openai":
+        return _call_openai(prompt, model)    # chỉ dùng JSON mode, không kèm schema
+    if response_schema:
+        try:
+            return _call_gemini(prompt, model, response_schema=response_schema)
+        except urllib.error.HTTPError as e:
+            if e.code != 400:
+                raise
+            # Model/API không nhận schema: gọi lại kiểu cũ. Prompt vẫn mô tả
+            # định dạng và các hàm _clean vẫn kiểm tra dữ liệu.
+            logger.warning("API từ chối schema (400) với model %s, bỏ schema", model)
+    return _call_gemini(prompt, model)
+
+
 def _ask_ai(prompt: str, model: str | None = None,
             response_schema: dict | None = None) -> dict | list:
     """
@@ -143,11 +167,7 @@ def _ask_ai(prompt: str, model: str | None = None,
     try:
         for attempt in range(attempts):
             try:
-                if settings.AI_PROVIDER == "openai":
-                    raw = _call_openai(prompt, model)
-                else:
-                    raw = (_call_gemini(prompt, model, response_schema=response_schema)
-                           if response_schema else _call_gemini(prompt, model))
+                raw = _generate(prompt, model, response_schema)
                 break
             except urllib.error.HTTPError as e:
                 if e.code == 429:
@@ -200,26 +220,7 @@ def _parse_json(raw: str) -> dict | list:
 # ---------------------------------------------------------------------------
 # Chức năng 1: gợi ý công việc chuẩn bị sự kiện
 # ---------------------------------------------------------------------------
-SUGGEST_SCHEMA = {
-    "type": "OBJECT",
-    "properties": {
-        "tasks": {
-            "type": "ARRAY",
-            "items": {
-                "type": "OBJECT",
-                "properties": {
-                    "title": {"type": "STRING"},
-                    "days_before": {"type": "INTEGER"},
-                    "note": {"type": "STRING"},
-                    "department": {"type": "STRING"},
-                    "priority": {"type": "STRING"},
-                },
-                "required": ["title", "days_before", "note"],
-            },
-        }
-    },
-    "required": ["tasks"],
-}
+SUGGEST_SCHEMA = schemas.SUGGEST_TASKS
 
 SUGGEST_PROMPT = """Bạn là người có kinh nghiệm tổ chức sự kiện cho câu lạc bộ sinh viên Việt Nam.
 
@@ -305,7 +306,7 @@ def suggest_tasks(event: Event, count: int = 8) -> tuple[list[dict], bool, str]:
     ) + get_prompt_addendum("suggest_tasks")
 
     try:
-        data = _ask_ai(prompt, response_schema=SUGGEST_SCHEMA)
+        data = _ask_ai(prompt, response_schema=schemas.SUGGEST_TASKS)
         tasks = data.get("tasks") if isinstance(data, dict) else data
         cleaned = _clean_tasks(tasks, days_left, valid_departments=dept_map)
         if not cleaned:
@@ -388,15 +389,19 @@ def summarize_feedback(event: Event) -> tuple[FeedbackSummary | None, str]:
     """
     from feedback.models import Feedback, FeedbackSummary
 
-    items = Feedback.objects.filter(event=event).order_by("-created_at")[:100]
+    items = (Feedback.objects.filter(event=event)
+             .select_related("user").order_by("-created_at")[:100])
     if not items:
         return None, "Sự kiện chưa có phản hồi nào để tóm tắt."
 
     lines = "\n".join(
-        f"- {f.rating}/5 - {(f.content or 'không ghi góp ý')[:300]}" for f in items)
+        f"- {f.rating}/5 - "
+        f"{redact(f.content or 'không ghi góp ý', (f.user.full_name,))[:300]}"
+        for f in items)
 
     try:
-        data = _ask_ai(SUMMARY_PROMPT.format(feedbacks=lines))
+        data = _ask_ai(SUMMARY_PROMPT.format(feedbacks=lines),
+                       response_schema=schemas.FEEDBACK_SUMMARY)
     except AIError as e:
         return None, str(e)
 
@@ -451,24 +456,17 @@ def screen_application(application) -> tuple[dict, bool, str]:
     Trả về (dict_kết_quả, đã_dùng_ai, thông_báo_lỗi).
     """
     dept_name = application.department.name if application.department else "Ban chung CLB"
+    names = (application.user.full_name,)
     prompt = SCREEN_PROMPT.format(
         department=dept_name,
-        strengths=(application.strengths or "Không ghi")[:200],
+        strengths=redact(application.strengths or "Không ghi", names)[:200],
         level=application.get_level_display(),
-        motivation=(application.motivation or "Không ghi")[:500],
+        motivation=redact(application.motivation or "Không ghi", names)[:500],
         has_portfolio="Có" if application.portfolio_url else "Không",
     ) + get_prompt_addendum("screen_application")
 
     try:
-        data = _ask_ai(prompt, response_schema={
-            "type": "OBJECT",
-            "properties": {
-                "score": {"type": "INTEGER"},
-                "assessment": {"type": "STRING"},
-                "suggested_questions": {"type": "ARRAY", "items": {"type": "STRING"}},
-            },
-            "required": ["score", "assessment", "suggested_questions"],
-        })
+        data = _ask_ai(prompt, response_schema=schemas.SCREENING)
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc.")
 
@@ -559,15 +557,7 @@ def generate_event_content(event: Event) -> tuple[dict, bool, str]:
     fallback = _fallback_marketing(event)
 
     try:
-        data = _ask_ai(prompt, response_schema={
-            "type": "OBJECT",
-            "properties": {
-                "description": {"type": "STRING"},
-                "agenda": {"type": "STRING"},
-                "social_post": {"type": "STRING"},
-            },
-            "required": ["description", "agenda", "social_post"],
-        })
+        data = _ask_ai(prompt, response_schema=schemas.EVENT_CONTENT)
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc.")
         desc = str(data.get("description", "")).strip()
@@ -817,6 +807,10 @@ def generate_event_postmortem(event: Event) -> tuple[dict, dict, str, bool, str]
 
     start = timezone.localtime(event.starts_at)
     cat = event.get_category_display() if hasattr(event, "get_category_display") else "CLB"
+    # Góp ý là chữ người tham gia tự gõ -> che PII trước khi gửi đi
+    author_names = tuple(f.user.full_name for f in feedbacks.select_related("user"))
+    feedback_notes = redact(feedback_notes, author_names)
+
     prompt = POSTMORTEM_PROMPT.format(
         name=event.name,
         category=cat,
@@ -842,21 +836,7 @@ def generate_event_postmortem(event: Event) -> tuple[dict, dict, str, bool, str]
     fallback = _fallback_postmortem(event, stats)
 
     try:
-        data = _ask_ai(prompt, response_schema={
-            "type": "OBJECT",
-            "properties": {
-                "executive_summary": {"type": "STRING"},
-                "highlights": {"type": "ARRAY", "items": {"type": "STRING"}},
-                "financial_analysis": {"type": "STRING"},
-                "feedback_analysis": {"type": "STRING"},
-                "lessons_learned": {"type": "ARRAY", "items": {"type": "STRING"}},
-                "action_items": {"type": "ARRAY", "items": {"type": "STRING"}},
-            },
-            "required": [
-                "executive_summary", "highlights", "financial_analysis",
-                "feedback_analysis", "lessons_learned", "action_items",
-            ],
-        })
+        data = _ask_ai(prompt, response_schema=schemas.POSTMORTEM)
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc JSON.")
         
@@ -938,7 +918,7 @@ def get_prompt_addendum(task_key: str) -> str:
     Trả về chuỗi rỗng nếu chưa cấu hình hoặc tắt kích hoạt.
     """
     try:
-        from .models import AIPromptProfile
+        from .models import MAX_FEW_SHOT, AIPromptProfile
         profile = AIPromptProfile.objects.filter(task_key=task_key, is_active=True).first()
     except Exception:
         return ""
@@ -952,7 +932,7 @@ def get_prompt_addendum(task_key: str) -> str:
         parts.append(f"CHỈ DẪN BỔ SUNG:\n{profile.extra_instructions.strip()[:600]}")
     if isinstance(profile.few_shot_examples, list) and profile.few_shot_examples:
         ex_lines = ["VÍ DỤ MẪU CHUẨN (FEW-SHOT):"]
-        for idx, ex in enumerate(profile.few_shot_examples[:3], 1):
+        for idx, ex in enumerate(profile.few_shot_examples[:MAX_FEW_SHOT], 1):
             if not isinstance(ex, dict):
                 continue
             inp = str(ex.get("input", "")).strip()[:250]
@@ -964,68 +944,67 @@ def get_prompt_addendum(task_key: str) -> str:
     return ("\n\n" + "\n\n".join(parts)) if parts else ""
 
 
-def _rag_terms(text_norm: str) -> list[str]:
-    """Tách unigram + bigram từ văn bản tiếng Việt đã bỏ dấu cho Hybrid TF-IDF."""
-    words = [t for t in re.findall(r"\w+", text_norm) if len(t) >= 2]
-    bigrams = [f"{words[i]}_{words[i + 1]}" for i in range(len(words) - 1)]
-    return words + bigrams
+# Từ chức năng (đã bỏ dấu): xuất hiện ở mọi câu nên không nói lên chủ đề.
+# "_nguoi_" là ký hiệu của chữ "bạn" (xem chatbot.prepare_query).
+RETRIEVAL_STOPWORDS = frozenset("""
+    _nguoi_ ai anh ban bao bi biet cac cai can cho chi cua cung da dang day de
+    den di do duoc dung em gi giup hay hoi hom khi khong la lam luc minh moi mot
+    muon nao nay nhe nhieu nhung noi o oi ra roi sao se the thi toi trong tu va
+    vao vay ve voi xin co a
+""".split())
+# Điểm tối thiểu để một mục được coi là liên quan.
+RETRIEVAL_MIN_SCORE = 3
+
+
+def _knowledge_score(query: str, tokens: set, item) -> int:
+    """
+    Chấm điểm một mục tri thức, chỉ khớp NGUYÊN TỪ:
+      +3 mỗi từ khoá (cả cụm) xuất hiện trong câu hỏi
+      +2 mỗi từ của câu hỏi nằm trong tiêu đề hoặc từ khoá
+      +1 mỗi từ của câu hỏi chỉ nằm trong nội dung
+    """
+    from .chatbot import _has_phrase, normalize
+
+    score = 0
+    for phrase in (normalize(k) for k in item.keywords.split(",")):
+        if phrase and phrase not in RETRIEVAL_STOPWORDS and _has_phrase(query, phrase):
+            score += 3
+    strong = set(re.findall(r"\w+", normalize(f"{item.title} {item.keywords}")))
+    weak = set(re.findall(r"\w+", normalize(item.content)))
+    for token in tokens:
+        if token in strong:
+            score += 2
+        elif token in weak:
+            score += 1
+    return score
 
 
 def retrieve_knowledge(query: str = "", limit: int = 4) -> str:
     """
-    Hybrid Semantic RAG thuần Python (không phụ thuộc vector DB):
-      - TF-IDF Cosine Similarity trên unigram + bigram tiếng Việt đã bỏ dấu.
-      - Kết hợp Keyword Boost trên tiêu đề & từ khoá.
-    """
-    import math
-    from collections import Counter
+    RAG nhẹ không cần vector DB: chấm điểm khớp nguyên từ (đã bỏ dấu) giữa
+    câu hỏi và Kho tri thức CLB, lấy top-K trong số các mục đạt RETRIEVAL_MIN_SCORE.
 
+    Không mục nào đạt thì trả chuỗi rỗng: thà không đưa gì còn hơn đưa tài liệu
+    lạc đề cho model dựa vào.
+    """
     try:
         from .models import ClubKnowledge
         items = list(ClubKnowledge.objects.filter(is_active=True))
     except Exception:
+        logger.warning("Không đọc được Kho tri thức CLB", exc_info=True)
         return ""
-    if not items:
-        return ""
 
-    from .chatbot import normalize
-    q_norm = normalize(query)
-    q_terms = _rag_terms(q_norm)
-    q_words = [t for t in re.findall(r"\w+", q_norm) if len(t) >= 2]
+    from .chatbot import prepare_query
+    query_norm = prepare_query(query)
+    tokens = {t for t in re.findall(r"\w+", query_norm)
+              if len(t) >= 2 and t not in RETRIEVAL_STOPWORDS}
 
-    docs_terms = []
-    df = Counter()
-    for item in items:
-        terms = _rag_terms(normalize(f"{item.title} {item.keywords} {item.content}"))
-        docs_terms.append(terms)
-        for term in set(terms):
-            df[term] += 1
-
-    total_docs = len(items)
-    idf = {term: math.log((total_docs + 1) / (freq + 1)) + 1.0 for term, freq in df.items()}
-
-    q_tf = Counter(q_terms)
-    q_vec = {t: cnt * idf.get(t, 1.0) for t, cnt in q_tf.items()}
-    q_norm_len = math.sqrt(sum(v * v for v in q_vec.values())) or 1.0
-
-    scored = []
-    for idx, item in enumerate(items):
-        d_tf = Counter(docs_terms[idx])
-        d_vec = {t: cnt * idf.get(t, 1.0) for t, cnt in d_tf.items()}
-        d_norm_len = math.sqrt(sum(v * v for v in d_vec.values())) or 1.0
-
-        dot = sum(q_vec[t] * d_vec.get(t, 0.0) for t in q_vec)
-        cosine = dot / (q_norm_len * d_norm_len) if q_terms else 0.0
-
-        title_kw_norm = normalize(f"{item.title} {item.keywords}")
-        kw_boost = sum(0.35 for tok in q_words if tok in title_kw_norm)
-        total_score = round(cosine + kw_boost, 6)
-        scored.append((total_score, -item.priority, item))
-
-    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
-    chosen = [x[2] for x in scored[:limit]]
+    scored = [(_knowledge_score(query_norm, tokens, item), item) for item in items]
+    scored = [pair for pair in scored if pair[0] >= RETRIEVAL_MIN_SCORE]
+    # Điểm cao trước; bằng điểm thì mục có priority nhỏ trước
+    scored.sort(key=lambda pair: (-pair[0], pair[1].priority))
     lines = []
-    for item in chosen:
+    for _, item in scored[:limit]:
         snippet = " ".join(item.content.split())[:350]
         lines.append(f"- [{item.get_category_display()}] {item.title}: {snippet}")
     return "\n".join(lines)
@@ -1119,23 +1098,28 @@ def _assistant_rules() -> str:
     )
 
 
-def ask_assistant(question: str, history: list[dict] | None = None) -> dict:
+def ask_assistant(question: str, history: list[dict] | None = None,
+                  names: tuple = ()) -> dict:
     """
-    Hỏi AI một câu KHÔNG thuộc 8 ý định có sẵn.
+    Hỏi AI một câu KHÔNG thuộc các ý định có sẵn.
     Có thể truyền kèm `history` ([{"role": "user"|"assistant", "text": "..."}])
     để AI hiểu được ngữ cảnh các câu hỏi trước đó.
 
-    Trả về {"answer": str, "event_ids": [int]} - event_ids đã được lọc, chỉ
-    giữ mã có thật trong dữ liệu nền. Lỗi thì ném AIError (nơi gọi tự fallback).
+    Trả về {"answer", "event_ids", "model", "prompt_version"} - event_ids đã được
+    lọc, chỉ giữ mã có thật trong dữ liệu nền. Lỗi thì ném AIError (nơi gọi tự
+    fallback).
     """
     from django.utils import timezone
 
+    # Chốt chặn cuối: che PII ngay trước khi ghép prompt, kể cả với lịch sử cũ
+    # còn nằm trong session.
+    question = redact(question.strip(), names)[:500]
     history_block = ""
     if history:
         lines = ["LỊCH SỬ TRAO ĐỔI GẦN ĐÂY:"]
         for msg in history[-4:]:
             role = "Người dùng" if msg.get("role") == "user" else "Trợ lý"
-            text_val = str(msg.get("text", "")).strip()[:200]
+            text_val = redact(msg.get("text", ""), names).strip()[:200]
             if text_val:
                 lines.append(f"- {role}: {text_val}")
         if len(lines) > 1:
@@ -1143,27 +1127,26 @@ def ask_assistant(question: str, history: list[dict] | None = None) -> dict:
 
     events_text, known_ids = build_assistant_context(question)
     now = timezone.localtime()
+    addendum = get_prompt_addendum("chatbot")
+    model = settings.AI_ASSISTANT_MODEL or settings.AI_MODEL
+    # "Phiên bản" prompt: đổi mẫu prompt hoặc cấu hình trên Admin/Studio là mã đổi theo,
+    # nhờ vậy so được tỷ lệ 👍/👎 giữa các phiên bản.
+    prompt_version = hashlib.sha256(
+        (ASSISTANT_PROMPT + addendum).encode("utf-8")).hexdigest()[:12]
     prompt = ASSISTANT_PROMPT.format(
         now=f"{now:%H:%M} ngày {now:%d/%m/%Y}",
         events=events_text,
         rules=_assistant_rules(),
         history_block=history_block,
-        question=question.strip()[:500],
-    ) + get_prompt_addendum("chatbot")
+        question=question,
+    ) + addendum
     # Trợ lý dùng model RIÊNG (thường là bản lite): hỏi đáp nhiều, câu ngắn,
     # cần nhanh; và hạn mức miễn phí tính riêng từng model nên không ăn vào
     # lượt của tóm tắt phản hồi / gợi ý công việc. Để trống thì dùng AI_MODEL.
     data = _ask_ai(
         prompt,
-        model=settings.AI_ASSISTANT_MODEL or None,
-        response_schema={
-            "type": "OBJECT",
-            "properties": {
-                "answer": {"type": "STRING"},
-                "event_ids": {"type": "ARRAY", "items": {"type": "INTEGER"}},
-            },
-            "required": ["answer", "event_ids"],
-        },
+        model=model,
+        response_schema=schemas.ASSISTANT,
     )
     if not isinstance(data, dict):
         raise AIError("AI trả về sai cấu trúc (không phải object).")
@@ -1187,7 +1170,8 @@ def ask_assistant(question: str, history: list[dict] | None = None) -> dict:
             continue
         if pk in known_ids and pk not in event_ids:
             event_ids.append(pk)
-    return {"answer": answer, "event_ids": event_ids[:3]}
+    return {"answer": answer, "event_ids": event_ids[:3],
+            "model": model, "prompt_version": prompt_version}
 
 
 # ---------------------------------------------------------------------------
@@ -1208,9 +1192,11 @@ Hãy thẩm định tính khả thi và trả về JSON đúng cấu trúc (khô
 
 
 def review_proposal_with_ai(proposal) -> tuple[dict, bool, str]:
-    """AI thẩm định sơ bộ Đề xuất hoạt động (Programs). Tuân thủ Zero PII."""
-    summary_text = (proposal.summary or "").strip()[:500]
-    objectives_text = (proposal.objectives or "").strip()[:400]
+    """AI thẩm định sơ bộ Đề xuất hoạt động (Programs). Đã che PII theo mẫu."""
+    proposer = getattr(proposal, "proposer", None)
+    names = (getattr(proposer, "full_name", ""),)
+    summary_text = redact((proposal.summary or "").strip(), names)[:500]
+    objectives_text = redact((proposal.objectives or "").strip(), names)[:400]
     budget = getattr(proposal, "estimated_budget", 0) or 0
 
     fallback = {
@@ -1229,24 +1215,15 @@ def review_proposal_with_ai(proposal) -> tuple[dict, bool, str]:
     prompt = PROPOSAL_REVIEW_PROMPT.format(
         department=proposal.department.name,
         proposal_type=proposal.get_proposal_type_display(),
-        title=proposal.title[:160],
+        title=redact(proposal.title, names)[:160],
         summary=summary_text or "Chưa ghi",
         objectives=objectives_text or "Chưa ghi",
         budget=f"{budget:,}".replace(",", "."),
-        location=(proposal.proposed_location or "Chưa chốt")[:120],
+        location=redact(proposal.proposed_location or "Chưa chốt", names)[:120],
     ) + get_prompt_addendum("proposal_review")
 
     try:
-        data = _ask_ai(prompt, response_schema={
-            "type": "OBJECT",
-            "properties": {
-                "score": {"type": "INTEGER"},
-                "strengths": {"type": "ARRAY", "items": {"type": "STRING"}},
-                "risks": {"type": "ARRAY", "items": {"type": "STRING"}},
-                "recommendation": {"type": "STRING"},
-            },
-            "required": ["score", "strengths", "risks", "recommendation"],
-        })
+        data = _ask_ai(prompt, response_schema=schemas.PROPOSAL_REVIEW)
         if not isinstance(data, dict):
             raise AIError("Sai cấu trúc JSON.")
         score = max(1, min(int(data.get("score", 7)), 10))
@@ -1288,15 +1265,7 @@ def analyze_club_operations(metrics: dict, scope_label: str = "Toàn CLB") -> tu
     ) + get_prompt_addendum("operations_analytics")
 
     try:
-        data = _ask_ai(prompt, response_schema={
-            "type": "OBJECT",
-            "properties": {
-                "summary": {"type": "STRING"},
-                "bottlenecks": {"type": "ARRAY", "items": {"type": "STRING"}},
-                "action_plan": {"type": "ARRAY", "items": {"type": "STRING"}},
-            },
-            "required": ["summary", "bottlenecks", "action_plan"],
-        })
+        data = _ask_ai(prompt, response_schema=schemas.OPERATIONS_ANALYTICS)
         if not isinstance(data, dict):
             raise AIError("Sai cấu trúc JSON.")
         summary = str(data.get("summary", "")).strip()[:500] or fallback["summary"]
@@ -1315,9 +1284,12 @@ Hãy tóm tắt ngắn gọn tình hình sinh hoạt nổi bật. Trả về JSO
 {{"headline": "Tiêu đề tóm tắt 1 câu", "highlights": ["Ý chính 1", "Ý chính 2", "Ý chính 3"], "mood": "Không khí chung (vd: Sôi nổi / Gắn kết / Tập trung)"}}"""
 
 
-def summarize_social_feed(post_snippets: list[str]) -> tuple[dict, bool, str]:
-    """AI tóm tắt bảng tin nội bộ mà người dùng đang xem (Zero PII, tôn trọng PA-05)."""
-    cleaned = [" ".join(str(s).split())[:220] for s in post_snippets if str(s).strip()][:12]
+def summarize_social_feed(post_snippets: list[str],
+                          names: tuple = ()) -> tuple[dict, bool, str]:
+    """AI tóm tắt bảng tin nội bộ mà người dùng đang xem (che PII theo mẫu, tôn trọng PA-05)."""
+    # Che PII TRƯỚC khi cắt ngắn, để không cắt đôi email/SĐT làm mẫu không khớp
+    cleaned = [redact(" ".join(str(s).split()), names)[:220]
+               for s in post_snippets if str(s).strip()][:12]
     if not cleaned:
         return {
             "headline": "Bảng tin hiện chưa có nhiều bài viết mới.",
@@ -1336,15 +1308,7 @@ def summarize_social_feed(post_snippets: list[str]) -> tuple[dict, bool, str]:
     ) + get_prompt_addendum("social_digest")
 
     try:
-        data = _ask_ai(prompt, response_schema={
-            "type": "OBJECT",
-            "properties": {
-                "headline": {"type": "STRING"},
-                "highlights": {"type": "ARRAY", "items": {"type": "STRING"}},
-                "mood": {"type": "STRING"},
-            },
-            "required": ["headline", "highlights", "mood"],
-        })
+        data = _ask_ai(prompt, response_schema=schemas.SOCIAL_DIGEST)
         if not isinstance(data, dict):
             raise AIError("Sai cấu trúc JSON.")
         headline = str(data.get("headline", "")).strip()[:250] or fallback["headline"]

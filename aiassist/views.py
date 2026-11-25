@@ -1,9 +1,13 @@
-"""View cho trợ lý tra cứu và Trung tâm Huấn luyện AI (LLMOps Studio)."""
+"""View cho trợ lý tra cứu và Trung tâm Đánh giá & Tối ưu AI (LLMOps Studio)."""
 import io
 import json
+import logging
+import time
 
 from django.contrib import messages
-from django.core.management import call_command
+from django.core import signing
+from django.core.exceptions import ValidationError
+from django.core.management import CommandError, call_command
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -12,10 +16,14 @@ from django.views.decorators.http import require_POST
 from accounts.permissions import lead_required
 from core.security import is_rate_limited, record_rate_event
 
-from .chatbot import SUGGESTIONS, answer, stream_answer
+from .chatbot import PRIVATE_INTENTS, SUGGESTIONS, answer, stream_answer
+from .eval_data import to_jsonl
 from .management.commands.export_finetune_dataset import build_finetune_records
 from .models import (AIInteractionLog, AIPromptProfile, AITaskKey,
                      ClubKnowledge, FeedbackRating, KnowledgeCategory)
+from .privacy import known_names, redact
+
+logger = logging.getLogger(__name__)
 
 # Rate limit: tối đa 30 request/phút mỗi IP (SEC-06: lưu trong Cache, bỏ cookie vẫn bị chặn).
 RATE_LIMIT = 30
@@ -25,6 +33,10 @@ RATE_WINDOW = 60  # giây
 # 10 phút mỗi IP. Hết lượt thì trợ lý vẫn trả lời bằng luật như bình thường.
 AI_LIMIT = 10
 AI_WINDOW = 600   # giây
+
+# Token đánh giá: chỉ người nhận câu trả lời mới có, hết hạn sau 24 giờ.
+FEEDBACK_SALT = "aiassist.feedback"
+FEEDBACK_MAX_AGE = 24 * 3600   # giây
 
 
 def chat_page(request):
@@ -62,21 +74,58 @@ def _record_ai_use(request):
     )
 
 
-def _log_interaction(question: str, result: dict) -> int | None:
-    """Lưu log ẩn danh (Zero PII) phục vụ đánh giá & tạo tập dữ liệu huấn luyện."""
-    q_clean = (question or "").strip()[:500]
+def _log_interaction(question: str, result: dict, user=None,
+                     **telemetry) -> int | None:
+    """
+    Lưu log phục vụ đánh giá. Không gắn user/IP; câu hỏi được che PII theo mẫu;
+    câu trả lời của ý định cá nhân (vé, công việc, lời chào có tên) thì KHÔNG lưu.
+    """
+    names = known_names(user)
+    q_clean = redact((question or "").strip(), names)[:500]
     if not q_clean:
         return None
+    intent = str(result.get("intent", ""))[:64]
+    answer_text = ("" if intent in PRIVATE_INTENTS
+                   else redact(result.get("text", ""), names)[:1000])
     try:
         log = AIInteractionLog.objects.create(
             question=q_clean,
-            intent=str(result.get("intent", ""))[:64],
+            intent=intent,
             source=str(result.get("source", "rules"))[:16],
-            answer_preview=str(result.get("text", ""))[:1000],
+            answer_preview=answer_text,
+            **telemetry,
         )
         return log.pk
     except Exception:
+        logger.warning("Không ghi được nhật ký AI", exc_info=True)
         return None
+
+
+def _attach_feedback_token(question, result, user, started):
+    """
+    Ghi log (kèm độ trễ, model, phiên bản prompt) rồi gắn token đã ký vào kết
+    quả trả cho trình duyệt. `started` là mốc time.monotonic() lúc bắt đầu.
+    """
+    meta = result.pop("meta", {})
+    latency_ms = int((time.monotonic() - started) * 1000)
+    log_id = _log_interaction(question, result, user, latency_ms=latency_ms, **meta)
+    if log_id:
+        result["feedback_token"] = signing.dumps(log_id, salt=FEEDBACK_SALT)
+
+
+def _remember(chat_history, question, result, user):
+    """
+    Thêm một lượt vào lịch sử hội thoại. Trả về True nếu có thêm.
+
+    Lịch sử được gửi kèm cho AI ở câu sau, nên lượt hỏi đáp cá nhân bị bỏ hẳn.
+    """
+    answer_text = result.get("text", "")
+    if not answer_text or result.get("intent") in PRIVATE_INTENTS:
+        return False
+    names = known_names(user)
+    chat_history.append({"role": "user", "text": redact(question, names)})
+    chat_history.append({"role": "assistant", "text": redact(answer_text, names)})
+    return True
 
 
 @require_POST
@@ -109,20 +158,16 @@ def chat_api(request):
                             status=400)
 
     chat_history = request.session.get("chat_history", [])
+    started = time.monotonic()
     result = answer(question, user=request.user, allow_ai=_ai_allowed(request),
                     history=chat_history)
     if result.get("source") == "ai":
         _record_ai_use(request)
 
-    log_id = _log_interaction(question, result)
-    if log_id:
-        result["log_id"] = log_id
+    _attach_feedback_token(question, result, request.user, started)
 
     # Cập nhật ngữ cảnh hội thoại đa lượt (tối đa 6 tin nhắn gần nhất)
-    answer_text = result.get("text", "")
-    if answer_text:
-        chat_history.append({"role": "user", "text": question})
-        chat_history.append({"role": "assistant", "text": answer_text})
+    if _remember(chat_history, question, result, request.user):
         request.session["chat_history"] = chat_history[-6:]
         request.session.modified = True
     return JsonResponse(result)
@@ -161,21 +206,17 @@ def chat_stream_api(request):
 
     def sse_event_stream():
         final_result = None
+        started = time.monotonic()
         for chunk in stream_answer(question, user=request.user, allow_ai=allow_ai, history=chat_history):
             if chunk.get("done"):
                 final_result = chunk
-                log_id = _log_interaction(question, chunk)
-                if log_id:
-                    chunk["log_id"] = log_id
+                _attach_feedback_token(question, chunk, request.user, started)
             yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
         if final_result:
             if final_result.get("source") == "ai":
                 _record_ai_use(request)
-            answer_text = final_result.get("text", "")
-            if answer_text:
-                chat_history.append({"role": "user", "text": question})
-                chat_history.append({"role": "assistant", "text": answer_text})
+            if _remember(chat_history, question, final_result, request.user):
                 request.session["chat_history"] = chat_history[-6:]
                 request.session.modified = True
                 request.session.save()
@@ -188,7 +229,10 @@ def chat_stream_api(request):
 
 @require_POST
 def chat_feedback_api(request):
-    """Nhận đánh giá 👍/👎 của người dùng cho câu trả lời trợ lý (RLHF-lite)."""
+    """
+    Nhận đánh giá 👍/👎. Chỉ nhận token đã ký (không nhận id thô) và mỗi câu
+    trả lời chỉ đánh giá được một lần.
+    """
     if is_rate_limited(request, scope="aiassist_feedback", limit=RATE_LIMIT, window_seconds=RATE_WINDOW):
         return JsonResponse({"error": "Bạn gửi đánh giá quá nhanh."}, status=429)
 
@@ -196,7 +240,7 @@ def chat_feedback_api(request):
         payload = json.loads(request.body.decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError
-        log_id = int(payload.get("log_id"))
+        token = str(payload.get("token", ""))
         rating = str(payload.get("rating", "")).upper()
         if rating not in (FeedbackRating.UP, FeedbackRating.DOWN):
             raise ValueError
@@ -204,12 +248,19 @@ def chat_feedback_api(request):
     except (ValueError, TypeError, UnicodeDecodeError):
         return JsonResponse({"error": "Dữ liệu đánh giá không hợp lệ."}, status=400)
 
-    updated = AIInteractionLog.objects.filter(pk=log_id).update(
-        feedback=rating,
-        feedback_note=note,
-    )
+    try:
+        log_id = signing.loads(token, salt=FEEDBACK_SALT, max_age=FEEDBACK_MAX_AGE)
+    except signing.BadSignature:   # gồm cả token hết hạn
+        return JsonResponse({"error": "Phiên đánh giá không hợp lệ hoặc đã hết hạn."},
+                            status=403)
+
+    # Điều kiện feedback=NONE nằm trong câu UPDATE nên hai request đồng thời
+    # cũng chỉ có một request ghi được.
+    updated = AIInteractionLog.objects.filter(
+        pk=log_id, feedback=FeedbackRating.NONE,
+    ).update(feedback=rating, feedback_note=redact(note, known_names(request.user))[:255])
     if not updated:
-        return JsonResponse({"error": "Không tìm thấy nhật ký tương tác."}, status=404)
+        return JsonResponse({"error": "Câu trả lời này đã được đánh giá."}, status=409)
     return JsonResponse({"status": "ok", "rating": rating})
 
 
@@ -258,25 +309,25 @@ def ai_studio(request):
                 raw_few_shot = request.POST.get("few_shot_json", "").strip()
                 is_active = request.POST.get("is_active") == "on"
                 few_shot = []
+                bad_json = False
                 if raw_few_shot:
                     try:
-                        parsed = json.loads(raw_few_shot)
-                        if isinstance(parsed, list):
-                            few_shot = [x for x in parsed if isinstance(x, dict)]
+                        few_shot = json.loads(raw_few_shot)
                     except ValueError:
-                        messages.warning(request, "JSON ví dụ Few-Shot không hợp lệ — giữ nguyên danh sách cũ.")
-                        existing = AIPromptProfile.objects.filter(task_key=task_key).first()
-                        few_shot = existing.few_shot_examples if existing else []
-                AIPromptProfile.objects.update_or_create(
-                    task_key=task_key,
-                    defaults={
-                        "brand_voice": brand_voice,
-                        "extra_instructions": extra_instructions,
-                        "few_shot_examples": few_shot,
-                        "is_active": is_active,
-                    },
-                )
-                messages.success(request, f"Đã cập nhật cấu hình huấn luyện cho modun '{dict(AITaskKey.choices).get(task_key)}'.")
+                        bad_json = True
+                        messages.error(request, "JSON ví dụ Few-Shot không đúng cú pháp.")
+                if not bad_json:
+                    prof = AIPromptProfile.objects.filter(task_key=task_key).first() or AIPromptProfile(task_key=task_key)
+                    prof.brand_voice = brand_voice
+                    prof.extra_instructions = extra_instructions
+                    prof.few_shot_examples = few_shot
+                    prof.is_active = is_active
+                    try:
+                        prof.full_clean()
+                        prof.save()
+                        messages.success(request, f"Đã cập nhật cấu hình cho modun '{dict(AITaskKey.choices).get(task_key)}'.")
+                    except ValidationError as exc:
+                        messages.error(request, "; ".join(exc.messages))
 
         elif action == "mark_log_up":
             log = get_object_or_404(AIInteractionLog, pk=request.POST.get("log_id"))
@@ -329,14 +380,24 @@ def ai_studio(request):
 def ai_studio_eval(request):
     """Chạy bộ kiểm định tự động evaluate_ai ngay từ giao diện web."""
     buf = io.StringIO()
-    call_command("evaluate_ai", stdout=buf)
-    output = buf.getvalue().strip()
-    summary_line = output.splitlines()[-1] if output else "Đã hoàn tất kiểm định."
-    if "100%" in summary_line:
-        messages.success(request, f"Kết quả Eval Suite: {summary_line}")
-    else:
-        messages.warning(request, f"Kết quả Eval Suite:\n{output}")
+    try:
+        call_command("evaluate_ai", stdout=buf)
+        messages.success(request, f"Kết quả Eval Suite:\n{buf.getvalue().strip()}")
+    except CommandError as exc:
+        messages.error(request, f"{exc}\n{buf.getvalue().strip()}")
     return redirect("aiassist:studio")
+
+
+@lead_required
+def ai_studio_eval_export(request):
+    """Xuất nhật ký đã đánh giá (👍/👎) đã che PII ra file Eval JSONL."""
+    only_down = request.GET.get("only_down") == "1"
+    ratings = [FeedbackRating.DOWN] if only_down else [FeedbackRating.DOWN, FeedbackRating.UP]
+    logs = list(AIInteractionLog.objects.filter(feedback__in=ratings).order_by("-created_at")[:500])
+    resp = HttpResponse(to_jsonl(logs), content_type="application/jsonl; charset=utf-8")
+    fname = "kmg-eval-down.jsonl" if only_down else "kmg-eval-dataset.jsonl"
+    resp["Content-Disposition"] = f'attachment; filename="{fname}"'
+    return resp
 
 
 @require_POST

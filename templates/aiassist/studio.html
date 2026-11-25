@@ -7,15 +7,15 @@
   <div class="page-header-row d-flex flex-wrap justify-content-between align-items-end gap-3">
     <div>
       <h1 class="h3 fw-bold d-flex align-items-center gap-2">
-        <i class="bi bi-cpu text-primary"></i> Trung tâm Huấn luyện AI KMG
+        <i class="bi bi-cpu text-primary"></i> Trung tâm Đánh giá &amp; Cải tiến AI KMG
       </h1>
-      <p class="text-muted mb-0">Quản trị Kho tri thức RAG, Giọng văn &amp; Few-Shot cho 5 modun AI, Theo dõi đánh giá 👍/👎 và Xuất dữ liệu Fine-Tuning.</p>
+      <p class="text-muted mb-0">Quản trị Kho tri thức RAG, Giọng văn &amp; Few-Shot cho 8 modun AI, Theo dõi đánh giá 👍/👎 và Kiểm định chất lượng.</p>
     </div>
     <div class="page-header-actions d-flex flex-wrap gap-2">
       <form method="post" action="{% url 'aiassist:studio_run_pipeline' %}" class="d-inline">
         {% csrf_token %}
         <button type="submit" class="btn btn-success fw-bold shadow-sm">
-          <i class="bi bi-play-circle-fill"></i> Chạy Quy trình Huấn luyện
+          <i class="bi bi-play-circle-fill"></i> Chạy Pipeline Kiểm định &amp; Xuất
         </button>
       </form>
       <form method="post" action="{% url 'aiassist:studio_eval' %}" class="d-inline">
@@ -26,16 +26,14 @@
       </form>
       <div class="dropdown">
         <button class="btn btn-outline-secondary dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
-          <i class="bi bi-filetype-json"></i> Xuất JSONL Fine-Tuning
+          <i class="bi bi-filetype-json"></i> Xuất JSONL
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=all">Gemini JSONL (Tất cả modun)</a></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=openai&module=all">OpenAI JSONL (Tất cả modun)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_eval_export' %}?only_down=1">Eval JSONL — Câu bị 👎 (cần rà lỗi)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_eval_export' %}">Eval JSONL — Tất cả đã đánh giá (👍/👎)</a></li>
           <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=chatbot">Chỉ Chatbot (RAG + 👍)</a></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=tasks">Chỉ Gợi ý Công việc</a></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=marketing">Chỉ Truyền thông Sự kiện</a></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=postmortem">Chỉ Báo cáo Post-Mortem</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=all">Dataset Gemini JSONL (Tất cả modun)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=openai&module=all">Dataset OpenAI JSONL (Tất cả modun)</a></li>
         </ul>
       </div>
     </div>
@@ -59,7 +57,7 @@
   <div class="col-6 col-lg-3">
     <div class="stat-tile">
       <div class="num">{{ total_logs }}</div>
-      <div class="lbl">Tổng tương tác ẩn danh (Zero PII)</div>
+      <div class="lbl">Tổng tương tác (đã che PII theo mẫu)</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
@@ -79,7 +77,7 @@
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-prompts" type="button" role="tab">
-      <i class="bi bi-sliders"></i> 2. Prompt &amp; Few-Shot (5 Modun)
+      <i class="bi bi-sliders"></i> 2. Prompt &amp; Few-Shot (8 Modun)
     </button>
   </li>
   <li class="nav-item" role="presentation">

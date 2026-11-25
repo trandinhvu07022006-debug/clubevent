@@ -72,7 +72,8 @@ INTENTS = [
     {
         "code": "my_tasks",
         "keywords": ["viec cua toi", "cong viec", "task", "deadline",
-                     "han chot", "toi phai lam", "duoc giao"],
+                     "han chot", "toi phai lam", "duoc giao",
+                     "viec gi cho toi", "viec gi cho minh"],
         "login_required": True,
     },
     {
@@ -95,7 +96,11 @@ INTENTS = [
     },
     {
         "code": "club_departments",
-        "keywords": ["ban nao", "cac ban", "ban chuyen mon", "ban hau can", "ban truyen thong"],
+        # KHÔNG dùng "cac ban" / "ban nao" đứng riêng: trùng "các bạn", "bạn nào"
+        # khi người dùng gõ không dấu.
+        "keywords": ["ban chuyen mon", "nhung ban nao", "clb co ban nao",
+                     "cac ban trong clb", "cac ban cua clb",
+                     "ban hau can", "ban truyen thong"],
         "login_required": False,
     },
     {
@@ -110,6 +115,10 @@ INTENTS = [
     },
 ]
 
+# Câu trả lời của các ý định này chứa dữ liệu riêng của người đang đăng nhập
+# (mã vé, công việc, tên): không đưa vào lịch sử gửi AI, không lưu vào log.
+PRIVATE_INTENTS = frozenset({"my_tickets", "my_tasks", "greeting"})
+
 # Câu gợi ý hiện sẵn dưới ô chat để người dùng biết hỏi được gì
 SUGGESTIONS = [
     "Sắp tới có sự kiện gì?",
@@ -118,6 +127,21 @@ SUGGESTIONS = [
     "Việc của tôi có gì?",
     "Đăng ký thế nào?",
 ]
+
+
+def prepare_query(question):
+    """
+    Chuẩn hoá câu hỏi để so khớp từ khoá, phân biệt "bạn" (người) với "ban".
+
+    Bỏ dấu làm "bạn" và "ban" giống hệt nhau, nên:
+      - "bạn" có dấu được đổi thành ký hiệu riêng TRƯỚC khi bỏ dấu.
+      - Lời gọi "các bạn ơi", "ban oi" bị cắt vì không mang ý định.
+    """
+    text = unicodedata.normalize("NFC", (question or "").lower())
+    text = re.sub(r"\bbạn\b", " _nguoi_ ", text)
+    text = " ".join(normalize(text).split())
+    text = re.sub(r"\b(?:(?:cac|moi) )?(?:_nguoi_|ban) oi\b", " ", text)
+    return " ".join(text.split())
 
 
 def detect_intent(question):
@@ -135,7 +159,7 @@ def detect_intent(question):
 
     Không khớp gì thì trả về None.
     """
-    text = normalize(question)
+    text = prepare_query(question)
     if not text:
         return None
 
@@ -188,7 +212,7 @@ def answer(question, user=None, allow_ai=True, history=None):
     if intent is None:
         # Chỉ tới đây mới gọi AI - 8 ý định có sẵn LUÔN đi nhánh luật.
         if allow_ai and normalize(question):
-            ai_result = _answer_with_ai(question, history=history)
+            ai_result = _answer_with_ai(question, history=history, user=user)
             if ai_result is not None:
                 return ai_result
         return {"intent": "unknown", "source": "rules",
@@ -221,7 +245,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
 
     if intent is None:
         if allow_ai and normalize(question):
-            ai_result = _answer_with_ai(question, history=history)
+            ai_result = _answer_with_ai(question, history=history, user=user)
             if ai_result is not None:
                 text = ai_result["text"]
                 words = re.findall(r"\S+|\s+", text)
@@ -239,6 +263,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
                     "links": ai_result.get("links", []),
                     "intent": "ai",
                     "source": "ai",
+                    "meta": ai_result["meta"],
                 }
                 return
 
@@ -290,17 +315,18 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
     }
 
 
-def _answer_with_ai(question, history=None):
+def _answer_with_ai(question, history=None, user=None):
     """
     Nhánh AI. Trả về dict trả lời, hoặc None nếu AI không dùng được (chưa có
     key, lỗi mạng, quá tải...) - khi đó answer() quay về câu "chưa hiểu".
 
     Link do SERVER tạo từ mã sự kiện đã được kiểm tra, AI không tự viết URL.
     """
+    from .privacy import known_names
     from .services import AIError, ask_assistant
 
     try:
-        data = ask_assistant(question, history=history)
+        data = ask_assistant(question, history=history, names=known_names(user))
     except AIError:
         return None
 
@@ -313,7 +339,10 @@ def _answer_with_ai(question, history=None):
     )
     links = [{"label": names[pk], "url": reverse("events:detail", args=[pk])}
              for pk in data["event_ids"] if pk in names]
-    return {"intent": "ai", "source": "ai", "text": data["answer"], "links": links}
+    return {"intent": "ai", "source": "ai", "text": data["answer"], "links": links,
+            # Chỉ dùng để ghi log; view gỡ ra trước khi trả cho trình duyệt
+            "meta": {"model_name": data["model"],
+                     "prompt_version": data["prompt_version"]}}
 
 
 # --------------------------------------------------------------------------

@@ -323,7 +323,7 @@
           });
           botMsg.appendChild(linkBox);
         }
-        if (finalData.log_id) {
+        if (finalData.feedback_token) {
           const fb = document.createElement("div");
           fb.className = "d-flex align-items-center gap-1 mt-1 pt-1 border-top text-muted";
           fb.style.fontSize = "0.72rem";
@@ -336,9 +336,12 @@
             fetch(feedbackUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
-              body: JSON.stringify({ log_id: finalData.log_id, rating: b.dataset.rate }),
-            }).then(() => {
+              body: JSON.stringify({ token: finalData.feedback_token, rating: b.dataset.rate }),
+            }).then((r) => {
+              if (!r.ok) { fb.textContent = "Chưa gửi được đánh giá."; return; }
               fb.textContent = b.dataset.rate === "UP" ? "👍 Cảm ơn bạn!" : "👎 Đã ghi nhận!";
+            }).catch(() => {
+              fb.textContent = "Chưa gửi được đánh giá.";
             });
           });
           botMsg.appendChild(fb);

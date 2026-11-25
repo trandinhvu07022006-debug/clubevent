@@ -49,7 +49,11 @@ class LLMOpsPipelineTests(TestCase):
         ctx, _ = build_assistant_context("tuyển thành viên ban truyền thông")
         self.assertIn("Ban Truyền thông", ctx)
         self.assertIn("Tuyển thành viên Học kỳ 1", ctx)
-        self.assertIn("KHO TRI THỨC & FAQ CLB", ctx)
+        # Tri thức không liên quan thì không được đưa vào ngữ cảnh
+        self.assertNotIn("KHO TRI THỨC & FAQ CLB", ctx)
+
+        ctx_kb, _ = build_assistant_context("chuyển nhượng vé thế nào")
+        self.assertIn("KHO TRI THỨC & FAQ CLB", ctx_kb)
 
     @patch("aiassist.services._ask_ai")
     def test_prompt_registry_and_few_shot_injected(self, mock_ai):
@@ -88,15 +92,16 @@ class LLMOpsPipelineTests(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertIn("log_id", data)
+        self.assertIn("feedback_token", data)
 
         fb_resp = self.client.post(
             reverse("aiassist:chat_feedback_api"),
-            data=json.dumps({"log_id": data["log_id"], "rating": "UP", "note": "Rất rõ ràng"}),
+            data=json.dumps({"token": data["feedback_token"], "rating": "UP",
+                             "note": "Rất rõ ràng"}),
             content_type="application/json",
         )
         self.assertEqual(fb_resp.status_code, 200)
-        log = AIInteractionLog.objects.get(pk=data["log_id"])
+        log = AIInteractionLog.objects.get()
         self.assertEqual(log.feedback, FeedbackRating.UP)
         self.assertEqual(log.feedback_note, "Rất rõ ràng")
 
@@ -121,6 +126,14 @@ class LLMOpsPipelineTests(TestCase):
             row = json.loads(lines[0])
             self.assertIn("CLB có những ban nào?", row["contents"][0]["parts"][0]["text"])
 
+            eval_file = Path(tmpdir) / "eval.jsonl"
+            call_command("export_eval_dataset", output=str(eval_file))
+            eval_lines = eval_file.read_text(encoding="utf-8").strip().splitlines()
+            self.assertEqual(len(eval_lines), 1)
+            eval_row = json.loads(eval_lines[0])
+            self.assertEqual(eval_row["question"], "CLB có những ban nào?")
+            self.assertEqual(eval_row["rating"], "UP")
+
     def test_seed_populates_all_5_ai_modules(self):
         call_command("seed_ai_knowledge")
         self.assertEqual(AIPromptProfile.objects.count(), len(AITaskKey.values))
@@ -137,7 +150,11 @@ class LLMOpsPipelineTests(TestCase):
         self.client.force_login(lead)
         resp = self.client.get(studio_url)
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "Trung tâm Huấn luyện AI KMG")
+        self.assertContains(resp, "Trung tâm Đánh giá")
+
+        eval_exp = self.client.get(reverse("aiassist:studio_eval_export") + "?only_down=1")
+        self.assertEqual(eval_exp.status_code, 200)
+        self.assertIn("application/jsonl", eval_exp["Content-Type"])
 
         # Thêm tri thức từ UI Studio
         self.client.post(studio_url, {

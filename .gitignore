@@ -33,3 +33,7 @@ test_db.sqlite3*
 Thumbs.db
 .coverage
 htmlcov/
+
+# Dữ liệu đánh giá / tập xuất cục bộ (tránh đẩy câu hỏi người dùng lên repo công khai)
+eval_dataset*.jsonl
+aiassist/datasets/*.jsonl

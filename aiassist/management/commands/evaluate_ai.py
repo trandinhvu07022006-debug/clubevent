@@ -1,100 +1,75 @@
 """
-Bộ kiểm định chất lượng AI tự động (Automated LLM Eval Suite).
+Bộ kiểm định chất lượng phần AI, mặc định KHÔNG gọi API thật.
+
 Chạy:
   python manage.py evaluate_ai
+  python manage.py evaluate_ai --min-intent 0.95
   python manage.py evaluate_ai --llm-judge
+
+Đo trên bộ câu hỏi chuẩn (golden set) trong aiassist/evals/:
+  - split "dev"    : dùng để chỉnh luật; không đạt ngưỡng thì lệnh THẤT BẠI.
+  - split "holdout": không dùng để chỉnh, cùng người viết với "dev".
+  - split "blind"  : câu hỏi độc lập ngoài mẫu huấn luyện.
+Lệnh thoát với mã khác 0 khi trượt (`CommandError`), nên dùng được trong script/CI.
 """
-from django.core.management.base import BaseCommand
+import json
+from pathlib import Path
+
+from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 from django.test import override_settings
 from django.utils import timezone
 
 from aiassist.chatbot import detect_intent
+from aiassist.management.commands.seed_ai_knowledge import DEFAULT_KNOWLEDGE
+from aiassist.models import ClubKnowledge
+from aiassist.privacy import redact
 from aiassist.services import (_ask_ai, build_assistant_context,
                                generate_event_content, retrieve_knowledge,
                                suggest_tasks)
 from events.models import Event, EventStatus
 
-EVAL_INTENT_CASES = [
-    ("Sắp tới có sự kiện gì?", "upcoming_events"),
-    ("sap toi co su kien gi khong", "upcoming_events"),
-    ("Còn vé không bạn ơi?", "seats_left"),
-    ("con cho khong", "seats_left"),
-    ("Vé của tôi đâu?", "my_tickets"),
-    ("Việc của tôi có gì?", "my_tasks"),
-    ("Đăng ký vé thế nào?", "how_to_register"),
-    ("Cách huỷ vé", "cancel_ticket"),
-    ("Check in thế nào vậy?", "how_to_checkin"),
-    ("CLB có những ban nào?", "club_departments"),
-    ("Khi nào tuyển thành viên?", "recruitment_info"),
+EVAL_DIR = Path(__file__).resolve().parents[2] / "evals"
+
+# (văn bản vào, chuỗi bắt buộc phải biến mất)
+REDACTION_CASES = [
+    ("mail của em là an.nv@gmail.com", "an.nv@gmail.com"),
+    ("sdt 0912 345 678 nhé", "0912 345 678"),
+    ("gọi +84912345678", "+84912345678"),
+    ("MSSV AT200101 còn vé không", "AT200101"),
+    ("mã vé 3D736DC95DBF bị lỗi", "3D736DC95DBF"),
+    ("CCCD 001204012345", "001204012345"),
 ]
 
 
+def _load(name):
+    return json.loads((EVAL_DIR / name).read_text(encoding="utf-8"))
+
+
 class Command(BaseCommand):
-    help = "Chạy bộ kiểm định tự động (Evals) cho hệ thống AI của CLB."
+    help = "Chạy bộ kiểm định chất lượng AI trên golden set."
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--llm-judge", action="store_true",
-            help="Dùng AI làm giám khảo chấm điểm chất lượng grounding ngữ cảnh thật.",
-        )
+        parser.add_argument("--min-intent", type=float, default=0.9,
+                            help="Tỷ lệ đúng tối thiểu của nhận diện ý định (split dev).")
+        parser.add_argument("--min-retrieval", type=float, default=0.85,
+                            help="Tỷ lệ đúng tối thiểu của truy xuất tri thức (split dev).")
+        parser.add_argument("--llm-judge", action="store_true",
+                            help="Gọi AI làm giám khảo chấm điểm chất lượng Grounding Context.")
 
     def handle(self, *args, **options):
-        passed = 0
-        total = 0
+        failures = []
+        self._report("Ý định", self._eval_intents(), options["min_intent"], failures)
+        self._report("Truy xuất tri thức", self._eval_retrieval(),
+                     options["min_retrieval"], failures)
 
-        # 1. Đánh giá độ chính xác nhận diện ý định Tầng 1
-        intent_ok = 0
-        for query, expected in EVAL_INTENT_CASES:
-            total += 1
-            got = detect_intent(query)
-            if got and got["code"] == expected:
-                intent_ok += 1
-                passed += 1
-            else:
-                self.stdout.write(self.style.WARNING(
-                    f"[INTENT FAIL] '{query}' -> got={got['code'] if got else None}, expected={expected}"
-                ))
+        leaked = [secret for text, secret in REDACTION_CASES if secret in redact(text)]
+        self._check("Che PII", not leaked,
+                    f"{len(REDACTION_CASES) - len(leaked)}/{len(REDACTION_CASES)}", failures)
+        self._check("Fallback khi AI lỗi", self._eval_fallback(), "", failures)
 
-        # 2. Kiểm tra Hybrid Semantic RAG (TF-IDF Cosine + Keyword Boost)
-        total += 1
-        rag_snippet = retrieve_knowledge("muon tra ve chuyen khoan vietqr", limit=2)
-        if not rag_snippet or "VietQR" in rag_snippet or "Sổ quỹ" in rag_snippet or "vé" in rag_snippet.lower():
-            passed += 1
-        else:
-            self.stdout.write(self.style.WARNING("[RAG WARN] Hybrid RAG chưa trả về đoạn tài chính/vé phù hợp."))
-
-        # 3. Kiểm tra Zero-PII trong dữ liệu nền Grounding
-        total += 1
-        ctx_text, _ = build_assistant_context("tuyển thành viên và ban")
-        pii_leaks = [marker for marker in ("@gmail.com", "@", "mssv") if marker in ctx_text.lower()]
-        if not pii_leaks:
-            passed += 1
-        else:
-            self.stdout.write(self.style.ERROR(f"[PII FAIL] Phát hiện nghi vấn PII trong context: {pii_leaks}"))
-
-        # 4. Kiểm tra khả năng chịu lỗi (Fallback Resilience)
-        total += 1
-        now = timezone.now()
-        dummy_event = Event(
-            name="Eval Test Event",
-            location="Hội trường A",
-            capacity=100,
-            starts_at=now + timezone.timedelta(days=7),
-            register_deadline=now + timezone.timedelta(days=5),
-            status=EventStatus.OPEN,
-        )
-        with override_settings(AI_PROVIDER="mock"):
-            tasks, _, _ = suggest_tasks(dummy_event, count=5)
-            content, _, _ = generate_event_content(dummy_event)
-        if len(tasks) == 5 and content.get("social_post"):
-            passed += 1
-        else:
-            self.stdout.write(self.style.ERROR("[FALLBACK FAIL] Fallback không trả về đủ dữ liệu hợp lệ."))
-
-        # 5. (Tuỳ chọn) LLM-as-a-Judge đánh giá chất lượng Grounding Context
-        judge_note = ""
         if options["llm_judge"]:
-            total += 1
+            ctx_text, _ = build_assistant_context("tuyển thành viên và ban")
             judge_prompt = (
                 "Bạn là giám khảo đánh giá hệ thống RAG. Hãy chấm điểm 1-5 độ rõ ràng, "
                 "đầy đủ và tính trung thực của ngữ cảnh sau:\n\n"
@@ -103,19 +78,77 @@ class Command(BaseCommand):
             )
             try:
                 res = _ask_ai(judge_prompt, response_schema={
-                    "type": "OBJECT",
-                    "properties": {"score": {"type": "INTEGER"}, "reason": {"type": "STRING"}},
+                    "type": "object",
+                    "properties": {"score": {"type": "integer"}, "reason": {"type": "string"}},
                     "required": ["score", "reason"],
                 })
                 j_score = int(res.get("score", 0))
-                if j_score >= 4:
-                    passed += 1
-                judge_note = f" | LLM Judge: {j_score}/5 ({res.get('reason', '')[:80]})"
+                self._check("LLM Judge", j_score >= 4,
+                            f"{j_score}/5 ({res.get('reason', '')[:80]})", failures)
             except Exception as exc:
-                self.stdout.write(self.style.WARNING(f"[LLM JUDGE SKIP/FAIL] {exc}"))
+                self._check("LLM Judge", False, str(exc), failures)
 
-        score_pct = (passed * 100) // total if total else 0
-        self.stdout.write(self.style.SUCCESS(
-            f"EVAL SUMMARY: {passed}/{total} checks passed ({score_pct}%) | "
-            f"Intent Accuracy: {intent_ok}/{len(EVAL_INTENT_CASES)}{judge_note}"
-        ))
+        if failures:
+            raise CommandError("EVAL TRƯỢT: " + ", ".join(failures))
+        self.stdout.write(self.style.SUCCESS("EVAL ĐẠT"))
+
+    def _eval_intents(self):
+        """Trả về [(split, đúng?, mô tả lỗi)]."""
+        rows = []
+        for case in _load("golden_intents.json"):
+            got = detect_intent(case["q"])
+            code = got["code"] if got else None
+            rows.append((case["split"], code == case["intent"],
+                         f"'{case['q']}' -> {code}, đúng phải là {case['intent']}"))
+        return rows
+
+    def _eval_retrieval(self):
+        """
+        Đo trên đúng bộ tri thức mẫu để kết quả lặp lại được. Mọi thay đổi DB
+        nằm trong transaction và được rollback, dữ liệu thật không bị đụng.
+        """
+        rows = []
+        with transaction.atomic():
+            ClubKnowledge.objects.update(is_active=False)
+            for item in DEFAULT_KNOWLEDGE:
+                ClubKnowledge.objects.create(**item)
+            for case in _load("golden_retrieval.json"):
+                found = retrieve_knowledge(case["q"])
+                top = found.split("\n")[0]
+                ok = case["title"] in top if case["title"] else not found
+                rows.append((case["split"], ok,
+                             f"'{case['q']}' -> {top[:60] or '(rỗng)'}"))
+            transaction.set_rollback(True)
+        return rows
+
+    def _eval_fallback(self):
+        now = timezone.now()
+        event = Event(name="Eval Test Event", location="Hội trường A", capacity=100,
+                      starts_at=now + timezone.timedelta(days=7),
+                      register_deadline=now + timezone.timedelta(days=5),
+                      status=EventStatus.OPEN)
+        with override_settings(AI_PROVIDER="mock"):
+            tasks, _, _ = suggest_tasks(event, count=5)
+            content, _, _ = generate_event_content(event)
+        return len(tasks) == 5 and bool(content.get("social_post"))
+
+    def _report(self, label, rows, minimum, failures):
+        if not any(r[0] == "dev" for r in rows):
+            failures.append(f"{label}: thiếu split dev")
+        for split in ("dev", "holdout", "blind"):
+            subset = [r for r in rows if r[0] == split]
+            if not subset:
+                continue
+            correct = sum(r[1] for r in subset)
+            ratio = correct / len(subset)
+            self.stdout.write(f"{label} [{split}]: {correct}/{len(subset)} ({ratio:.0%})")
+            for _, ok, detail in subset:
+                if not ok:
+                    self.stdout.write(self.style.WARNING(f"  sai: {detail}"))
+            if split == "dev" and ratio < minimum:
+                failures.append(f"{label} {ratio:.0%} < {minimum:.0%}")
+
+    def _check(self, label, ok, detail, failures):
+        self.stdout.write(f"{label}: {'đạt' if ok else 'TRƯỢT'} {detail}".rstrip())
+        if not ok:
+            failures.append(label)

@@ -1,10 +1,14 @@
 """
-Mô hình dữ liệu cho quy trình Huấn luyện & Tối ưu Hóa AI (LLMOps):
+Mô hình dữ liệu cho quy trình Đánh giá & Cải tiến AI (LLMOps):
   1. ClubKnowledge    : Kho tri thức CLB phục vụ RAG Grounding.
   2. AIPromptProfile  : Quản trị giọng văn, chỉ dẫn & ví dụ Few-Shot cho từng tác vụ AI.
-  3. AIInteractionLog : Nhật ký hỏi đáp & đánh giá 👍/👎 (tuân thủ Zero PII).
+  3. AIInteractionLog : Nhật ký hỏi đáp & đánh giá 👍/👎 (đã che PII theo mẫu).
 """
+from django.core.exceptions import ValidationError
 from django.db import models
+
+# Số ví dụ few-shot tối đa được đưa vào prompt
+MAX_FEW_SHOT = 3
 
 
 class KnowledgeCategory(models.TextChoices):
@@ -58,7 +62,7 @@ class AITaskKey(models.TextChoices):
 class AIPromptProfile(models.Model):
     """
     Cấu hình giọng văn, chỉ dẫn bổ sung và ví dụ Few-Shot cho từng tác vụ AI.
-    Cho phép Ban Chủ nhiệm tinh chỉnh hành vi AI ngay trên Admin mà không sửa code.
+    Cho phép Ban Chủ nhiệm tinh chỉnh hành vi AI ngay trên Admin/Studio mà không sửa code.
     """
 
     task_key = models.CharField(
@@ -87,6 +91,24 @@ class AIPromptProfile(models.Model):
     def __str__(self):
         return self.get_task_key_display()
 
+    def clean(self):
+        """Báo lỗi ngay trên Admin/Studio thay vì âm thầm bỏ qua ví dụ sai."""
+        if self.few_shot_examples in (None, ""):
+            self.few_shot_examples = []
+        examples = self.few_shot_examples
+        valid = (
+            isinstance(examples, list)
+            and len(examples) <= MAX_FEW_SHOT
+            and all(isinstance(e, dict)
+                    and all(isinstance(e.get(k), str) and e[k].strip()
+                            for k in ("input", "output"))
+                    for e in examples)
+        )
+        if not valid:
+            raise ValidationError({"few_shot_examples": (
+                f"Cần danh sách tối đa {MAX_FEW_SHOT} mục dạng "
+                '[{"input": "...", "output": "..."}], không để trống.')})
+
 
 class FeedbackRating(models.TextChoices):
     NONE = "NONE", "Chưa đánh giá"
@@ -96,11 +118,12 @@ class FeedbackRating(models.TextChoices):
 
 class AIInteractionLog(models.Model):
     """
-    Nhật ký hỏi đáp phục vụ đánh giá & tạo tập dữ liệu huấn luyện (Zero PII).
-    Tuyệt đối không lưu user, họ tên, MSSV, email hay IP.
+    Nhật ký hỏi đáp phục vụ đánh giá chất lượng.
+    Không có trường user/IP. Nội dung được che PII theo mẫu (aiassist/privacy.py,
+    xem giới hạn ở đó); câu trả lời cá nhân (vé, công việc) không được lưu.
     """
 
-    question = models.CharField("Câu hỏi (ẩn danh)", max_length=500)
+    question = models.CharField("Câu hỏi (đã che PII)", max_length=500)
     intent = models.CharField("Ý định nhận diện", max_length=64, blank=True)
     source = models.CharField("Nguồn trả lời", max_length=16, default="rules")
     answer_preview = models.TextField("Câu trả lời", blank=True)
@@ -109,6 +132,9 @@ class AIInteractionLog(models.Model):
         default=FeedbackRating.NONE,
     )
     feedback_note = models.CharField("Góp ý ngắn", max_length=255, blank=True)
+    latency_ms = models.PositiveIntegerField("Thời gian xử lý (ms)", null=True, blank=True)
+    model_name = models.CharField("Model AI", max_length=64, blank=True)
+    prompt_version = models.CharField("Phiên bản prompt", max_length=12, blank=True)
     created_at = models.DateTimeField("Thời gian", auto_now_add=True)
 
     class Meta:

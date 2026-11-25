@@ -1,0 +1,23 @@
+[
+ {"q": "giới thiệu về câu lạc bộ", "title": "Giới thiệu chung về KMG Club", "split": "dev"},
+ {"q": "CLB hoạt động âm nhạc gì", "title": "Giới thiệu chung về KMG Club", "split": "dev"},
+ {"q": "vé chuyển nhượng được không", "title": "Quy trình tham gia và check-in sự kiện", "split": "dev"},
+ {"q": "mã QR dùng để làm gì", "title": "Quy trình tham gia và check-in sự kiện", "split": "dev"},
+ {"q": "phỏng vấn casting ra sao", "title": "Quy trình tuyển thành viên và phỏng vấn/casting", "split": "dev"},
+ {"q": "nộp đơn ứng tuyển cần gì", "title": "Quy trình tuyển thành viên và phỏng vấn/casting", "split": "dev"},
+ {"q": "nội quy cho thành viên chính thức", "title": "Cơ cấu các Ban và hoạt động nội bộ", "split": "dev"},
+ {"q": "không gian nội bộ workspace là gì", "title": "Cơ cấu các Ban và hoạt động nội bộ", "split": "dev"},
+ {"q": "thời tiết Tokyo hôm nay", "title": null, "split": "dev"},
+ {"q": "xyz qqq", "title": null, "split": "dev"},
+ {"q": "hi", "title": null, "split": "dev"},
+ {"q": "công thức nấu phở", "title": null, "split": "dev"},
+ {"q": "gửi xe ở đâu", "title": null, "split": "dev"},
+ {"q": "kmg là gì vậy", "title": "Giới thiệu chung về KMG Club", "split": "holdout"},
+ {"q": "chuyển vé cho bạn khác", "title": "Quy trình tham gia và check-in sự kiện", "split": "holdout"},
+ {"q": "casting gồm những vòng nào", "title": "Quy trình tuyển thành viên và phỏng vấn/casting", "split": "holdout"},
+ {"q": "thành viên nhận nhiệm vụ ở đâu", "title": "Cơ cấu các Ban và hoạt động nội bộ", "split": "holdout"},
+ {"q": "tỷ giá đô hôm nay", "title": null, "split": "holdout"},
+ {"q": "bạn thích màu gì", "title": null, "split": "holdout"},
+ {"q": "cho mình hỏi wifi", "title": null, "split": "holdout"},
+ {"q": "lịch thi học kỳ của trường", "title": null, "split": "holdout"}
+]

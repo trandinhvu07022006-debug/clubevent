@@ -175,7 +175,7 @@
                     });
                     botBubble.appendChild(box);
                 }
-                if (finalData.log_id) {
+                if (finalData.feedback_token) {
                     const fb = document.createElement("div");
                     fb.className = "d-flex align-items-center gap-1 mt-2 pt-1 border-top small text-muted";
                     fb.innerHTML = '<span>Hữu ích?</span>' +
@@ -187,9 +187,12 @@
                         fetch(feedbackUrl, {
                             method: "POST",
                             headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
-                            body: JSON.stringify({ log_id: finalData.log_id, rating: b.dataset.rate }),
-                        }).then(function () {
-                            fb.textContent = b.dataset.rate === "UP" ? "👍 Cảm ơn bạn đã đánh giá!" : "👎 Đã ghi nhận để cải thiện AI!";
+                            body: JSON.stringify({ token: finalData.feedback_token, rating: b.dataset.rate }),
+                        }).then(function (r) {
+                            if (!r.ok) { fb.textContent = "Chưa gửi được đánh giá."; return; }
+                            fb.textContent = b.dataset.rate === "UP" ? "👍 Cảm ơn bạn đã đánh giá!" : "👎 Đã ghi nhận góp ý!";
+                        }).catch(function () {
+                            fb.textContent = "Chưa gửi được đánh giá.";
                         });
                     });
                     botBubble.appendChild(fb);
