@@ -77,7 +77,7 @@ INTENTS = [
     },
     {
         "code": "how_to_register",
-        "keywords": ["dang ky the nao", "lam sao de dang ky", "cach dang ky",
+        "keywords": ["dang ky the nao", "dang ky ve", "lam sao de dang ky", "cach dang ky",
                      "huong dan", "dang ky nhu the nao", "mua ve the nao",
                      "thanh toan"],
         "login_required": False,
@@ -91,6 +91,16 @@ INTENTS = [
     {
         "code": "cancel_ticket",
         "keywords": ["huy ve", "tra ve", "khong di duoc", "bo ve", "huy dang ky"],
+        "login_required": False,
+    },
+    {
+        "code": "club_departments",
+        "keywords": ["ban nao", "cac ban", "ban chuyen mon", "ban hau can", "ban truyen thong"],
+        "login_required": False,
+    },
+    {
+        "code": "recruitment_info",
+        "keywords": ["tuyen thanh vien", "tuyen quan", "ung tuyen", "tham gia clb", "vao clb", "casting"],
         "login_required": False,
     },
     {
@@ -469,6 +479,53 @@ def _greeting(user):
     }
 
 
+def _club_departments(user):
+    from organizing.models import Department
+
+    depts = list(Department.objects.all()[:10])
+    if not depts:
+        return {
+            "text": "Hiện CLB chưa cập nhật danh sách các Ban chuyên môn trên hệ thống.",
+            "links": [],
+        }
+    lines = ["Các Ban chuyên môn trong CLB hiện gồm:"]
+    for d in depts:
+        desc = f" — {d.description}" if d.description else ""
+        lines.append(f"• {d.name}{desc}")
+    return {
+        "text": "\n".join(lines),
+        "links": [{"label": "Xem trang Tuyển thành viên", "url": reverse("recruitment:home")}],
+    }
+
+
+def _recruitment_info(user):
+    from recruitment.models import RecruitmentRound
+
+    current_round = RecruitmentRound.current()
+    if current_round:
+        closes = timezone.localtime(current_round.closes_at)
+        depts = ", ".join(d.name for d in current_round.open_departments()[:6]) or "Tất cả các ban"
+        return {
+            "text": (f"CLB đang mở đợt '{current_round.name}' đến {closes:%H:%M ngày %d/%m/%Y}.\n"
+                     f"Các ban nhận đơn: {depts}.\n"
+                     f"Bạn có thể nộp đơn trực tuyến ngay tại mục Tuyển thành viên."),
+            "links": [{"label": "Nộp đơn ứng tuyển", "url": reverse("recruitment:apply")}],
+        }
+
+    upcoming = RecruitmentRound.next_upcoming()
+    if upcoming:
+        opens = timezone.localtime(upcoming.opens_at)
+        return {
+            "text": f"Đợt tuyển sắp tới '{upcoming.name}' sẽ mở nhận đơn từ {opens:%H:%M ngày %d/%m/%Y}.",
+            "links": [{"label": "Xem thông tin tuyển thành viên", "url": reverse("recruitment:home")}],
+        }
+
+    return {
+        "text": "Hiện tại chưa có đợt tuyển thành viên nào đang mở. Bạn hãy theo dõi trang Tuyển thành viên để cập nhật lịch mới nhất nhé!",
+        "links": [{"label": "Trang Tuyển thành viên", "url": reverse("recruitment:home")}],
+    }
+
+
 HANDLERS = {
     "upcoming_events": _upcoming_events,
     "seats_left": _seats_left,
@@ -477,5 +534,7 @@ HANDLERS = {
     "how_to_register": _how_to_register,
     "how_to_checkin": _how_to_checkin,
     "cancel_ticket": _cancel_ticket,
+    "club_departments": _club_departments,
+    "recruitment_info": _recruitment_info,
     "greeting": _greeting,
 }

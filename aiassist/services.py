@@ -81,15 +81,18 @@ def _http_error_message(code: int, model: str = "", daily: bool = False) -> str:
 # ---------------------------------------------------------------------------
 # Gọi API
 # ---------------------------------------------------------------------------
-def _call_gemini(prompt: str, model: str) -> str:
+def _call_gemini(prompt: str, model: str, response_schema: dict | None = None) -> str:
     """Gọi Google Gemini API. Trả về chuỗi text mà model sinh ra."""
     # API key gửi qua HEADER, không gắn vào URL: URL hay bị in ra log hoặc
     # thông báo lỗi, gắn key vào đó là có ngày lộ key.
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{model}:generateContent")
+    gen_config: dict = {"temperature": 0.4, "responseMimeType": "application/json"}
+    if response_schema:
+        gen_config["responseSchema"] = response_schema
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4, "responseMimeType": "application/json"},
+        "generationConfig": gen_config,
     }).encode("utf-8")
 
     req = urllib.request.Request(url, data=body,
@@ -118,7 +121,8 @@ def _call_openai(prompt: str, model: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 
-def _ask_ai(prompt: str, model: str | None = None) -> dict | list:
+def _ask_ai(prompt: str, model: str | None = None,
+            response_schema: dict | None = None) -> dict | list:
     """
     Gửi prompt tới AI, trả về dict đã parse từ JSON.
 
@@ -134,13 +138,16 @@ def _ask_ai(prompt: str, model: str | None = None) -> dict | list:
         raise AIError("Chưa cấu hình AI_API_KEY trong file .env.")
 
     model = model or settings.AI_MODEL
-    call = _call_openai if settings.AI_PROVIDER == "openai" else _call_gemini
     attempts = len(RETRY_DELAYS) + 1
     daily = False
     try:
         for attempt in range(attempts):
             try:
-                raw = call(prompt, model)
+                if settings.AI_PROVIDER == "openai":
+                    raw = _call_openai(prompt, model)
+                else:
+                    raw = (_call_gemini(prompt, model, response_schema=response_schema)
+                           if response_schema else _call_gemini(prompt, model))
                 break
             except urllib.error.HTTPError as e:
                 if e.code == 429:
@@ -274,7 +281,7 @@ def suggest_tasks(event: Event, count: int = 8) -> tuple[list[dict], bool, str]:
         description=(event.description or "Không có mô tả")[:500],
         days_left=days_left or 30, count=count,
         departments_info=departments_info,
-    )
+    ) + get_prompt_addendum("suggest_tasks")
 
     try:
         data = _ask_ai(prompt)
@@ -429,7 +436,7 @@ def screen_application(application) -> tuple[dict, bool, str]:
         level=application.get_level_display(),
         motivation=(application.motivation or "Không ghi")[:500],
         has_portfolio="Có" if application.portfolio_url else "Không",
-    )
+    ) + get_prompt_addendum("screen_application")
 
     try:
         data = _ask_ai(prompt)
@@ -519,7 +526,7 @@ def generate_event_content(event: Event) -> tuple[dict, bool, str]:
         location=event.location or "Hội trường CLB",
         capacity=event.capacity or 100,
         description=(event.description or "Chưa có mô tả")[:400],
-    )
+    ) + get_prompt_addendum("event_marketing")
     fallback = _fallback_marketing(event)
 
     try:
@@ -793,7 +800,7 @@ def generate_event_postmortem(event: Event) -> tuple[dict, dict, str, bool, str]
         avg_rating=avg_rating,
         feedback_count=feedback_count,
         feedback_notes=feedback_notes,
-    )
+    ) + get_prompt_addendum("postmortem")
 
     fallback = _fallback_postmortem(event, stats)
 
@@ -874,16 +881,88 @@ def _fmt_money(value: int) -> str:
     return "Miễn phí" if not value else f"{value:,}".replace(",", ".") + "đ"
 
 
-def build_assistant_context() -> tuple[str, set[int]]:
+def get_prompt_addendum(task_key: str) -> str:
     """
-    Dữ liệu nền gửi cho AI: các sự kiện CÔNG KHAI (bỏ bản nháp DRAFT).
-    Ưu tiên sự kiện sắp diễn ra, sau đó tới vài sự kiện vừa kết thúc.
-    Trả về (đoạn văn bản, tập mã sự kiện đã đưa vào) - tập mã dùng để kiểm tra
-    lại event_ids AI trả về, không cho AI bịa ra sự kiện không có.
+    Lấy cấu hình giọng văn, chỉ dẫn bổ sung và ví dụ Few-Shot từ AIPromptProfile.
+    Trả về chuỗi rỗng nếu chưa cấu hình hoặc tắt kích hoạt.
+    """
+    try:
+        from .models import AIPromptProfile
+        profile = AIPromptProfile.objects.filter(task_key=task_key, is_active=True).first()
+    except Exception:
+        return ""
+    if not profile:
+        return ""
+
+    parts = []
+    if profile.brand_voice:
+        parts.append(f"GIỌNG VĂN THƯƠNG HIỆU CLB:\n{profile.brand_voice.strip()[:600]}")
+    if profile.extra_instructions:
+        parts.append(f"CHỈ DẪN BỔ SUNG:\n{profile.extra_instructions.strip()[:600]}")
+    if isinstance(profile.few_shot_examples, list) and profile.few_shot_examples:
+        ex_lines = ["VÍ DỤ MẪU CHUẨN (FEW-SHOT):"]
+        for idx, ex in enumerate(profile.few_shot_examples[:3], 1):
+            if not isinstance(ex, dict):
+                continue
+            inp = str(ex.get("input", "")).strip()[:250]
+            out = str(ex.get("output", "")).strip()[:400]
+            if inp and out:
+                ex_lines.append(f"Ví dụ {idx}:\n- Input: {inp}\n- Output mẫu: {out}")
+        if len(ex_lines) > 1:
+            parts.append("\n".join(ex_lines))
+    return ("\n\n" + "\n\n".join(parts)) if parts else ""
+
+
+def retrieve_knowledge(query: str = "", limit: int = 4) -> str:
+    """
+    RAG nhẹ không phụ thuộc vector DB:
+    Chấm điểm khớp từ khoá (đã bỏ dấu) giữa câu hỏi và Kho tri thức CLB.
+    """
+    try:
+        from .models import ClubKnowledge
+        items = list(ClubKnowledge.objects.filter(is_active=True))
+    except Exception:
+        return ""
+    if not items:
+        return ""
+
+    from .chatbot import normalize
+    q_norm = normalize(query)
+    q_tokens = [t for t in re.findall(r"\w+", q_norm) if len(t) >= 2]
+
+    scored = []
+    for item in items:
+        haystack = normalize(f"{item.title} {item.keywords} {item.content}")
+        score = 0
+        for tok in q_tokens:
+            if tok in haystack:
+                score += 2 if tok in normalize(item.keywords or item.title) else 1
+        # Ưu tiên mục có priority nhỏ nếu điểm bằng nhau
+        scored.append((score, -item.priority, item))
+
+    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    chosen = [x[2] for x in scored[:limit]]
+    lines = []
+    for item in chosen:
+        snippet = " ".join(item.content.split())[:350]
+        lines.append(f"- [{item.get_category_display()}] {item.title}: {snippet}")
+    return "\n".join(lines)
+
+
+def build_assistant_context(question: str = "") -> tuple[str, set[int]]:
+    """
+    Dữ liệu nền gửi cho AI (Grounding + RAG nhẹ):
+      1. Các sự kiện CÔNG KHAI (bỏ bản nháp DRAFT).
+      2. Danh sách các Ban chuyên môn đang hoạt động.
+      3. Thông tin Đợt tuyển thành viên hiện tại / sắp mở.
+      4. Tri thức CLB liên quan nhất từ Kho tri thức (ClubKnowledge).
+    Trả về (đoạn văn bản, tập mã sự kiện đã đưa vào).
     """
     from django.utils import timezone
 
     from events.models import Event, EventStatus, EventVisibility
+    from organizing.models import Department
+    from recruitment.models import RecruitmentRound
 
     now = timezone.now()
     public = (Event.objects
@@ -911,8 +990,39 @@ def build_assistant_context() -> tuple[str, set[int]]:
             f"  Hạn đăng ký: {deadline:%H:%M} ngày {deadline:%d/%m/%Y}\n"
             f"  Vé: {tickets}\n"
             f"  Mô tả: {desc}")
-    text = "\n".join(blocks) if blocks else "(Hiện chưa có sự kiện công khai nào.)"
-    return text, ids
+    sections = [
+        "\n".join(blocks) if blocks else "(Hiện chưa có sự kiện công khai nào.)"
+    ]
+
+    # Nạp thông tin Các Ban chuyên môn
+    depts = list(Department.objects.all()[:12])
+    if depts:
+        dept_lines = [
+            f"- {d.name}" + (f": {d.description[:120]}" if d.description else "")
+            for d in depts
+        ]
+        sections.append("CÁC BAN CHUYÊN MÔN CỦA CLB:\n" + "\n".join(dept_lines))
+
+    # Nạp thông tin Tuyển thành viên
+    rec_round = RecruitmentRound.current() or RecruitmentRound.next_upcoming()
+    if rec_round:
+        opens = timezone.localtime(rec_round.opens_at)
+        closes = timezone.localtime(rec_round.closes_at)
+        state = "Đang mở nhận đơn" if rec_round.is_open else "Sắp mở nhận đơn"
+        dept_names = ", ".join(d.name for d in rec_round.open_departments()[:8]) or "Tất cả các ban"
+        sections.append(
+            f"TUYỂN THÀNH VIÊN ({state}):\n"
+            f"- Đợt: {rec_round.name}\n"
+            f"- Thời gian: {opens:%d/%m/%Y} đến {closes:%H:%M %d/%m/%Y}\n"
+            f"- Ban nhận đơn: {dept_names}"
+        )
+
+    # Nạp Kho tri thức CLB (RAG)
+    kb_text = retrieve_knowledge(question, limit=4)
+    if kb_text:
+        sections.append("KHO TRI THỨC & FAQ CLB:\n" + kb_text)
+
+    return "\n\n".join(sections), ids
 
 
 def _assistant_rules() -> str:
@@ -949,7 +1059,7 @@ def ask_assistant(question: str, history: list[dict] | None = None) -> dict:
         if len(lines) > 1:
             history_block = "\n".join(lines) + "\n\n"
 
-    events_text, known_ids = build_assistant_context()
+    events_text, known_ids = build_assistant_context(question)
     now = timezone.localtime()
     prompt = ASSISTANT_PROMPT.format(
         now=f"{now:%H:%M} ngày {now:%d/%m/%Y}",
@@ -957,7 +1067,7 @@ def ask_assistant(question: str, history: list[dict] | None = None) -> dict:
         rules=_assistant_rules(),
         history_block=history_block,
         question=question.strip()[:500],
-    )
+    ) + get_prompt_addendum("chatbot")
     # Trợ lý dùng model RIÊNG (thường là bản lite): hỏi đáp nhiều, câu ngắn,
     # cần nhanh; và hạn mức miễn phí tính riêng từng model nên không ăn vào
     # lượt của tóm tắt phản hồi / gợi ý công việc. Để trống thì dùng AI_MODEL.

@@ -18,6 +18,7 @@
     const csrf = form.querySelector("[name=csrfmiddlewaretoken]").value;
     const apiUrl = form.dataset.api || "/troly/hoi/";
     const streamUrl = form.dataset.streamApi || "/troly/stream/";
+    const feedbackUrl = form.dataset.feedbackApi || "/troly/danh-gia/";
     const sendBtn = form.querySelector("button[type=submit]");
     const suggestions = document.getElementById("chat-suggestions");
     let busy = false;
@@ -173,6 +174,25 @@
                         box.appendChild(a);
                     });
                     botBubble.appendChild(box);
+                }
+                if (finalData.log_id) {
+                    const fb = document.createElement("div");
+                    fb.className = "d-flex align-items-center gap-1 mt-2 pt-1 border-top small text-muted";
+                    fb.innerHTML = '<span>Hữu ích?</span>' +
+                        '<button type="button" class="btn btn-sm btn-link p-0 px-1 text-decoration-none" data-rate="UP" title="Hữu ích">👍</button>' +
+                        '<button type="button" class="btn btn-sm btn-link p-0 px-1 text-decoration-none" data-rate="DOWN" title="Chưa đúng">👎</button>';
+                    fb.addEventListener("click", function (ev) {
+                        const b = ev.target.closest("button[data-rate]");
+                        if (!b) return;
+                        fetch(feedbackUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+                            body: JSON.stringify({ log_id: finalData.log_id, rating: b.dataset.rate }),
+                        }).then(function () {
+                            fb.textContent = b.dataset.rate === "UP" ? "👍 Cảm ơn bạn đã đánh giá!" : "👎 Đã ghi nhận để cải thiện AI!";
+                        });
+                    });
+                    botBubble.appendChild(fb);
                 }
             } else if (!accumulated) {
                 botBubble.textContent = "Không có kết quả.";

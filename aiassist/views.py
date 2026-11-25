@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 from core.security import is_rate_limited, record_rate_event
 
 from .chatbot import SUGGESTIONS, answer, stream_answer
+from .models import AIInteractionLog, FeedbackRating
 
 # Rate limit: tối đa 30 request/phút mỗi IP (SEC-06: lưu trong Cache, bỏ cookie vẫn bị chặn).
 RATE_LIMIT = 30
@@ -54,6 +55,23 @@ def _record_ai_use(request):
     )
 
 
+def _log_interaction(question: str, result: dict) -> int | None:
+    """Lưu log ẩn danh (Zero PII) phục vụ đánh giá & tạo tập dữ liệu huấn luyện."""
+    q_clean = (question or "").strip()[:500]
+    if not q_clean:
+        return None
+    try:
+        log = AIInteractionLog.objects.create(
+            question=q_clean,
+            intent=str(result.get("intent", ""))[:64],
+            source=str(result.get("source", "rules"))[:16],
+            answer_preview=str(result.get("text", ""))[:1000],
+        )
+        return log.pk
+    except Exception:
+        return None
+
+
 @require_POST
 def chat_api(request):
     """
@@ -88,6 +106,10 @@ def chat_api(request):
                     history=chat_history)
     if result.get("source") == "ai":
         _record_ai_use(request)
+
+    log_id = _log_interaction(question, result)
+    if log_id:
+        result["log_id"] = log_id
 
     # Cập nhật ngữ cảnh hội thoại đa lượt (tối đa 6 tin nhắn gần nhất)
     answer_text = result.get("text", "")
@@ -133,9 +155,12 @@ def chat_stream_api(request):
     def sse_event_stream():
         final_result = None
         for chunk in stream_answer(question, user=request.user, allow_ai=allow_ai, history=chat_history):
-            yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
             if chunk.get("done"):
                 final_result = chunk
+                log_id = _log_interaction(question, chunk)
+                if log_id:
+                    chunk["log_id"] = log_id
+            yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
         if final_result:
             if final_result.get("source") == "ai":
@@ -152,3 +177,30 @@ def chat_stream_api(request):
     response["Cache-Control"] = "no-cache"
     response["X-Accel-Buffering"] = "no"
     return response
+
+
+@require_POST
+def chat_feedback_api(request):
+    """Nhận đánh giá 👍/👎 của người dùng cho câu trả lời trợ lý (RLHF-lite)."""
+    if is_rate_limited(request, scope="aiassist_feedback", limit=RATE_LIMIT, window_seconds=RATE_WINDOW):
+        return JsonResponse({"error": "Bạn gửi đánh giá quá nhanh."}, status=429)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError
+        log_id = int(payload.get("log_id"))
+        rating = str(payload.get("rating", "")).upper()
+        if rating not in (FeedbackRating.UP, FeedbackRating.DOWN):
+            raise ValueError
+        note = str(payload.get("note", "")).strip()[:255]
+    except (ValueError, TypeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Dữ liệu đánh giá không hợp lệ."}, status=400)
+
+    updated = AIInteractionLog.objects.filter(pk=log_id).update(
+        feedback=rating,
+        feedback_note=note,
+    )
+    if not updated:
+        return JsonResponse({"error": "Không tìm thấy nhật ký tương tác."}, status=404)
+    return JsonResponse({"status": "ok", "rating": rating})

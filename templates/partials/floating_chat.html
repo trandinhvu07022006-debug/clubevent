@@ -142,7 +142,7 @@
 
     <!-- Footer Input Form -->
     <div class="card-footer p-2 bg-body border-top">
-      <form id="fchat-form" data-api="{% url 'aiassist:chat_api' %}" data-stream-api="{% url 'aiassist:chat_stream_api' %}">
+      <form id="fchat-form" data-api="{% url 'aiassist:chat_api' %}" data-stream-api="{% url 'aiassist:chat_stream_api' %}" data-feedback-api="{% url 'aiassist:chat_feedback_api' %}">
         {% csrf_token %}
         <div class="input-group input-group-sm">
           <input id="fchat-input" class="form-control rounded-start-pill ps-3" placeholder="Nhập câu hỏi..." maxlength="500" autocomplete="off" required>
@@ -172,6 +172,7 @@
   const csrf = form.querySelector("[name=csrfmiddlewaretoken]") ? form.querySelector("[name=csrfmiddlewaretoken]").value : "";
   const apiUrl = form.dataset.api || "/troly/hoi/";
   const streamUrl = form.dataset.streamApi || "/troly/stream/";
+  const feedbackUrl = form.dataset.feedbackApi || "/troly/danh-gia/";
   let isOpen = false;
   let busy = false;
 
@@ -321,6 +322,26 @@
             linkBox.appendChild(a);
           });
           botMsg.appendChild(linkBox);
+        }
+        if (finalData.log_id) {
+          const fb = document.createElement("div");
+          fb.className = "d-flex align-items-center gap-1 mt-1 pt-1 border-top text-muted";
+          fb.style.fontSize = "0.72rem";
+          fb.innerHTML = '<span>Hữu ích?</span>' +
+            '<button type="button" class="btn btn-sm btn-link p-0 px-1 text-decoration-none" data-rate="UP" title="Hữu ích">👍</button>' +
+            '<button type="button" class="btn btn-sm btn-link p-0 px-1 text-decoration-none" data-rate="DOWN" title="Chưa đúng">👎</button>';
+          fb.addEventListener("click", (ev) => {
+            const b = ev.target.closest("button[data-rate]");
+            if (!b) return;
+            fetch(feedbackUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+              body: JSON.stringify({ log_id: finalData.log_id, rating: b.dataset.rate }),
+            }).then(() => {
+              fb.textContent = b.dataset.rate === "UP" ? "👍 Cảm ơn bạn!" : "👎 Đã ghi nhận!";
+            });
+          });
+          botMsg.appendChild(fb);
         }
       } else if (!accumulated) {
         botMsg.textContent = "Không có kết quả.";
