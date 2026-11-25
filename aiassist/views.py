@@ -339,6 +339,21 @@ def ai_studio_eval(request):
     return redirect("aiassist:studio")
 
 
+@require_POST
+@lead_required
+def ai_studio_run_pipeline(request):
+    """Chạy toàn bộ quy trình LLMOps (Seed -> Post-Mortem -> Evals -> Xuất JSONL)."""
+    buf = io.StringIO()
+    call_command("run_training_pipeline", stdout=buf)
+    lines = [ln.strip() for ln in buf.getvalue().splitlines() if ln.strip()]
+    summary = " | ".join(ln for ln in lines if "EVAL SUMMARY" in ln or "Đã xuất" in ln)
+    messages.success(
+        request,
+        f"Đã thực thi xong Quy trình Huấn luyện AI! {summary}" if summary else "Đã thực thi xong Quy trình Huấn luyện AI!",
+    )
+    return redirect("aiassist:studio")
+
+
 @lead_required
 def ai_studio_export(request):
     """Xuất file .jsonl huấn luyện Fine-Tuning cho Gemini hoặc OpenAI."""
@@ -346,7 +361,7 @@ def ai_studio_export(request):
     if fmt not in ("gemini", "openai"):
         fmt = "gemini"
     module = request.GET.get("module", "all")
-    if module not in ("all", "chatbot", "marketing", "postmortem"):
+    if module not in ("all", "chatbot", "marketing", "tasks", "postmortem"):
         module = "all"
     include_unrated = request.GET.get("include_unrated") == "1"
 

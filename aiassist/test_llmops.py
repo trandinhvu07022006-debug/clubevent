@@ -115,7 +115,7 @@ class LLMOpsPipelineTests(TestCase):
             out_file = Path(tmpdir) / "train.jsonl"
             call_command("export_finetune_dataset", format="gemini", output=str(out_file))
             lines = out_file.read_text(encoding="utf-8").strip().splitlines()
-            self.assertEqual(len(lines), 1)
+            self.assertTrue(len(lines) >= 10)
             row = json.loads(lines[0])
             self.assertIn("CLB có những ban nào?", row["contents"][0]["parts"][0]["text"])
 
@@ -161,9 +161,14 @@ class LLMOpsPipelineTests(TestCase):
         self.assertEqual(prof.brand_voice, "Chuyên nghiệp và sát thực tế.")
         self.assertEqual(len(prof.few_shot_examples), 1)
 
-        # Chạy Eval Suite từ UI
+        # Chạy Eval Suite & Run Pipeline từ UI
         eval_resp = self.client.post(reverse("aiassist:studio_eval"))
         self.assertEqual(eval_resp.status_code, 302)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            call_command("run_training_pipeline", output_dir=tmpdir)
+            self.assertTrue((Path(tmpdir) / "kmg_finetune_gemini.jsonl").exists())
+            self.assertTrue((Path(tmpdir) / "kmg_finetune_openai.jsonl").exists())
 
         # Xuất JSONL đa modun (OpenAI + Marketing + PostMortem)
         now = timezone.now()

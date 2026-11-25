@@ -12,6 +12,12 @@
       <p class="text-muted mb-0">Quản trị Kho tri thức RAG, Giọng văn &amp; Few-Shot cho 5 modun AI, Theo dõi đánh giá 👍/👎 và Xuất dữ liệu Fine-Tuning.</p>
     </div>
     <div class="page-header-actions d-flex flex-wrap gap-2">
+      <form method="post" action="{% url 'aiassist:studio_run_pipeline' %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success fw-bold shadow-sm">
+          <i class="bi bi-play-circle-fill"></i> Chạy Quy trình Huấn luyện
+        </button>
+      </form>
       <form method="post" action="{% url 'aiassist:studio_eval' %}" class="d-inline">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary fw-bold shadow-sm">
@@ -26,7 +32,8 @@
           <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=all">Gemini JSONL (Tất cả modun)</a></li>
           <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=openai&module=all">OpenAI JSONL (Tất cả modun)</a></li>
           <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=chatbot">Chỉ Chatbot (Mẫu 👍)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=chatbot">Chỉ Chatbot (RAG + 👍)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=tasks">Chỉ Gợi ý Công việc</a></li>
           <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=marketing">Chỉ Truyền thông Sự kiện</a></li>
           <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=postmortem">Chỉ Báo cáo Post-Mortem</a></li>
         </ul>

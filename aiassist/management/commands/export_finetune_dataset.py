@@ -1,16 +1,22 @@
 """
 Xuất tập dữ liệu huấn luyện (Fine-Tuning Dataset) chuẩn JSONL cho Gemini / OpenAI
-từ nhiều modun nghiệp vụ (Chatbot 👍, Truyền thông Sự kiện, Báo cáo Post-Mortem).
+từ toàn bộ dữ liệu sạch (Zero PII) của trang web:
+  - AIInteractionLog (tương tác Chatbot được đánh giá 👍)
+  - ClubKnowledge (Kho tri thức RAG) & Department (Các Ban chuyên môn)
+  - AIPromptProfile (Các ví dụ Few-Shot chuẩn của 5 modun)
+  - Event & Task (Truyền thông sự kiện & Phân rã công việc)
+  - EventPostMortem (Báo cáo tổng kết sự kiện)
 
 Chạy:
-  python manage.py export_finetune_dataset --format gemini --module all --output finetune_gemini.jsonl
+  python manage.py export_finetune_dataset --format gemini --module all --output aiassist/datasets/kmg_finetune_gemini.jsonl
 """
 import json
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
 
-from aiassist.models import AIInteractionLog, FeedbackRating
+from aiassist.models import (AIInteractionLog, AIPromptProfile, ClubKnowledge,
+                             FeedbackRating)
 
 
 def build_finetune_records(fmt: str = "gemini", module: str = "all",
@@ -28,6 +34,24 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 log.answer_preview,
             ))
 
+        # Kho tri thức CLB (RAG -> Q&A training pairs)
+        for kb in ClubKnowledge.objects.filter(is_active=True).order_by("priority", "id"):
+            pairs.append((
+                "Bạn là trợ lý hỏi đáp thân thiện của KMG Club. Chỉ trả lời dựa trên thông tin chính thức của CLB.",
+                f"Cho mình hỏi về {kb.title.lower()}?",
+                kb.content.strip(),
+            ))
+
+        # Thông tin các Ban chuyên môn thực tế
+        from organizing.models import Department
+        for dept in Department.objects.all().order_by("order", "id"):
+            if dept.description:
+                pairs.append((
+                    "Bạn là trợ lý hỏi đáp thân thiện của KMG Club.",
+                    f"{dept.name} trong CLB phụ trách những việc gì?",
+                    f"{dept.name} phụ trách: {dept.description.strip()}",
+                ))
+
     if module in ("all", "marketing"):
         from events.models import Event, EventStatus, EventVisibility
         events = (Event.objects
@@ -39,6 +63,31 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 "Bạn là chuyên viên truyền thông sự kiện của KMG Club.",
                 f"Viết mô tả hấp dẫn cho sự kiện '{ev.name}' tại {ev.location} (sức chứa {ev.capacity}).",
                 ev.description.strip(),
+            ))
+
+    if module in ("all", "tasks"):
+        from events.models import Event, EventStatus, EventVisibility
+        events_with_tasks = (Event.objects
+                             .filter(visibility=EventVisibility.PUBLIC)
+                             .exclude(status=EventStatus.DRAFT)
+                             .prefetch_related("tasks__department")[:50])
+        for ev in events_with_tasks:
+            task_list = list(ev.tasks.all()[:10])
+            if not task_list:
+                continue
+            out_tasks = [
+                {
+                    "title": t.title,
+                    "department": t.department.name if t.department else "",
+                    "priority": t.priority,
+                    "note": t.description[:150] if t.description else "",
+                }
+                for t in task_list
+            ]
+            pairs.append((
+                "Bạn là chuyên gia điều phối tổ chức sự kiện CLB sinh viên.",
+                f"Đề xuất công việc chuẩn bị cho sự kiện '{ev.name}' tại {ev.location} (quy mô {ev.capacity} người).",
+                json.dumps({"tasks": out_tasks}, ensure_ascii=False),
             ))
 
     if module in ("all", "postmortem"):
@@ -64,6 +113,20 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 inp,
                 out,
             ))
+
+    if module == "all":
+        for prof in AIPromptProfile.objects.filter(is_active=True):
+            for ex in (prof.few_shot_examples or []):
+                if not isinstance(ex, dict):
+                    continue
+                inp = str(ex.get("input", "")).strip()
+                out = str(ex.get("output", "")).strip()
+                if inp and out:
+                    pairs.append((
+                        f"Tác vụ {prof.get_task_key_display()}. {prof.brand_voice}".strip(),
+                        inp,
+                        out,
+                    ))
 
     records = []
     for sys_prompt, user_text, model_text in pairs:
@@ -94,11 +157,11 @@ class Command(BaseCommand):
             help="Định dạng JSONL đầu ra (gemini | openai).",
         )
         parser.add_argument(
-            "--module", choices=["all", "chatbot", "marketing", "postmortem"], default="all",
+            "--module", choices=["all", "chatbot", "marketing", "tasks", "postmortem"], default="all",
             help="Chọn modun xuất dữ liệu.",
         )
         parser.add_argument(
-            "--output", default="finetune_dataset.jsonl",
+            "--output", default="aiassist/datasets/kmg_finetune_gemini.jsonl",
             help="Đường dẫn file JSONL đầu ra.",
         )
         parser.add_argument(
