@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Trung tâm Huấn luyện AI · LLMOps Studio{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <span class="kicker">LLMOps &amp; AI Training Studio</span>
+  <div class="page-header-row d-flex flex-wrap justify-content-between align-items-end gap-3">
+    <div>
+      <h1 class="h3 fw-bold d-flex align-items-center gap-2">
+        <i class="bi bi-cpu text-primary"></i> Trung tâm Huấn luyện AI KMG
+      </h1>
+      <p class="text-muted mb-0">Quản trị Kho tri thức RAG, Giọng văn &amp; Few-Shot cho 5 modun AI, Theo dõi đánh giá 👍/👎 và Xuất dữ liệu Fine-Tuning.</p>
+    </div>
+    <div class="page-header-actions d-flex flex-wrap gap-2">
+      <form method="post" action="{% url 'aiassist:studio_eval' %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary fw-bold shadow-sm">
+          <i class="bi bi-shield-check"></i> Chạy Kiểm định (Eval Suite)
+        </button>
+      </form>
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
+          <i class="bi bi-filetype-json"></i> Xuất JSONL Fine-Tuning
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=all">Gemini JSONL (Tất cả modun)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=openai&module=all">OpenAI JSONL (Tất cả modun)</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=chatbot">Chỉ Chatbot (Mẫu 👍)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=marketing">Chỉ Truyền thông Sự kiện</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=postmortem">Chỉ Báo cáo Post-Mortem</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- KPI Telemetry -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-tile">
+      <div class="num text-primary">{{ active_kb_count }}</div>
+      <div class="lbl">Mục Tri thức RAG đang bật</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-tile">
+      <div class="num text-success">{{ satisfaction_rate }}%</div>
+      <div class="lbl">Tỷ lệ hài lòng ({{ up_count }} 👍 / {{ down_count }} 👎)</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-tile">
+      <div class="num">{{ total_logs }}</div>
+      <div class="lbl">Tổng tương tác ẩn danh (Zero PII)</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-tile">
+      <div class="num text-warning">{{ need_review_logs|length }}</div>
+      <div class="lbl">Câu hỏi cần bổ sung tri thức</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs điều hướng 3 tầng LLMOps -->
+<ul class="nav nav-tabs mb-4" id="studioTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-rag" type="button" role="tab">
+      <i class="bi bi-database-gear"></i> 1. Kho Tri thức CLB (RAG)
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-prompts" type="button" role="tab">
+      <i class="bi bi-sliders"></i> 2. Prompt &amp; Few-Shot (5 Modun)
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-feedback" type="button" role="tab">
+      <i class="bi bi-hand-thumbs-down"></i> 3. Câu hỏi cần cải thiện
+      {% if need_review_logs %}<span class="badge text-bg-warning ms-1">{{ need_review_logs|length }}</span>{% endif %}
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <!-- TAB 1: KHO TRI THỨC RAG -->
+  <div class="tab-pane fade show active" id="tab-rag" role="tabpanel">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 fw-bold mb-3"><i class="bi bi-plus-circle text-primary"></i> Thêm tri thức mới cho AI</h2>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="add_kb">
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Tiêu đề</label>
+                <input type="text" name="title" class="form-control form-control-sm" placeholder="Vd: Địa điểm sinh hoạt định kỳ" required maxlength="160">
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-8">
+                  <label class="form-label small fw-semibold">Danh mục</label>
+                  <select name="category" class="form-select form-select-sm">
+                    {% for val, lbl in categories %}
+                      <option value="{{ val }}">{{ lbl }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-4">
+                  <label class="form-label small fw-semibold">Độ ưu tiên</label>
+                  <input type="number" name="priority" class="form-control form-control-sm" value="10" min="1" max="999">
+                </div>
+              </div>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Từ khóa gợi nhớ (không dấu, cách nhau dấu phẩy)</label>
+                <input type="text" name="keywords" class="form-control form-control-sm" placeholder="sinh hoat, phong tap, dia diem">
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Nội dung tri thức chuẩn</label>
+                <textarea name="content" rows="4" class="form-control form-control-sm" placeholder="Nhập thông tin chính xác để AI dựa vào đó trả lời..." required></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm w-100 fw-semibold">Lưu vào Kho Tri thức</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 fw-bold mb-3">Danh sách Tri thức hiện có ({{ knowledge_items|length }})</h2>
+            {% for kb in knowledge_items %}
+              <div class="p-3 mb-2 border rounded-3 {% if not kb.is_active %}opacity-50 bg-body-tertiary{% endif %}">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <span class="badge text-bg-light border me-1">{{ kb.get_category_display }}</span>
+                    <strong>{{ kb.title }}</strong>
+                    <span class="text-xs text-muted ms-1">(Ưu tiên #{{ kb.priority }})</span>
+                  </div>
+                  <div class="d-flex gap-1">
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="toggle_kb">
+                      <input type="hidden" name="kb_id" value="{{ kb.pk }}">
+                      <button type="submit" class="btn btn-xs btn-outline-secondary py-0 px-2 small">
+                        {% if kb.is_active %}Tắt{% else %}Bật{% endif %}
+                      </button>
+                    </form>
+                    <form method="post" class="d-inline" onsubmit="return confirm('Xoá mục tri thức này?')">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_kb">
+                      <input type="hidden" name="kb_id" value="{{ kb.pk }}">
+                      <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-2 small">Xoá</button>
+                    </form>
+                  </div>
+                </div>
+                <p class="small text-muted mb-1 mt-2">{{ kb.content }}</p>
+                {% if kb.keywords %}
+                  <div class="text-xs text-primary"><i class="bi bi-tags"></i> {{ kb.keywords }}</div>
+                {% endif %}
+              </div>
+            {% empty %}
+              <p class="text-muted small mb-0">Chưa có mục tri thức nào. Hãy chạy <code>seed_ai_knowledge</code> hoặc thêm mới ở bên trái.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: PROMPT REGISTRY & FEW-SHOT CHO 5 MODUN -->
+  <div class="tab-pane fade" id="tab-prompts" role="tabpanel">
+    <div class="row g-3">
+      {% for prof in profiles_list %}
+        <div class="col-lg-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h3 class="h6 fw-bold mb-0">{{ prof.label }}</h3>
+                {% if prof.configured %}
+                  <span class="badge {% if prof.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                    {% if prof.is_active %}Đang áp dụng{% else %}Tạm tắt{% endif %}
+                  </span>
+                {% else %}
+                  <span class="badge text-bg-light border">Mặc định</span>
+                {% endif %}
+              </div>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_profile">
+                <input type="hidden" name="task_key" value="{{ prof.task_key }}">
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold">Giọng văn thương hiệu (Brand Voice)</label>
+                  <textarea name="brand_voice" rows="2" class="form-control form-control-sm">{{ prof.brand_voice }}</textarea>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold">Chỉ dẫn bổ sung</label>
+                  <textarea name="extra_instructions" rows="2" class="form-control form-control-sm">{{ prof.extra_instructions }}</textarea>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold">Ví dụ Few-Shot (JSON array <code>[{"input":"...","output":"..."}]</code>)</label>
+                  <textarea name="few_shot_json" rows="3" class="form-control form-control-sm font-monospace">{{ prof.few_shot_json }}</textarea>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="is_active" id="sw-{{ prof.task_key }}" {% if prof.is_active %}checked{% endif %}>
+                    <label class="form-check-label small" for="sw-{{ prof.task_key }}">Kích hoạt</label>
+                  </div>
+                  <button type="submit" class="btn btn-sm btn-primary fw-semibold">Lưu cấu hình</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- TAB 3: NHẬT KÝ CẦN CẢI THIỆN -->
+  <div class="tab-pane fade" id="tab-feedback" role="tabpanel">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h6 fw-bold mb-3">Các câu hỏi bị đánh giá 👎 hoặc chưa nhận diện được (Zero PII)</h2>
+        {% for log in need_review_logs %}
+          <div class="p-3 mb-2 border rounded-3">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <span class="badge {% if log.feedback == 'DOWN' %}text-bg-danger{% else %}text-bg-warning{% endif %} me-1">
+                  {{ log.get_feedback_display }}
+                </span>
+                <span class="badge text-bg-light border me-1">{{ log.source }} · {{ log.intent|default:"unknown" }}</span>
+                <strong class="d-block mt-1">Hỏi: "{{ log.question }}"</strong>
+              </div>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_log_up">
+                <input type="hidden" name="log_id" value="{{ log.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-success" title="Đánh dấu đạt chuẩn 👍">
+                  👍 Đạt chuẩn
+                </button>
+              </form>
+            </div>
+            {% if log.answer_preview %}
+              <p class="small text-muted mb-0 mt-1">Trả lời: {{ log.answer_preview|truncatechars:220 }}</p>
+            {% endif %}
+          </div>
+        {% empty %}
+          <p class="text-muted small mb-0">Tuyệt vời! Chưa có câu hỏi nào bị đánh giá 👎 hoặc rơi vào unknown.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

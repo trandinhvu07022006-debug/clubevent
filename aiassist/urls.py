@@ -9,4 +9,7 @@ urlpatterns = [
     path("hoi/", views.chat_api, name="chat_api"),
     path("stream/", views.chat_stream_api, name="chat_stream_api"),
     path("danh-gia/", views.chat_feedback_api, name="chat_feedback_api"),
+    path("huan-luyen/", views.ai_studio, name="studio"),
+    path("huan-luyen/kiem-dinh/", views.ai_studio_eval, name="studio_eval"),
+    path("huan-luyen/xuat-jsonl/", views.ai_studio_export, name="studio_export"),
 ]

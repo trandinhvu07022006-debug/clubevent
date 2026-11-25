@@ -200,6 +200,27 @@ def _parse_json(raw: str) -> dict | list:
 # ---------------------------------------------------------------------------
 # Chức năng 1: gợi ý công việc chuẩn bị sự kiện
 # ---------------------------------------------------------------------------
+SUGGEST_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "tasks": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "title": {"type": "STRING"},
+                    "days_before": {"type": "INTEGER"},
+                    "note": {"type": "STRING"},
+                    "department": {"type": "STRING"},
+                    "priority": {"type": "STRING"},
+                },
+                "required": ["title", "days_before", "note"],
+            },
+        }
+    },
+    "required": ["tasks"],
+}
+
 SUGGEST_PROMPT = """Bạn là người có kinh nghiệm tổ chức sự kiện cho câu lạc bộ sinh viên Việt Nam.
 
 Thông tin sự kiện:
@@ -284,7 +305,7 @@ def suggest_tasks(event: Event, count: int = 8) -> tuple[list[dict], bool, str]:
     ) + get_prompt_addendum("suggest_tasks")
 
     try:
-        data = _ask_ai(prompt)
+        data = _ask_ai(prompt, response_schema=SUGGEST_SCHEMA)
         tasks = data.get("tasks") if isinstance(data, dict) else data
         cleaned = _clean_tasks(tasks, days_left, valid_departments=dept_map)
         if not cleaned:
@@ -439,7 +460,15 @@ def screen_application(application) -> tuple[dict, bool, str]:
     ) + get_prompt_addendum("screen_application")
 
     try:
-        data = _ask_ai(prompt)
+        data = _ask_ai(prompt, response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "score": {"type": "INTEGER"},
+                "assessment": {"type": "STRING"},
+                "suggested_questions": {"type": "ARRAY", "items": {"type": "STRING"}},
+            },
+            "required": ["score", "assessment", "suggested_questions"],
+        })
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc.")
 
@@ -530,7 +559,15 @@ def generate_event_content(event: Event) -> tuple[dict, bool, str]:
     fallback = _fallback_marketing(event)
 
     try:
-        data = _ask_ai(prompt)
+        data = _ask_ai(prompt, response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "description": {"type": "STRING"},
+                "agenda": {"type": "STRING"},
+                "social_post": {"type": "STRING"},
+            },
+            "required": ["description", "agenda", "social_post"],
+        })
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc.")
         desc = str(data.get("description", "")).strip()
@@ -805,7 +842,21 @@ def generate_event_postmortem(event: Event) -> tuple[dict, dict, str, bool, str]
     fallback = _fallback_postmortem(event, stats)
 
     try:
-        data = _ask_ai(prompt)
+        data = _ask_ai(prompt, response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "executive_summary": {"type": "STRING"},
+                "highlights": {"type": "ARRAY", "items": {"type": "STRING"}},
+                "financial_analysis": {"type": "STRING"},
+                "feedback_analysis": {"type": "STRING"},
+                "lessons_learned": {"type": "ARRAY", "items": {"type": "STRING"}},
+                "action_items": {"type": "ARRAY", "items": {"type": "STRING"}},
+            },
+            "required": [
+                "executive_summary", "highlights", "financial_analysis",
+                "feedback_analysis", "lessons_learned", "action_items",
+            ],
+        })
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc JSON.")
         
@@ -1071,7 +1122,18 @@ def ask_assistant(question: str, history: list[dict] | None = None) -> dict:
     # Trợ lý dùng model RIÊNG (thường là bản lite): hỏi đáp nhiều, câu ngắn,
     # cần nhanh; và hạn mức miễn phí tính riêng từng model nên không ăn vào
     # lượt của tóm tắt phản hồi / gợi ý công việc. Để trống thì dùng AI_MODEL.
-    data = _ask_ai(prompt, model=settings.AI_ASSISTANT_MODEL or None)
+    data = _ask_ai(
+        prompt,
+        model=settings.AI_ASSISTANT_MODEL or None,
+        response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "answer": {"type": "STRING"},
+                "event_ids": {"type": "ARRAY", "items": {"type": "INTEGER"}},
+            },
+            "required": ["answer", "event_ids"],
+        },
+    )
     if not isinstance(data, dict):
         raise AIError("AI trả về sai cấu trúc (không phải object).")
 

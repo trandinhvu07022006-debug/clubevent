@@ -9,7 +9,9 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from organizing.models import Department
+from accounts.models import Role, User
+from events.models import Event, EventStatus, EventVisibility
+from organizing.models import Department, EventPostMortem
 from recruitment.models import RecruitmentRound
 
 from .chatbot import answer, detect_intent
@@ -115,4 +117,76 @@ class LLMOpsPipelineTests(TestCase):
             lines = out_file.read_text(encoding="utf-8").strip().splitlines()
             self.assertEqual(len(lines), 1)
             row = json.loads(lines[0])
-            self.assertEqual(row["contents"][0]["parts"][0]["text"], "CLB có những ban nào?")
+            self.assertIn("CLB có những ban nào?", row["contents"][0]["parts"][0]["text"])
+
+    def test_seed_populates_all_5_ai_modules(self):
+        call_command("seed_ai_knowledge")
+        self.assertEqual(AIPromptProfile.objects.count(), len(AITaskKey.values))
+        self.assertTrue(ClubKnowledge.objects.count() >= 5)
+
+    def test_ai_studio_permissions_and_actions(self):
+        guest = User.objects.create_user(username="g_studio", password="x", mssv="GS1", role=Role.GUEST)
+        lead = User.objects.create_user(username="l_studio", password="x", mssv="LS1", role=Role.LEAD)
+
+        studio_url = reverse("aiassist:studio")
+        self.client.force_login(guest)
+        self.assertEqual(self.client.get(studio_url).status_code, 403)
+
+        self.client.force_login(lead)
+        resp = self.client.get(studio_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Trung tâm Huấn luyện AI KMG")
+
+        # Thêm tri thức từ UI Studio
+        self.client.post(studio_url, {
+            "action": "add_kb",
+            "title": "Lịch tập định kỳ",
+            "category": KnowledgeCategory.GENERAL,
+            "keywords": "lich tap, phong nhac",
+            "content": "CLB tập định kỳ tối thứ 4 hàng tuần.",
+            "priority": 2,
+        })
+        self.assertTrue(ClubKnowledge.objects.filter(title="Lịch tập định kỳ").exists())
+
+        # Lưu profile modun suggest_tasks từ UI Studio
+        self.client.post(studio_url, {
+            "action": "save_profile",
+            "task_key": AITaskKey.SUGGEST_TASKS,
+            "brand_voice": "Chuyên nghiệp và sát thực tế.",
+            "extra_instructions": "Ưu tiên phân việc rõ người nhận.",
+            "few_shot_json": '[{"input": "Show 100 khách", "output": "Chuẩn bị 2 mic không dây"}]',
+            "is_active": "on",
+        })
+        prof = AIPromptProfile.objects.get(task_key=AITaskKey.SUGGEST_TASKS)
+        self.assertEqual(prof.brand_voice, "Chuyên nghiệp và sát thực tế.")
+        self.assertEqual(len(prof.few_shot_examples), 1)
+
+        # Chạy Eval Suite từ UI
+        eval_resp = self.client.post(reverse("aiassist:studio_eval"))
+        self.assertEqual(eval_resp.status_code, 302)
+
+        # Xuất JSONL đa modun (OpenAI + Marketing + PostMortem)
+        now = timezone.now()
+        ev = Event.objects.create(
+            name="Acoustic Đêm Hè", location="Sân khấu B", capacity=120,
+            description="Đêm nhạc mùa hè rực rỡ.",
+            starts_at=now + timezone.timedelta(days=5),
+            register_deadline=now + timezone.timedelta(days=4),
+            status=EventStatus.OPEN, visibility=EventVisibility.PUBLIC,
+        )
+        EventPostMortem.objects.create(
+            event=ev,
+            executive_summary="Sự kiện thành công tốt đẹp.",
+            highlights=["Đông khán giả"],
+            financial_analysis="Thặng dư nhẹ.",
+            feedback_analysis="4.8/5 sao.",
+            lessons_learned=["Cần thêm ghế"],
+            action_items=["Mở bán vé sớm hơn"],
+            stats_snapshot={"attendance_rate": 90, "balance": 200000, "avg_rating": 4.8},
+        )
+        exp_resp = self.client.get(reverse("aiassist:studio_export") + "?format=openai&module=all")
+        self.assertEqual(exp_resp.status_code, 200)
+        self.assertIn("application/jsonl", exp_resp["Content-Type"])
+        exported_lines = [json.loads(line) for line in exp_resp.content.decode("utf-8").strip().splitlines()]
+        self.assertTrue(len(exported_lines) >= 2)
+        self.assertIn("messages", exported_lines[0])
