@@ -114,6 +114,15 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 out,
             ))
 
+    if module in ("all", "proposals"):
+        from programs.models import DepartmentProposal
+        for prop in DepartmentProposal.objects.select_related("department").exclude(summary="")[:100]:
+            pairs.append((
+                "Bạn là Cố vấn thẩm định đề xuất hoạt động CLB sinh viên.",
+                f"Thẩm định đề xuất '{prop.title}' của {prop.department.name}: {prop.summary[:300]}",
+                f"Đề xuất '{prop.title}' thuộc {prop.department.name} với mục tiêu: {(prop.objectives or prop.summary)[:300]}",
+            ))
+
     if module == "all":
         for prof in AIPromptProfile.objects.filter(is_active=True):
             for ex in (prof.few_shot_examples or []):
@@ -157,7 +166,7 @@ class Command(BaseCommand):
             help="Định dạng JSONL đầu ra (gemini | openai).",
         )
         parser.add_argument(
-            "--module", choices=["all", "chatbot", "marketing", "tasks", "postmortem"], default="all",
+            "--module", choices=["all", "chatbot", "marketing", "tasks", "postmortem", "proposals"], default="all",
             help="Chọn modun xuất dữ liệu.",
         )
         parser.add_argument(

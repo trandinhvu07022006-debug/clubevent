@@ -290,6 +290,38 @@ def analytics_dashboard(request):
         ctx["dept_data"] = build_department_analytics(actor, depts[0])
         ctx["selected_dept"] = depts[0]
 
+    if request.GET.get("ai") == "1":
+        from aiassist.services import analyze_club_operations
+        from core.security import is_rate_limited
+        if not is_rate_limited(request, scope="kmg_ai_assist", limit=20, window_seconds=300):
+            if "executive_data" in ctx:
+                ed = ctx["executive_data"]
+                metrics = {
+                    "club_kpis": ed.get("club_kpis", {}),
+                    "departments": [
+                        {
+                            "name": ds["department"].name,
+                            "members": ds["active_members_count"],
+                            "task_rate": ds["tasks"]["rate"],
+                            "attendance_rate": ds["events"]["attendance_rate"],
+                        }
+                        for ds in ed.get("dept_summaries", [])[:8]
+                    ],
+                }
+                scope_label = "Toàn CLB"
+            else:
+                dd = ctx["dept_data"]
+                metrics = {
+                    "members": dd.get("active_members_count", 0),
+                    "tasks": dd.get("tasks", {}),
+                    "events": dd.get("events", {}),
+                    "evaluations_confirmed": dd.get("evaluations", {}).get("confirmed", 0),
+                }
+                scope_label = ctx["selected_dept"].name if ctx.get("selected_dept") else "Ban chuyên môn"
+            insight, used_ai, _ = analyze_club_operations(metrics, scope_label=scope_label)
+            ctx["ai_insight"] = insight
+            ctx["ai_used"] = used_ai
+
     return render(request, "evaluations/analytics.html", ctx)
 
 

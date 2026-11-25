@@ -32,12 +32,35 @@
         {% endif %}
       </div>
     </div>
-    <div class="text-end">
+    <div class="text-end d-flex flex-column align-items-end gap-2">
       <span class="badge py-2 px-3 {% if proposal.status == 'APPROVED' or proposal.status == 'COMPLETED' %}text-bg-success{% elif proposal.status == 'REJECTED' %}text-bg-danger{% elif proposal.status == 'UNDER_REVIEW' or proposal.status == 'IN_PROGRESS' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">
         {{ proposal.get_status_display }}
       </span>
+      <a href="?ai=1" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-stars me-1"></i>AI Thẩm định sơ bộ
+      </a>
     </div>
   </div>
+
+  {% if ai_review %}
+  <div class="alert alert-primary border-0 shadow-sm mt-3 mb-0 small">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong><i class="bi bi-robot me-1"></i>Nhận xét AI Thẩm định Đề xuất {% if not ai_used %}(Dự phòng){% endif %}</strong>
+      <span class="badge text-bg-primary">Điểm khả thi: {{ ai_review.score }}/10</span>
+    </div>
+    <p class="mb-2">{{ ai_review.recommendation }}</p>
+    <div class="row g-2">
+      <div class="col-md-6">
+        <div class="fw-semibold text-success">Điểm mạnh:</div>
+        <ul class="mb-0 ps-3">{% for s in ai_review.strengths %}<li>{{ s }}</li>{% endfor %}</ul>
+      </div>
+      <div class="col-md-6">
+        <div class="fw-semibold text-warning-emphasis">Rủi ro cần lưu ý:</div>
+        <ul class="mb-0 ps-3">{% for r in ai_review.risks %}<li>{{ r }}</li>{% endfor %}</ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <hr class="my-3">
   <h2 class="h6 fw-bold">Nội dung &amp; Kế hoạch triển khai</h2>

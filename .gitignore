@@ -1,5 +1,7 @@
 # Bí mật — TUYỆT ĐỐI không commit
 .env
+.env.production
+.env.production.*
 
 # Python
 __pycache__/

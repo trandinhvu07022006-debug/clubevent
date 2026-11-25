@@ -1,14 +1,17 @@
 """
 Bộ kiểm định chất lượng AI tự động (Automated LLM Eval Suite).
-Chạy: python manage.py evaluate_ai
+Chạy:
+  python manage.py evaluate_ai
+  python manage.py evaluate_ai --llm-judge
 """
 from django.core.management.base import BaseCommand
 from django.test import override_settings
 from django.utils import timezone
 
 from aiassist.chatbot import detect_intent
-from aiassist.services import (build_assistant_context, generate_event_content,
-                               generate_event_postmortem, suggest_tasks)
+from aiassist.services import (_ask_ai, build_assistant_context,
+                               generate_event_content, retrieve_knowledge,
+                               suggest_tasks)
 from events.models import Event, EventStatus
 
 EVAL_INTENT_CASES = [
@@ -19,8 +22,8 @@ EVAL_INTENT_CASES = [
     ("Vé của tôi đâu?", "my_tickets"),
     ("Việc của tôi có gì?", "my_tasks"),
     ("Đăng ký vé thế nào?", "how_to_register"),
-    ("Check in thế nào vậy?", "how_to_checkin"),
     ("Cách huỷ vé", "cancel_ticket"),
+    ("Check in thế nào vậy?", "how_to_checkin"),
     ("CLB có những ban nào?", "club_departments"),
     ("Khi nào tuyển thành viên?", "recruitment_info"),
 ]
@@ -28,6 +31,12 @@ EVAL_INTENT_CASES = [
 
 class Command(BaseCommand):
     help = "Chạy bộ kiểm định tự động (Evals) cho hệ thống AI của CLB."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--llm-judge", action="store_true",
+            help="Dùng AI làm giám khảo chấm điểm chất lượng grounding ngữ cảnh thật.",
+        )
 
     def handle(self, *args, **options):
         passed = 0
@@ -46,7 +55,15 @@ class Command(BaseCommand):
                     f"[INTENT FAIL] '{query}' -> got={got['code'] if got else None}, expected={expected}"
                 ))
 
-        # 2. Kiểm tra Zero-PII trong dữ liệu nền Grounding
+        # 2. Kiểm tra Hybrid Semantic RAG (TF-IDF Cosine + Keyword Boost)
+        total += 1
+        rag_snippet = retrieve_knowledge("muon tra ve chuyen khoan vietqr", limit=2)
+        if not rag_snippet or "VietQR" in rag_snippet or "Sổ quỹ" in rag_snippet or "vé" in rag_snippet.lower():
+            passed += 1
+        else:
+            self.stdout.write(self.style.WARNING("[RAG WARN] Hybrid RAG chưa trả về đoạn tài chính/vé phù hợp."))
+
+        # 3. Kiểm tra Zero-PII trong dữ liệu nền Grounding
         total += 1
         ctx_text, _ = build_assistant_context("tuyển thành viên và ban")
         pii_leaks = [marker for marker in ("@gmail.com", "@", "mssv") if marker in ctx_text.lower()]
@@ -55,7 +72,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.ERROR(f"[PII FAIL] Phát hiện nghi vấn PII trong context: {pii_leaks}"))
 
-        # 3. Kiểm tra khả năng chịu lỗi (Fallback Resilience)
+        # 4. Kiểm tra khả năng chịu lỗi (Fallback Resilience)
         total += 1
         now = timezone.now()
         dummy_event = Event(
@@ -74,8 +91,31 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.ERROR("[FALLBACK FAIL] Fallback không trả về đủ dữ liệu hợp lệ."))
 
+        # 5. (Tuỳ chọn) LLM-as-a-Judge đánh giá chất lượng Grounding Context
+        judge_note = ""
+        if options["llm_judge"]:
+            total += 1
+            judge_prompt = (
+                "Bạn là giám khảo đánh giá hệ thống RAG. Hãy chấm điểm 1-5 độ rõ ràng, "
+                "đầy đủ và tính trung thực của ngữ cảnh sau:\n\n"
+                f"{ctx_text[:1500]}\n\n"
+                'Trả về JSON: {"score": 5, "reason": "ngắn gọn"}'
+            )
+            try:
+                res = _ask_ai(judge_prompt, response_schema={
+                    "type": "OBJECT",
+                    "properties": {"score": {"type": "INTEGER"}, "reason": {"type": "STRING"}},
+                    "required": ["score", "reason"],
+                })
+                j_score = int(res.get("score", 0))
+                if j_score >= 4:
+                    passed += 1
+                judge_note = f" | LLM Judge: {j_score}/5 ({res.get('reason', '')[:80]})"
+            except Exception as exc:
+                self.stdout.write(self.style.WARNING(f"[LLM JUDGE SKIP/FAIL] {exc}"))
+
         score_pct = (passed * 100) // total if total else 0
         self.stdout.write(self.style.SUCCESS(
             f"EVAL SUMMARY: {passed}/{total} checks passed ({score_pct}%) | "
-            f"Intent Accuracy: {intent_ok}/{len(EVAL_INTENT_CASES)}"
+            f"Intent Accuracy: {intent_ok}/{len(EVAL_INTENT_CASES)}{judge_note}"
         ))

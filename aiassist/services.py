@@ -964,11 +964,22 @@ def get_prompt_addendum(task_key: str) -> str:
     return ("\n\n" + "\n\n".join(parts)) if parts else ""
 
 
+def _rag_terms(text_norm: str) -> list[str]:
+    """Tách unigram + bigram từ văn bản tiếng Việt đã bỏ dấu cho Hybrid TF-IDF."""
+    words = [t for t in re.findall(r"\w+", text_norm) if len(t) >= 2]
+    bigrams = [f"{words[i]}_{words[i + 1]}" for i in range(len(words) - 1)]
+    return words + bigrams
+
+
 def retrieve_knowledge(query: str = "", limit: int = 4) -> str:
     """
-    RAG nhẹ không phụ thuộc vector DB:
-    Chấm điểm khớp từ khoá (đã bỏ dấu) giữa câu hỏi và Kho tri thức CLB.
+    Hybrid Semantic RAG thuần Python (không phụ thuộc vector DB):
+      - TF-IDF Cosine Similarity trên unigram + bigram tiếng Việt đã bỏ dấu.
+      - Kết hợp Keyword Boost trên tiêu đề & từ khoá.
     """
+    import math
+    from collections import Counter
+
     try:
         from .models import ClubKnowledge
         items = list(ClubKnowledge.objects.filter(is_active=True))
@@ -979,17 +990,37 @@ def retrieve_knowledge(query: str = "", limit: int = 4) -> str:
 
     from .chatbot import normalize
     q_norm = normalize(query)
-    q_tokens = [t for t in re.findall(r"\w+", q_norm) if len(t) >= 2]
+    q_terms = _rag_terms(q_norm)
+    q_words = [t for t in re.findall(r"\w+", q_norm) if len(t) >= 2]
+
+    docs_terms = []
+    df = Counter()
+    for item in items:
+        terms = _rag_terms(normalize(f"{item.title} {item.keywords} {item.content}"))
+        docs_terms.append(terms)
+        for term in set(terms):
+            df[term] += 1
+
+    total_docs = len(items)
+    idf = {term: math.log((total_docs + 1) / (freq + 1)) + 1.0 for term, freq in df.items()}
+
+    q_tf = Counter(q_terms)
+    q_vec = {t: cnt * idf.get(t, 1.0) for t, cnt in q_tf.items()}
+    q_norm_len = math.sqrt(sum(v * v for v in q_vec.values())) or 1.0
 
     scored = []
-    for item in items:
-        haystack = normalize(f"{item.title} {item.keywords} {item.content}")
-        score = 0
-        for tok in q_tokens:
-            if tok in haystack:
-                score += 2 if tok in normalize(item.keywords or item.title) else 1
-        # Ưu tiên mục có priority nhỏ nếu điểm bằng nhau
-        scored.append((score, -item.priority, item))
+    for idx, item in enumerate(items):
+        d_tf = Counter(docs_terms[idx])
+        d_vec = {t: cnt * idf.get(t, 1.0) for t, cnt in d_tf.items()}
+        d_norm_len = math.sqrt(sum(v * v for v in d_vec.values())) or 1.0
+
+        dot = sum(q_vec[t] * d_vec.get(t, 0.0) for t in q_vec)
+        cosine = dot / (q_norm_len * d_norm_len) if q_terms else 0.0
+
+        title_kw_norm = normalize(f"{item.title} {item.keywords}")
+        kw_boost = sum(0.35 for tok in q_words if tok in title_kw_norm)
+        total_score = round(cosine + kw_boost, 6)
+        scored.append((total_score, -item.priority, item))
 
     scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
     chosen = [x[2] for x in scored[:limit]]
@@ -1157,3 +1188,168 @@ def ask_assistant(question: str, history: list[dict] | None = None) -> dict:
         if pk in known_ids and pk not in event_ids:
             event_ids.append(pk)
     return {"answer": answer, "event_ids": event_ids[:3]}
+
+
+# ---------------------------------------------------------------------------
+# Chức năng 7-9: Tích hợp AI cho các phân hệ KMG Platform (Programs, Evaluations, Social)
+# ---------------------------------------------------------------------------
+PROPOSAL_REVIEW_PROMPT = """Bạn là Cố vấn thẩm định đề xuất hoạt động cho câu lạc bộ sinh viên.
+Dưới đây là thông tin Đề xuất (đã ẩn danh hoàn toàn người đề xuất):
+- Ban đề xuất: {department}
+- Loại đề xuất: {proposal_type}
+- Tiêu đề: {title}
+- Tóm tắt kế hoạch: {summary}
+- Mục tiêu kỳ vọng: {objectives}
+- Dự trù kinh phí: {budget} VNĐ
+- Địa điểm dự kiến: {location}
+
+Hãy thẩm định tính khả thi và trả về JSON đúng cấu trúc (không markdown fence):
+{{"score": 8, "strengths": ["Điểm mạnh 1", "Điểm mạnh 2"], "risks": ["Rủi ro 1", "Rủi ro 2"], "recommendation": "Khuyến nghị 2 câu cho cấp duyệt"}}"""
+
+
+def review_proposal_with_ai(proposal) -> tuple[dict, bool, str]:
+    """AI thẩm định sơ bộ Đề xuất hoạt động (Programs). Tuân thủ Zero PII."""
+    summary_text = (proposal.summary or "").strip()[:500]
+    objectives_text = (proposal.objectives or "").strip()[:400]
+    budget = getattr(proposal, "estimated_budget", 0) or 0
+
+    fallback = {
+        "score": 8 if (len(summary_text) >= 40 and objectives_text) else 6,
+        "strengths": [
+            f"Đề xuất bám sát chức năng của {proposal.department.name}.",
+            "Đã xác định được đầu mối triển khai và kế hoạch thực hiện cơ bản.",
+        ],
+        "risks": [
+            "Cần rà soát lại dự toán ngân sách thực tế và phương án dự phòng rủi ro." if budget else "Chưa ghi rõ dự trù kinh phí chi tiết.",
+            "Cần chốt timeline phân công nhân sự tối thiểu 7 ngày trước ngày diễn ra.",
+        ],
+        "recommendation": "Đề xuất đủ điều kiện xem xét thẩm định. Trưởng ban/BCN nên đối chiếu lịch hoạt động chung trước khi phê duyệt.",
+    }
+
+    prompt = PROPOSAL_REVIEW_PROMPT.format(
+        department=proposal.department.name,
+        proposal_type=proposal.get_proposal_type_display(),
+        title=proposal.title[:160],
+        summary=summary_text or "Chưa ghi",
+        objectives=objectives_text or "Chưa ghi",
+        budget=f"{budget:,}".replace(",", "."),
+        location=(proposal.proposed_location or "Chưa chốt")[:120],
+    ) + get_prompt_addendum("proposal_review")
+
+    try:
+        data = _ask_ai(prompt, response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "score": {"type": "INTEGER"},
+                "strengths": {"type": "ARRAY", "items": {"type": "STRING"}},
+                "risks": {"type": "ARRAY", "items": {"type": "STRING"}},
+                "recommendation": {"type": "STRING"},
+            },
+            "required": ["score", "strengths", "risks", "recommendation"],
+        })
+        if not isinstance(data, dict):
+            raise AIError("Sai cấu trúc JSON.")
+        score = max(1, min(int(data.get("score", 7)), 10))
+        strengths = [str(x).strip()[:200] for x in (data.get("strengths") or []) if str(x).strip()][:3] or fallback["strengths"]
+        risks = [str(x).strip()[:200] for x in (data.get("risks") or []) if str(x).strip()][:3] or fallback["risks"]
+        rec = str(data.get("recommendation", "")).strip()[:400] or fallback["recommendation"]
+        return {"score": score, "strengths": strengths, "risks": risks, "recommendation": rec}, True, ""
+    except (AIError, ValueError, TypeError) as e:
+        return fallback, False, str(e)
+
+
+OPERATIONS_ANALYTICS_PROMPT = """Bạn là Chuyên gia Phân tích Vận hành cho Câu lạc bộ Sinh viên KMG.
+Phạm vi phân tích: {scope_label}
+Số liệu KPI tổng hợp (không chứa dữ liệu cá nhân):
+{metrics_json}
+
+Hãy đánh giá hiệu suất vận hành và đề xuất hành động cụ thể. Chỉ trả về JSON:
+{{"summary": "Nhận định tổng quan 2-3 câu", "bottlenecks": ["Điểm nghẽn 1", "Điểm nghẽn 2"], "action_plan": ["Hành động 1", "Hành động 2", "Hành động 3"]}}"""
+
+
+def analyze_club_operations(metrics: dict, scope_label: str = "Toàn CLB") -> tuple[dict, bool, str]:
+    """AI phân tích KPI vận hành CLB/Ban cho trang Evaluations Analytics (Zero PII)."""
+    fallback = {
+        "summary": f"Hoạt động tại phạm vi '{scope_label}' đang vận hành ổn định dựa trên các chỉ số nhiệm vụ, chuyên cần và tài chính hiện tại.",
+        "bottlenecks": [
+            "Cần theo dõi tỷ lệ hoàn thành công việc đúng hạn giữa các nhóm thành viên.",
+            "Cần tăng cường nhắc nhở xác nhận RSVP và hoàn tất phiếu đánh giá định kỳ.",
+        ],
+        "action_plan": [
+            "Rà soát các đầu việc quá hạn hàng tuần cùng Trưởng ban phụ trách.",
+            "Gắn kết thành viên mới qua các buổi tập luyện hoặc đào tạo ngắn hạn.",
+            "Chuẩn hoá mẫu báo cáo sau từng hoạt động để tích luỹ dữ liệu đánh giá.",
+        ],
+    }
+
+    prompt = OPERATIONS_ANALYTICS_PROMPT.format(
+        scope_label=scope_label[:100],
+        metrics_json=json.dumps(metrics, ensure_ascii=False)[:1500],
+    ) + get_prompt_addendum("operations_analytics")
+
+    try:
+        data = _ask_ai(prompt, response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "summary": {"type": "STRING"},
+                "bottlenecks": {"type": "ARRAY", "items": {"type": "STRING"}},
+                "action_plan": {"type": "ARRAY", "items": {"type": "STRING"}},
+            },
+            "required": ["summary", "bottlenecks", "action_plan"],
+        })
+        if not isinstance(data, dict):
+            raise AIError("Sai cấu trúc JSON.")
+        summary = str(data.get("summary", "")).strip()[:500] or fallback["summary"]
+        bottlenecks = [str(x).strip()[:200] for x in (data.get("bottlenecks") or []) if str(x).strip()][:3] or fallback["bottlenecks"]
+        action_plan = [str(x).strip()[:200] for x in (data.get("action_plan") or []) if str(x).strip()][:3] or fallback["action_plan"]
+        return {"summary": summary, "bottlenecks": bottlenecks, "action_plan": action_plan}, True, ""
+    except AIError as e:
+        return fallback, False, str(e)
+
+
+SOCIAL_DIGEST_PROMPT = """Bạn là Trợ lý tổng hợp Bảng tin Nội bộ cho Câu lạc bộ Sinh viên KMG.
+Dưới đây là các bài viết gần đây mà người dùng được phép xem (đã ẩn hoàn toàn tên tác giả):
+{posts_text}
+
+Hãy tóm tắt ngắn gọn tình hình sinh hoạt nổi bật. Trả về JSON:
+{{"headline": "Tiêu đề tóm tắt 1 câu", "highlights": ["Ý chính 1", "Ý chính 2", "Ý chính 3"], "mood": "Không khí chung (vd: Sôi nổi / Gắn kết / Tập trung)"}}"""
+
+
+def summarize_social_feed(post_snippets: list[str]) -> tuple[dict, bool, str]:
+    """AI tóm tắt bảng tin nội bộ mà người dùng đang xem (Zero PII, tôn trọng PA-05)."""
+    cleaned = [" ".join(str(s).split())[:220] for s in post_snippets if str(s).strip()][:12]
+    if not cleaned:
+        return {
+            "headline": "Bảng tin hiện chưa có nhiều bài viết mới.",
+            "highlights": ["Hãy chia sẻ khoảnh khắc tập luyện hoặc cập nhật tiến độ ban của bạn nhé!"],
+            "mood": "Yên ắng",
+        }, False, "Chưa có bài viết."
+
+    fallback = {
+        "headline": f"Tổng hợp nhanh {len(cleaned)} hoạt động chia sẻ mới nhất trên bảng tin CLB.",
+        "highlights": cleaned[:3],
+        "mood": "Tích cực & Gắn kết",
+    }
+
+    prompt = SOCIAL_DIGEST_PROMPT.format(
+        posts_text="\n".join(f"- {line}" for line in cleaned)
+    ) + get_prompt_addendum("social_digest")
+
+    try:
+        data = _ask_ai(prompt, response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "headline": {"type": "STRING"},
+                "highlights": {"type": "ARRAY", "items": {"type": "STRING"}},
+                "mood": {"type": "STRING"},
+            },
+            "required": ["headline", "highlights", "mood"],
+        })
+        if not isinstance(data, dict):
+            raise AIError("Sai cấu trúc JSON.")
+        headline = str(data.get("headline", "")).strip()[:250] or fallback["headline"]
+        highlights = [str(x).strip()[:220] for x in (data.get("highlights") or []) if str(x).strip()][:3] or fallback["highlights"]
+        mood = str(data.get("mood", "")).strip()[:80] or fallback["mood"]
+        return {"headline": headline, "highlights": highlights, "mood": mood}, True, ""
+    except AIError as e:
+        return fallback, False, str(e)

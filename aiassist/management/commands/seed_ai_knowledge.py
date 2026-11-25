@@ -1,4 +1,4 @@
-"""Nạp dữ liệu mẫu cho Kho tri thức CLB (RAG) và Cấu hình Prompt cho cả 5 modun AI."""
+"""Nạp dữ liệu mẫu cho Kho tri thức CLB (RAG) và Cấu hình Prompt cho cả 8 modun AI."""
 from django.core.management.base import BaseCommand
 
 from aiassist.models import AIPromptProfile, AITaskKey, ClubKnowledge, KnowledgeCategory
@@ -58,6 +58,46 @@ DEFAULT_KNOWLEDGE = [
         ),
         "priority": 5,
     },
+    {
+        "title": "Sổ quỹ bất biến và quy trình duyệt chi hai cấp",
+        "category": KnowledgeCategory.FINANCE,
+        "keywords": "so quy, ngan sach, duyet chi, maker checker, tai chinh, hoa don",
+        "content": (
+            "Mọi khoản thu chi trong KMG Workspace đi qua sổ cái bất biến và quy trình duyệt chi "
+            "hai cấp Maker-Checker. Chứng từ hóa đơn được lưu trong kho mật riêng tư có kiểm tra quyền."
+        ),
+        "priority": 6,
+    },
+    {
+        "title": "Đề xuất hoạt động, đào tạo và lịch tập band",
+        "category": KnowledgeCategory.GENERAL,
+        "keywords": "de xuat, khoa dao tao, tap band, rehearsal, proposal",
+        "content": (
+            "Các Ban có thể soạn đề xuất tổ chức sự kiện hoặc khóa đào tạo tại Không gian Đề xuất, "
+            "trình Trưởng ban/BCN thẩm định và chuyển thẳng thành Dự thảo Sự kiện hoặc Khóa đào tạo."
+        ),
+        "priority": 7,
+    },
+    {
+        "title": "Đánh giá định kỳ 7 tiêu chí và Vinh danh thành viên",
+        "category": KnowledgeCategory.RULE,
+        "keywords": "danh gia, 7 tieu chi, vinh danh, xep loai, ky luat",
+        "content": (
+            "Thành viên được đánh giá định kỳ theo 7 tiêu chí minh bạch kèm phản hồi hai chiều. "
+            "Các cá nhân xuất sắc sẽ được trao danh hiệu vinh danh trên hồ sơ năng lực CLB."
+        ),
+        "priority": 8,
+    },
+    {
+        "title": "Bảo mật tin nhắn nội bộ và Music Hub",
+        "category": KnowledgeCategory.GENERAL,
+        "keywords": "nhan tin, ma hoa, music hub, playlist, tang nhac",
+        "content": (
+            "Tin nhắn nội bộ trong KMG Workspace được mã hóa AES-256-GCM tại máy chủ. "
+            "Thành viên cũng có thể tạo playlist âm nhạc và gửi tặng bài hát qua Music Hub."
+        ),
+        "priority": 9,
+    },
 ]
 
 DEFAULT_PROFILES = [
@@ -75,11 +115,11 @@ DEFAULT_PROFILES = [
     {
         "task_key": AITaskKey.SUGGEST_TASKS,
         "brand_voice": "Thực tế, chi tiết, rõ đầu việc theo quy trình tổ chức sự kiện CLB sinh viên.",
-        "extra_instructions": "Phân bổ công việc cân đối giữa Ban Nội dung, Ban Truyền thông, Ban Hậu cần và Ban Kỹ thuật.",
+        "extra_instructions": "Phân bổ công việc cân đối giữa các Ban chuyên môn và Ban Truyền thông & Sự kiện.",
         "few_shot_examples": [
             {
                 "input": "Đêm nhạc Acoustic 150 người, còn 14 ngày",
-                "output": '{"title": "Khảo sát âm thanh và test micro tại hội trường", "days_before": 3, "note": "Kiểm tra mixer, loa kiểm âm và dây kết nối nhạc cụ", "department": "Ban Kỹ thuật", "priority": "HIGH"}',
+                "output": '{"title": "Khảo sát âm thanh và test micro tại hội trường", "days_before": 3, "note": "Kiểm tra mixer, loa kiểm âm và dây kết nối nhạc cụ", "department": "Ban Chuyên môn", "priority": "HIGH"}',
             }
         ],
     },
@@ -116,11 +156,44 @@ DEFAULT_PROFILES = [
             }
         ],
     },
+    {
+        "task_key": AITaskKey.PROPOSAL_REVIEW,
+        "brand_voice": "Xây dựng, thực tế, nhìn thẳng vào tính khả thi và dự phòng rủi ro.",
+        "extra_instructions": "Kiểm tra sự phù hợp giữa mục tiêu đề xuất, ngân sách dự trù và năng lực triển khai của Ban.",
+        "few_shot_examples": [
+            {
+                "input": "Workshop guitar cơ bản, dự trù 500.000đ, 40 người",
+                "output": "Điểm 8/10. Đề xuất rõ ràng, chi phí hợp lý. Lưu ý chuẩn bị thêm đàn guitar dự phòng và phân công 2 người hướng dẫn chính.",
+            }
+        ],
+    },
+    {
+        "task_key": AITaskKey.OPERATIONS_ANALYTICS,
+        "brand_voice": "Khách quan, bám sát số liệu KPI và chỉ ra điểm nghẽn cụ thể.",
+        "extra_instructions": "Không suy diễn ngoài các chỉ số thống kê được cung cấp.",
+        "few_shot_examples": [
+            {
+                "input": "Hoàn thành task 72%, chuyên cần sự kiện 68%",
+                "output": "Tiến độ công việc đạt mức trung bình khá nhưng tỷ lệ chuyên cần sự kiện cần cải thiện thông qua cơ chế nhắc RSVP trước 24h.",
+            }
+        ],
+    },
+    {
+        "task_key": AITaskKey.SOCIAL_DIGEST,
+        "brand_voice": "Tích cực, gắn kết, cô đọng đúng tinh thần sinh hoạt CLB sinh viên.",
+        "extra_instructions": "Tuyệt đối không nhắc tên cá nhân, chỉ tổng hợp chủ đề nổi bật.",
+        "few_shot_examples": [
+            {
+                "input": "Chia sẻ lịch tập tối thứ 5 và ảnh recap show acoustic",
+                "output": "CLB đang sôi nổi chuẩn bị lịch tập cuối tuần và lan tỏa nhiều hình ảnh đẹp từ đêm nhạc Acoustic vừa qua.",
+            }
+        ],
+    },
 ]
 
 
 class Command(BaseCommand):
-    help = "Nạp dữ liệu tri thức nền tảng CLB (RAG) và cấu hình Prompt cho 5 modun AI."
+    help = "Nạp dữ liệu tri thức nền tảng CLB (RAG) và cấu hình Prompt cho cả 8 modun AI."
 
     def handle(self, *args, **options):
         created_kb = 0

@@ -573,6 +573,14 @@ def proposal_detail(request, pk: int):
 
     reviews = list(prop.reviews.select_related("reviewer"))
     comments = list(prop.comments.select_related("author"))
+
+    ai_review, ai_used = None, False
+    if request.GET.get("ai") == "1":
+        from aiassist.services import review_proposal_with_ai
+        from core.security import is_rate_limited
+        if not is_rate_limited(request, scope="kmg_ai_assist", limit=20, window_seconds=300):
+            ai_review, ai_used, _ = review_proposal_with_ai(prop)
+
     return render(
         request,
         "programs/proposal_detail.html",
@@ -580,6 +588,8 @@ def proposal_detail(request, pk: int):
             "proposal": prop,
             "reviews": reviews,
             "comments": comments,
+            "ai_review": ai_review,
+            "ai_used": ai_used,
             "is_advisor": is_advisor,
             "is_bcn_approver": is_bcn_approver,
             "is_dept_reviewer": is_dept_reviewer,

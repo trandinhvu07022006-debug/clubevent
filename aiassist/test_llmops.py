@@ -17,7 +17,9 @@ from recruitment.models import RecruitmentRound
 from .chatbot import answer, detect_intent
 from .models import (AIInteractionLog, AIPromptProfile, AITaskKey,
                      ClubKnowledge, FeedbackRating, KnowledgeCategory)
-from .services import build_assistant_context, retrieve_knowledge
+from .services import (analyze_club_operations, build_assistant_context,
+                       retrieve_knowledge, review_proposal_with_ai,
+                       summarize_social_feed)
 
 
 class LLMOpsPipelineTests(TestCase):
@@ -195,3 +197,64 @@ class LLMOpsPipelineTests(TestCase):
         exported_lines = [json.loads(line) for line in exp_resp.content.decode("utf-8").strip().splitlines()]
         self.assertTrue(len(exported_lines) >= 2)
         self.assertIn("messages", exported_lines[0])
+
+    @patch("aiassist.services._ask_ai")
+    def test_kmg_module_ai_services_and_hybrid_rag(self, mock_ai):
+        # 1. Hybrid TF-IDF RAG chấm điểm chính xác mục phù hợp nhất
+        ClubKnowledge.objects.create(
+            title="Tin nhắn mã hóa AES",
+            category=KnowledgeCategory.GENERAL,
+            keywords="nhan tin, ma hoa",
+            content="Tin nhắn trong không gian nội bộ được bảo vệ bằng mã hóa AES-256-GCM.",
+            priority=10,
+        )
+        rag_res = retrieve_knowledge("bảo mật mã hóa tin nhắn AES", limit=1)
+        self.assertIn("Tin nhắn mã hóa AES", rag_res)
+
+        # 2. Thẩm định đề xuất (Zero PII + AI & Fallback)
+        from types import SimpleNamespace
+        dummy_prop = SimpleNamespace(
+            department=self.dept,
+            title="Workshop Nhiếp ảnh Đêm nhạc",
+            summary="Hướng dẫn chụp ảnh sân khấu thiếu sáng cho thành viên mới.",
+            objectives="Nâng cao tay nghề media cho 20 thành viên.",
+            estimated_budget=300000,
+            proposed_location="Phòng B202",
+            get_proposal_type_display=lambda: "Đào tạo",
+        )
+        mock_ai.return_value = {
+            "score": 9,
+            "strengths": ["Thiết thực", "Chi phí thấp"],
+            "risks": ["Thiếu máy ảnh thực hành"],
+            "recommendation": "Nên duyệt triển khai sớm.",
+        }
+        rev, used_ai, _ = review_proposal_with_ai(dummy_prop)
+        self.assertTrue(used_ai)
+        self.assertEqual(rev["score"], 9)
+
+        # 3. Phân tích KPI vận hành
+        mock_ai.return_value = {
+            "summary": "Vận hành tốt.",
+            "bottlenecks": ["RSVP chậm"],
+            "action_plan": ["Nhắc lịch trước 24h"],
+        }
+        insight, used_ai2, _ = analyze_club_operations({"task_rate": 85}, scope_label="Toàn CLB")
+        self.assertTrue(used_ai2)
+        self.assertEqual(insight["summary"], "Vận hành tốt.")
+
+        # 4. Tóm tắt bảng tin nội bộ
+        mock_ai.return_value = {
+            "headline": "Tập band sôi nổi",
+            "highlights": ["Chuẩn bị Acoustic #6"],
+            "mood": "Hào hứng",
+        }
+        digest, used_ai3, _ = summarize_social_feed(["Tối nay 19h tập band tại phòng nhạc nhé mọi người!"])
+        self.assertTrue(used_ai3)
+        self.assertEqual(digest["mood"], "Hào hứng")
+
+    @patch("aiassist.management.commands.evaluate_ai._ask_ai")
+    def test_evaluate_ai_with_llm_judge(self, mock_judge):
+        mock_judge.return_value = {"score": 5, "reason": "Đầy đủ và chính xác."}
+        call_command("seed_ai_knowledge")
+        call_command("evaluate_ai", llm_judge=True)
+        self.assertTrue(mock_judge.called)

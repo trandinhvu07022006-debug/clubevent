@@ -259,11 +259,22 @@ def social_feed(request):
         actor, scope=scope, department=selected_dept
     )
 
+    ai_digest, ai_digest_used = None, False
+    if request.GET.get("digest") == "1" and scope != "MODERATION":
+        from aiassist.services import summarize_social_feed
+        from core.security import is_rate_limited
+        if not is_rate_limited(request, scope="kmg_ai_assist", limit=20, window_seconds=300):
+            ai_digest, ai_digest_used, _ = summarize_social_feed(
+                [getattr(p, "content", "") for p in posts[:12]]
+            )
+
     return render(
         request,
         "social/feed.html",
         {
             "posts": posts,
+            "ai_digest": ai_digest,
+            "ai_digest_used": ai_digest_used,
             "scope": scope,
             "selected_dept": selected_dept,
             "postable_depts": postable_depts,

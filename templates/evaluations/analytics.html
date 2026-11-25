@@ -9,10 +9,34 @@
     <h1 class="h3 fw-bold mb-1">Trung tâm Phân tích &amp; Báo cáo Hoạt động</h1>
     <p class="text-body-secondary mb-0 small">Theo dõi tiến độ, tỉ lệ chuyên cần, hoàn thành nhiệm vụ &amp; tài chính toàn CLB hoặc theo từng Ban.</p>
   </div>
-  {% if can_export %}
-  <a href="{% url 'evaluations:analytics_csv' %}" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>Xuất Báo cáo CSV an toàn (SEC-02)</a>
-  {% endif %}
+  <div class="d-flex flex-wrap gap-2">
+    <a href="?{% if selected_dept %}dept={{ selected_dept.id }}&{% endif %}ai=1" class="btn btn-primary btn-sm">
+      <i class="bi bi-stars me-1"></i>AI Phân tích Vận hành
+    </a>
+    {% if can_export %}
+    <a href="{% url 'evaluations:analytics_csv' %}" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>Xuất Báo cáo CSV an toàn (SEC-02)</a>
+    {% endif %}
+  </div>
 </div>
+
+{% if ai_insight %}
+<div class="kmg-card p-4 mb-4 border-primary border-opacity-25 bg-primary bg-opacity-10">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h6 fw-bold mb-0"><i class="bi bi-robot text-primary me-2"></i>Phân tích Điều hành AI {% if not ai_used %}(Dự phòng){% endif %}</h2>
+  </div>
+  <p class="small mb-3">{{ ai_insight.summary }}</p>
+  <div class="row g-3 small">
+    <div class="col-md-6">
+      <div class="fw-semibold text-warning-emphasis mb-1">Điểm nghẽn cần lưu ý:</div>
+      <ul class="mb-0 ps-3">{% for b in ai_insight.bottlenecks %}<li>{{ b }}</li>{% endfor %}</ul>
+    </div>
+    <div class="col-md-6">
+      <div class="fw-semibold text-success mb-1">Đề xuất hành động:</div>
+      <ul class="mb-0 ps-3">{% for a in ai_insight.action_plan %}<li>{{ a }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 {% if is_advisor %}
 <div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>Chế độ Cố vấn (INV-04) — thông tin liên hệ cá nhân (PII) được tự động che (PA-07).</div>

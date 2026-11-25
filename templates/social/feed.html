@@ -11,6 +11,9 @@
     </p>
   </div>
   <div class="d-flex flex-wrap gap-2">
+    <a href="?scope={{ scope }}&digest=1" class="btn btn-primary btn-sm">
+      <i class="bi bi-stars me-1"></i>AI Tóm tắt Bảng tin
+    </a>
     <a href="{% url 'social:messaging_inbox' %}" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-shield-lock me-1"></i>Nhắn tin Bảo mật
     </a>
@@ -19,6 +22,18 @@
     </a>
   </div>
 </div>
+
+{% if ai_digest %}
+<div class="kmg-card p-3 p-md-4 mb-4 border-primary border-opacity-25 bg-primary bg-opacity-10">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <strong><i class="bi bi-robot text-primary me-2"></i>{{ ai_digest.headline }}</strong>
+    <span class="badge text-bg-primary">{{ ai_digest.mood }}</span>
+  </div>
+  <ul class="small mb-0 ps-3">
+    {% for h in ai_digest.highlights %}<li>{{ h }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
 
 <!-- Bộ lọc phạm vi -->
 <ul class="nav nav-pills gap-1 mb-4">

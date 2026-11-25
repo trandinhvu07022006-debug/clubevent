@@ -50,6 +50,9 @@ class AITaskKey(models.TextChoices):
     EVENT_MARKETING = "event_marketing", "Biên tập truyền thông sự kiện"
     SCREEN_APPLICATION = "screen_application", "Sàng lọc đơn tuyển thành viên"
     POSTMORTEM = "postmortem", "Báo cáo tổng kết sự kiện"
+    PROPOSAL_REVIEW = "proposal_review", "Thẩm định đề xuất hoạt động"
+    OPERATIONS_ANALYTICS = "operations_analytics", "Phân tích KPI vận hành CLB"
+    SOCIAL_DIGEST = "social_digest", "Tóm tắt bảng tin nội bộ"
 
 
 class AIPromptProfile(models.Model):
