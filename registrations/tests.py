@@ -126,13 +126,26 @@ class BookTicketTests(BookingTestBase):
         self.assertIn("quá hạn", str(ctx.exception).lower())
 
     def test_ticket_codes_are_unique_and_unguessable(self):
-        """Mã vé phải khác nhau và không phải số tăng dần."""
+        """Mã vé phải là hex 12 ký tự duy nhất, không tăng dần theo ID."""
+        import re
+        from unittest.mock import patch
+        from registrations.models import make_ticket_code
+
         tickets = book_tickets(self.member, self.paid.id, 4)
         codes = [t.code for t in Ticket.objects.all()]
 
         self.assertEqual(len(set(codes)), len(codes))     # không trùng
-        self.assertTrue(all(len(c) == 12 for c in codes))
-        self.assertFalse(any(c.isdigit() for c in codes))  # không phải ID
+        self.assertTrue(all(re.fullmatch(r"[0-9A-F]{12}", c) for c in codes))
+        # Không phải chuỗi số tăng dần từ ID bản ghi
+        id_strs = [str(t.id).zfill(12) for t in tickets]
+        self.assertTrue(set(codes).isdisjoint(id_strs))
+
+        # Mock uuid4 trả về prefix toàn chữ số vẫn hợp lệ với định dạng 12 hex
+        with patch("registrations.models.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value.hex = "123456789012abcdef00000000000000"
+            code = make_ticket_code()
+        self.assertEqual(code, "123456789012")
+        self.assertRegex(code, r"^[0-9A-F]{12}$")
 
 
 class CancelTicketTests(BookingTestBase):

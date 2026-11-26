@@ -174,26 +174,50 @@ jobs:
           python3 - <<'PY'
           import json
           import re
+          import urllib.error
           import urllib.request
 
-          with urllib.request.urlopen("http://127.0.0.1:8080/health/", timeout=10) as resp:
+          base = "http://127.0.0.1:8080"
+          with urllib.request.urlopen(f"{base}/health/", timeout=10) as resp:
               assert resp.status == 200
               assert json.load(resp) == {"ok": True}
 
-          with urllib.request.urlopen("http://127.0.0.1:8080/taikhoan/dangnhap/", timeout=10) as resp:
-              assert resp.status == 200
-              headers = {k.lower(): v for k, v in resp.headers.items()}
-              assert "content-security-policy" in headers, headers
-              assert headers.get("x-content-type-options", "").lower() == "nosniff", headers
-              assert headers.get("x-frame-options", "").upper() == "DENY", headers
-              html = resp.read().decode("utf-8")
+          checked_assets = set()
 
-          match = re.search(r'href="(/static/[^"]+\.css)"', html)
-          assert match, "Static CSS link missing on login page"
-          css_url = "http://127.0.0.1:8080" + match.group(1)
-          with urllib.request.urlopen(css_url, timeout=10) as resp:
-              assert resp.status == 200
-              assert len(resp.read()) > 0
+          def verify_page(path, expected_status=200):
+              req = urllib.request.Request(f"{base}{path}")
+              with urllib.request.urlopen(req, timeout=10) as resp:
+                  assert resp.status == expected_status, f"{path}: {resp.status}"
+                  headers = {k.lower(): v for k, v in resp.headers.items()}
+                  assert "content-security-policy" in headers, headers
+                  assert headers.get("x-content-type-options", "").lower() == "nosniff", headers
+                  assert headers.get("x-frame-options", "").upper() == "DENY", headers
+                  html = resp.read().decode("utf-8")
+
+              assets = re.findall(r'(?:href|src)="(/static/[^"?]+\.(?:css|js))(?:\?[^"]*)?"', html)
+              assert assets, f"No static CSS/JS assets found on {path}"
+              for asset in assets:
+                  if asset in checked_assets:
+                      continue
+                  with urllib.request.urlopen(f"{base}{asset}", timeout=10) as aresp:
+                      assert aresp.status == 200, f"Asset {asset} -> {aresp.status}"
+                      assert len(aresp.read()) > 0, f"Empty asset {asset}"
+                  checked_assets.add(asset)
+
+          for public_path in ("/", "/portal/", "/taikhoan/dangnhap/", "/troly/"):
+              verify_page(public_path)
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          opener = urllib.request.build_opener(NoRedirect)
+          for auth_path in ("/tong-quan/", "/workspace/", "/congviec/viec-cua-toi/", "/ve/cua-toi/"):
+              try:
+                  opener.open(f"{base}{auth_path}", timeout=10)
+              except urllib.error.HTTPError as exc:
+                  assert exc.code in (302, 403), f"{auth_path} unexpected {exc.code}"
+          print(f"Docker smoke verified {len(checked_assets)} static CSS/JS assets.")
           PY
       - name: Collect Compose logs on failure
         if: failure()

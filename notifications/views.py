@@ -130,7 +130,25 @@ const PRECACHE_URLS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).catch(() => null)
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const results = await Promise.allSettled(
+        PRECACHE_URLS.map(async (url) => {
+          const response = await fetch(url, { cache: 'no-cache' });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status} for ${url}`);
+          }
+          await cache.put(url, response);
+          return url;
+        })
+      );
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length) {
+        console.warn('[KMG SW] Một số tài nguyên precache thất bại:', failed.map((f) => String(f.reason)));
+      }
+      if (failed.length === PRECACHE_URLS.length) {
+        throw new Error('Toàn bộ tài nguyên precache đều thất bại');
+      }
+    })
   );
   self.skipWaiting();
 });
@@ -145,7 +163,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let payload = { title: 'CLB KMG', body: 'Bạn có thông báo mới trên KMG Platform.', url: '/thongbao/' };
+  let payload = { title: 'CLB KMG', body: 'Bạn có thông báo mới từ CLB KMG.', url: '/thongbao/' };
   if (event.data) {
     try {
       payload = Object.assign(payload, event.data.json());
