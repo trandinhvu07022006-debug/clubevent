@@ -5,7 +5,7 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 ---
 
 ## 1. Trạng thái hệ thống hiện tại
-- **Cập nhật lần cuối:** 2026-11-26 (Antigravity — hoàn tất **KMG Phase 7: MySQL 8.4 Unification & Production Data Readiness** trên nhánh `feature/mysql-production-readiness`)
+- **Cập nhật lần cuối:** 2026-11-26 (Antigravity — hoàn tất nâng cấp **KMG AI: Intelligent Music Companion** và **Frontend Stabilization & Simplification** trên nhánh `feature/mysql-production-readiness`; đã ghi nhận báo cáo `docs/audit/13_FRONTEND_STABILIZATION_AND_SIMPLIFICATION.md`)
 - **Thư mục gốc dự án:** `D:\clubevent\clubevent`
 - **Nhánh Git hiện hành:** `feature/kmg-system-stabilization` (tách từ `feature/kmg-ai-v2` @ `57ad934`; `main` vẫn giữ nguyên tại `315535c`, `feature/sprint7-chong-gom-ve` tại `458ef9e`).
 - **Phần cứng dev:** Intel Core i5-12500H (12 nhân / 16 luồng), RAM 16 GB DDR4-3200 (`16,869,548,032` bytes), NVIDIA GeForce RTX 3050 Laptop GPU (**4 GB VRAM**, `4,293,918,720` bytes) + Intel Iris Xe Graphics.

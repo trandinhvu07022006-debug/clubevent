@@ -49,9 +49,10 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                     a_clean,
                 ))
 
-        # Kho tri thức CLB (chỉ lấy mục PUBLIC -> Q&A training pairs)
+        # Kho tri thức CLB (chỉ lấy mục PUBLIC đã duyệt -> Q&A training pairs)
+        from aiassist.models import ApprovalStatus
         for kb in ClubKnowledge.objects.filter(
-            is_active=True, visibility=KnowledgeVisibility.PUBLIC
+            is_active=True, approval_status=ApprovalStatus.APPROVED, visibility=KnowledgeVisibility.PUBLIC
         ).order_by("priority", "id"):
             pairs.append((
                 "Bạn là trợ lý hỏi đáp thân thiện của KMG Club. Chỉ trả lời dựa trên thông tin chính thức của CLB.",
@@ -59,14 +60,19 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 redact(kb.content.strip()),
             ))
 
-        # Thông tin các Ban chuyên môn thực tế
-        from organizing.models import Department
-        for dept in Department.objects.all().order_by("order", "id"):
-            if dept.description:
+        # Thông tin các Ban chuyên môn thực tế (ưu tiên organization.Department)
+        from organization.models import Department as OrgDepartment
+        from organizing.models import Department as LegacyDepartment
+        depts = list(OrgDepartment.objects.filter(is_active=True, is_demo=False).order_by("display_order", "id"))
+        if not depts:
+            depts = list(LegacyDepartment.objects.all().order_by("order", "id"))
+        for dept in depts:
+            desc = (getattr(dept, "short_description", "") or getattr(dept, "description", "")).strip()
+            if desc:
                 pairs.append((
                     "Bạn là trợ lý hỏi đáp thân thiện của KMG Club.",
                     f"{dept.name} trong CLB phụ trách những việc gì?",
-                    f"{dept.name} phụ trách: {redact(dept.description.strip())}",
+                    f"{dept.name} phụ trách: {redact(desc)}",
                 ))
 
     if module in ("all", "marketing"):

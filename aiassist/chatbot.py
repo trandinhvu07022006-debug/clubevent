@@ -32,20 +32,31 @@ import unicodedata
 from django.urls import reverse
 from django.utils import timezone
 
+from .business_queries import (
+    query_club_analytics,
+    query_department_ops,
+    query_finance_summary,
+    query_my_evaluations,
+    query_my_practice,
+    query_my_recruitment_status,
+    query_my_training,
+)
+from .music_tutor import answer_music_or_companion
+from .router import (
+    _MUSIC_STRONG_CUES,
+    _PRACTICE_CUES,
+    _STUDENT_COMPANION_CUES,
+    is_security_violation,
+    normalize_vi,
+    prepare_query,
+)
+
 
 def normalize(text):
     """
     Hạ chữ thường và bỏ dấu tiếng Việt.
-
-    Cách làm: tách ký tự có dấu thành chữ gốc + dấu (dạng NFD), rồi bỏ hết
-    các ký tự dấu đi. Riêng chữ 'đ' không tách được bằng cách này nên phải
-    thay thủ công.
     """
-    text = (text or "").lower().strip()
-    text = text.replace("đ", "d")
-    text = unicodedata.normalize("NFD", text)
-    text = "".join(c for c in text if unicodedata.category(c) != "Mn")
-    return text
+    return normalize_vi(text)
 
 
 # Mỗi ý định gồm: mã, danh sách từ khoá, và có cần đăng nhập hay không.
@@ -137,6 +148,62 @@ INTENTS = [
         "login_required": False,
     },
     {
+        "code": "my_practice",
+        "keywords": [
+            "lich tap", "lich tap cua toi", "buoi tap", "rehearsal",
+            "toi nay co lich tap", "hom nay co tap", "tap band khi nao",
+        ],
+        "login_required": True,
+    },
+    {
+        "code": "my_recruitment_status",
+        "keywords": [
+            "trang thai ho so", "ho so cua toi", "don ung tuyen cua toi",
+            "ket qua casting", "dau casting chua", "ket qua phong van",
+        ],
+        "login_required": True,
+    },
+    {
+        "code": "my_training",
+        "keywords": [
+            "khoa dao tao", "dao tao cua toi", "ky nang cua toi",
+            "lop hoc nhac", "hoc vien clb",
+        ],
+        "login_required": True,
+    },
+    {
+        "code": "my_evaluations",
+        "keywords": [
+            "danh gia cua toi", "ket qua danh gia", "diem danh gia",
+            "xep loai cua toi",
+        ],
+        "login_required": True,
+    },
+    {
+        "code": "department_ops",
+        "keywords": [
+            "tong hop cong viec", "tien do cac ban", "cong viec cua ban",
+            "phan cong nhan su", "task qua han toan clb",
+        ],
+        "login_required": True,
+    },
+    {
+        "code": "finance_summary",
+        "keywords": [
+            "thu chi", "so quy", "ngan sach clb", "bao cao tai chinh",
+            "khoan chi cho duyet",
+        ],
+        "login_required": True,
+    },
+    {
+        "code": "club_analytics",
+        "keywords": [
+            "thong ke nhan su", "chi so van hanh", "bao cao hoat dong",
+            "tong quan clb", "bao nhieu thanh vien",
+        ],
+        "login_required": True,
+    },
+    {
         "code": "greeting",
         "keywords": ["xin chao", "chao", "hello", "hi", "alo"],
         "login_required": False,
@@ -147,36 +214,19 @@ INTENTS = [
 # Hai ý định sự kiện có thể trả dữ liệu INTERNAL cho thành viên có quyền;
 # loại trừ toàn bộ hai ý định để không phụ thuộc vào quyền tại lượt chat sau.
 PRIVATE_INTENTS = frozenset({
-    "my_tickets", "my_tasks", "greeting", "upcoming_events", "seats_left",
+    "my_tickets", "my_tasks", "my_practice", "my_recruitment_status",
+    "my_training", "my_evaluations", "department_ops", "finance_summary",
+    "club_analytics", "greeting", "upcoming_events", "seats_left",
 })
 
 # Câu gợi ý hiện sẵn dưới ô chat để người dùng biết hỏi được gì
 SUGGESTIONS = [
     "Sắp tới có sự kiện gì?",
     "Còn vé không?",
-    "Vé của tôi thế nào?",
-    "Việc của tôi có gì?",
-    "Đăng ký thế nào?",
+    "Lập lộ trình 7 ngày học guitar 15 phút/ngày",
+    "Tối nay có lịch tập không?",
+    "CLB có những ban nào?",
 ]
-
-
-def prepare_query(question):
-    """
-    Chuẩn hoá câu hỏi để so khớp từ khoá, phân biệt "bạn" (người) với "ban".
-
-    Bỏ dấu làm "bạn" và "ban" giống hệt nhau, nên:
-      - "bạn" có dấu được đổi thành ký hiệu riêng TRƯỚC khi bỏ dấu.
-      - Lời gọi "các bạn ơi", "ban oi" bị cắt vì không mang ý định.
-      - Chuẩn hoá biến thể thường gặp ("checkin" -> "check in", chữ kéo dài).
-    """
-    text = unicodedata.normalize("NFC", (question or "").lower())
-    text = re.sub(r"\bbạn\b", " _nguoi_ ", text)
-    text = " ".join(normalize(text).split())
-    text = re.sub(r"[^\w\s]", " ", text)
-    text = re.sub(r"([a-z])\1{2,}", r"\1", text)
-    text = re.sub(r"\bcheck[\s\-_]*in\b", "check in", text)
-    text = re.sub(r"\b(?:(?:cac|moi) )?(?:_nguoi_|ban) oi\b", " ", text)
-    return " ".join(text.split())
 
 
 _QUESTION_CUES = frozenset({
@@ -200,16 +250,27 @@ def detect_intent(question):
     Tìm ý định khớp nhất với câu hỏi.
 
     Cách chấm điểm: cộng ĐỘ DÀI của các từ khoá khớp được, chứ không đếm số
-    từ khoá. Lý do là từ khoá dài thì cụ thể hơn nên đáng tin hơn.
-    Không khớp gì thì trả về None.
+    từ khoá. Chặn từ khoá rộng ("lich", "co gi") đè lên câu hỏi âm nhạc,
+    lịch tập hoặc đời sống sinh viên.
     """
     text = prepare_query(question)
     if not text:
         return None
 
+    # Disambiguation: music/student cues should not be hijacked by broad event keywords
+    has_music_or_student = any(
+        _has_phrase(text, cue) for cue in (_MUSIC_STRONG_CUES + _STUDENT_COMPANION_CUES)
+    )
+    has_practice = any(_has_phrase(text, cue) for cue in _PRACTICE_CUES)
+
     best, best_score = None, 0
     for intent in INTENTS:
-        if intent["code"] == "greeting" and not _is_pure_greeting(question, text):
+        code = intent["code"]
+        if code == "greeting" and not _is_pure_greeting(question, text):
+            continue
+        if code == "upcoming_events" and (has_music_or_student or has_practice):
+            continue
+        if code == "club_departments" and has_music_or_student and "ban" not in text.split():
             continue
         score = sum(len(kw.strip()) for kw in intent["keywords"]
                     if _has_phrase(text, kw))
@@ -251,7 +312,7 @@ def _can_use_ai(question, allow_ai):
 def _rule_classification(intent_code: str) -> str:
     if intent_code in PRIVATE_INTENTS:
         return "PRIVATE_PII"
-    if intent_code in ("how_to_register", "club_departments", "recruitment_info"):
+    if intent_code in ("how_to_register", "club_departments", "recruitment_info", "music_tutor", "student_companion"):
         return "PUBLIC"
     return "INTERNAL"
 
@@ -260,18 +321,23 @@ def answer(question, user=None, allow_ai=True, history=None):
     """
     Trả lời một câu hỏi.
     Nhận thêm `history` để duy trì mạch hội thoại đa lượt cho tầng AI.
-
-    Trả về dict: {"text", "intent", "links": [...], "source": "rules" | "ai"}
-    Phần `links` là các đường dẫn gợi ý để người dùng bấm sang trang tương ứng.
-    `source` cho giao diện biết câu trả lời đến từ luật (chính xác) hay từ AI
-    (có thể chưa chính xác) để gắn nhãn tương ứng.
-
-    `allow_ai` là bool hoặc callback giữ lượt nguyên tử trước khi gọi AI.
     """
+    blocked, block_msg = is_security_violation(question)
+    if blocked:
+        return {
+            "intent": "security_deny",
+            "source": "rules",
+            "text": block_msg,
+            "links": [],
+            "meta": {"classification": "PUBLIC"},
+        }
+
     intent = detect_intent(question)
 
     if intent is None:
-        # Chỉ tới đây mới gọi AI - 8 ý định có sẵn LUÔN đi nhánh luật.
+        music_or_comp = answer_music_or_companion(question, user=user)
+        if music_or_comp is not None:
+            return music_or_comp
         if _can_use_ai(question, allow_ai):
             ai_result = _answer_with_ai(question, history=history, user=user)
             if ai_result is not None:
@@ -309,9 +375,37 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
     from . import providers, services
     from .privacy import known_names
 
+    blocked, block_msg = is_security_violation(question)
+    if blocked:
+        yield {"token": block_msg, "done": False}
+        yield {
+            "done": True,
+            "text": block_msg,
+            "links": [],
+            "intent": "security_deny",
+            "source": "rules",
+            "meta": {"classification": "PUBLIC"},
+        }
+        return
+
     intent = detect_intent(question)
 
     if intent is None:
+        music_or_comp = answer_music_or_companion(question, user=user)
+        if music_or_comp is not None:
+            text = music_or_comp["text"]
+            for w in re.findall(r"\S+|\s+", text):
+                yield {"token": w, "done": False}
+            yield {
+                "done": True,
+                "text": text,
+                "links": music_or_comp.get("links", []),
+                "sources": music_or_comp.get("sources", []),
+                "intent": music_or_comp["intent"],
+                "source": "rules",
+                "meta": music_or_comp.get("meta", {"classification": "PUBLIC"}),
+            }
+            return
         if _can_use_ai(question, allow_ai):
             use_live_stream = (
                 _answer_with_ai is _ORIGINAL_ANSWER_WITH_AI
@@ -564,11 +658,43 @@ def _my_tickets(user):
 
 
 def _my_tasks(user):
+    from operations.models import ClubTask, ClubTaskAssignee, TaskWorkflowStatus
+    from organization.permissions import PermissionEngine
     from organizing.models import Task, TaskStatus
 
-    if not user.is_staff_btc:
-        return {"text": "Chức năng công việc chỉ dành cho ban tổ chức.",
+    has_club_access = PermissionEngine.authorize(user, "club.event.view_internal") or getattr(user, "is_staff_btc", False)
+    if not has_club_access:
+        return {"text": "Chức năng công việc chỉ dành cho thành viên và ban tổ chức.",
                 "links": []}
+
+    club_tasks = list(
+        ClubTask.objects.filter(
+            assignees__user=user,
+            assignees__is_active=True,
+        )
+        .exclude(workflow_status__in=(TaskWorkflowStatus.APPROVED, TaskWorkflowStatus.CANCELLED))
+        .select_related("event", "department")
+        .distinct()
+        .order_by("deadline")
+    )
+    if club_tasks:
+        now = timezone.now()
+        lines = [f"Bạn còn {len(club_tasks)} việc chưa xong:"]
+        overdue = 0
+        for t in club_tasks:
+            when = f" - hạn {timezone.localtime(t.deadline):%H:%M %d/%m}" if t.deadline else ""
+            late = ""
+            if t.deadline and t.deadline < now:
+                overdue += 1
+                late = " (QUÁ HẠN)"
+            scope = t.department.name if t.department else (t.event.name if t.event else "CLB")
+            lines.append(f"• {t.title}{when}{late} - {scope}")
+        if overdue:
+            lines.append(f"\nTrong đó {overdue} việc đã quá hạn.")
+        return {
+            "text": "\n".join(lines),
+            "links": [{"label": "Mở trang việc của tôi", "url": reverse("operations:task_list")}],
+        }
 
     tasks = (Task.objects
              .filter(assignee=user)
@@ -650,9 +776,12 @@ def _greeting(user):
 
 
 def _club_departments(user):
-    from organizing.models import Department
+    from organization.models import Department as OrgDepartment
+    from organizing.models import Department as LegacyDepartment
 
-    depts = list(Department.objects.all()[:10])
+    depts = list(OrgDepartment.objects.filter(is_active=True, is_demo=False).order_by("display_order", "id")[:10])
+    if not depts:
+        depts = list(LegacyDepartment.objects.all()[:10])
     if not depts:
         return {
             "text": "Hiện CLB chưa cập nhật danh sách các Ban chuyên môn trên hệ thống.",
@@ -660,7 +789,8 @@ def _club_departments(user):
         }
     lines = ["Các Ban chuyên môn trong CLB hiện gồm:"]
     for d in depts:
-        desc = f" — {d.description}" if d.description else ""
+        desc_raw = getattr(d, "short_description", "") or getattr(d, "description", "")
+        desc = f" — {desc_raw}" if desc_raw else ""
         lines.append(f"• {d.name}{desc}")
     return {
         "text": "\n".join(lines),
@@ -701,6 +831,13 @@ HANDLERS = {
     "seats_left": _seats_left,
     "my_tickets": _my_tickets,
     "my_tasks": _my_tasks,
+    "my_practice": query_my_practice,
+    "my_recruitment_status": query_my_recruitment_status,
+    "my_training": query_my_training,
+    "my_evaluations": query_my_evaluations,
+    "department_ops": query_department_ops,
+    "finance_summary": query_finance_summary,
+    "club_analytics": query_club_analytics,
     "how_to_register": _how_to_register,
     "how_to_checkin": _how_to_checkin,
     "cancel_ticket": _cancel_ticket,

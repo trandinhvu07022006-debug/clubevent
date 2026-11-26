@@ -9,6 +9,7 @@ urlpatterns = [
     path("hoi/", views.chat_api, name="chat_api"),
     path("stream/", views.chat_stream_api, name="chat_stream_api"),
     path("danh-gia/", views.chat_feedback_api, name="chat_feedback_api"),
+    path("ho-so-nhac/", views.music_profile_api, name="music_profile_api"),
     path("huan-luyen/", views.ai_studio, name="studio"),
     path("huan-luyen/kiem-dinh/", views.ai_studio_eval, name="studio_eval"),
     path("huan-luyen/chay-pipeline/", views.ai_studio_run_pipeline, name="studio_run_pipeline"),

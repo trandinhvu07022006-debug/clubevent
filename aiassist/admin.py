@@ -2,15 +2,16 @@ from django.contrib import admin
 from django.http import HttpResponse
 
 from .eval_data import to_jsonl
-from .models import AIInteractionLog, AIPromptProfile, ClubKnowledge
+from .models import (AIInteractionLog, AIPromptProfile, ClubKnowledge,
+                     MusicLearningProfile, MusicPracticeLog)
 
 
 @admin.register(ClubKnowledge)
 class ClubKnowledgeAdmin(admin.ModelAdmin):
-    list_display = ("title", "category", "visibility", "priority", "is_active", "updated_at")
-    list_filter = ("category", "visibility", "is_active")
-    search_fields = ("title", "keywords", "content")
-    list_editable = ("priority", "is_active")
+    list_display = ("knowledge_id", "title", "category", "visibility", "approval_status", "version", "priority", "is_active", "updated_at")
+    list_filter = ("category", "visibility", "approval_status", "is_active")
+    search_fields = ("knowledge_id", "title", "keywords", "content")
+    list_editable = ("priority", "is_active", "approval_status")
 
 
 @admin.register(AIPromptProfile)

@@ -1,0 +1,41 @@
+{
+  "version": "2.0",
+  "new_cases": 200,
+  "total_cases": 317,
+  "new_variants": 64,
+  "total_variants": 94,
+  "new_knowledge_candidates": 24,
+  "total_knowledge_candidates": 46,
+  "new_cases_by_topic": {
+    "join": 16,
+    "student": 16,
+    "guitar": 16,
+    "vocal": 16,
+    "instruments": 16,
+    "theory": 16,
+    "band": 16,
+    "stage": 16,
+    "equipment": 16,
+    "creative": 16,
+    "community": 16,
+    "daily": 16,
+    "edge": 8
+  },
+  "new_cases_by_route": {
+    "public_kb": 39,
+    "general_coaching": 141,
+    "public_db": 3,
+    "authorized_db": 10,
+    "clarify": 3,
+    "deny": 3,
+    "fallback": 1
+  },
+  "all_knowledge_inactive": true,
+  "validation": "UTF-8 JSONL parse, unique case/knowledge IDs, unique normalized canonical questions, field lengths, inactive flags; no chatbot test",
+  "files": {
+    "kmg_ai_knowledge_candidates.jsonl": "4114ccc2d92a996da3930ab1f7027ab9034e8a3e7be1170477c369ee224d5ab1",
+    "kmg_ai_music_knowledge_delta.jsonl": "66df87699c2560a1a927bc44daf490e8db973ca2c3019635d94e468aaaeffa8f",
+    "kmg_ai_music_scenarios_delta.jsonl": "8f38c5cfd89ca92a876cb2dc0b82fccf9aaa6abd92c4a3fa362421688e9b473e",
+    "kmg_ai_scenario_bank.jsonl": "f054a0171fb5d5cb2099b1a671bde3548deffe005733da97387bb2ddfaf1f560"
+  }
+}

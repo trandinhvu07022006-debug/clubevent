@@ -9,8 +9,9 @@ from django.conf import settings
 from django.utils import timezone
 
 from events.models import Event, EventStatus, EventVisibility
-from organizing.models import Department
+from organization.models import Department as OrgDepartment
 from organization.permissions import PermissionEngine
+from organizing.models import Department as LegacyDepartment
 from recruitment.models import RecruitmentRound
 
 from .chatbot import normalize, prepare_query
@@ -19,7 +20,7 @@ from .core.contracts import Actor, Message, ModelProvider, ModelReply, ToolCall
 from .core.retrieval import Document, search as bm25_search
 from .core.tools import Field, ReadTool, ToolRegistry
 from .egress import DataClassification, max_classification
-from .models import ClubKnowledge, KnowledgeVisibility
+from .models import ApprovalStatus, ClubKnowledge, KnowledgeVisibility
 from .privacy import known_names, redact, sanitize_untrusted_input
 from .services import RETRIEVAL_STOPWORDS, _ask_ai
 
@@ -89,9 +90,11 @@ _KB_PERMISSION_MAP = {
 
 
 def _kb_documents() -> list[tuple[ClubKnowledge, Document]]:
-    """Build normalized BM25 documents for active ClubKnowledge with classification permissions."""
+    """Build normalized BM25 documents for active, approved ClubKnowledge with classification permissions."""
     docs: list[tuple[ClubKnowledge, Document]] = []
-    for item in ClubKnowledge.objects.filter(is_active=True).order_by("priority", "-updated_at"):
+    for item in ClubKnowledge.objects.filter(
+        is_active=True, approval_status=ApprovalStatus.APPROVED
+    ).order_by("priority", "-updated_at"):
         norm_text = prepare_query(f"{item.title} {item.keywords} {item.content}")
         perm = _KB_PERMISSION_MAP.get(item.visibility, "club.event.view_internal")
         docs.append((
@@ -150,10 +153,17 @@ def _tool_search_club_knowledge(actor: Actor, args: Mapping[str, Any]) -> list[d
 
 
 def _tool_get_club_overview(actor: Actor, args: Mapping[str, Any]) -> dict:
-    depts = [
-        {"name": redact(d.name), "description": redact((d.description or "")[:160])}
-        for d in Department.objects.all().order_by("order", "id")[:12]
-    ]
+    org_depts = list(OrgDepartment.objects.filter(is_active=True, is_demo=False).order_by("display_order", "id")[:12])
+    if org_depts:
+        depts = [
+            {"name": redact(d.name), "description": redact((d.short_description or d.description or "")[:160])}
+            for d in org_depts
+        ]
+    else:
+        depts = [
+            {"name": redact(d.name), "description": redact((d.description or "")[:160])}
+            for d in LegacyDepartment.objects.all().order_by("order", "id")[:12]
+        ]
     rec = RecruitmentRound.current() or RecruitmentRound.next_upcoming()
     rec_info = None
     if rec:

@@ -1100,7 +1100,11 @@ def _knowledge_score(query: str, tokens: set, item) -> int:
             has_title_or_kw = True
         elif token in weak:
             weak_hits += 1
-    # Chỉ nhận khớp thân bài không kèm tiêu đề/từ khoá khi có >= 4 từ trùng
+    # Chỉ nhận khớp thân bài không kèm tiêu đề/từ khoá khi có >= 4 từ trùng;
+    # nếu chỉ khớp 1 từ đơn lẻ ở tiêu đề (không khớp cụm từ khoá) thì cần >= 2 từ phụ ở thân bài
+    # để tránh nhiễu đồng âm kiểu "lịch (thi) ... trường" khớp "lịch tập ... trưởng ban".
+    if has_title_or_kw and score < 3 and weak_hits < 2:
+        return score
     score += weak_hits if (has_title_or_kw or weak_hits >= 4) else min(weak_hits, 2)
     return score
 
@@ -1126,16 +1130,25 @@ def visible_knowledge_levels(user=None) -> tuple[str, ...]:
 
 
 def retrieve_knowledge_with_sources(
-    query: str = "", limit: int = 4, user=None, *, return_classification: bool = False
+    query: str = "", limit: int = 5, user=None, *, return_classification: bool = False
 ):
     """
-    Hybrid RAG nhẹ (BM25 + so khớp từ khoá tiếng Việt bỏ dấu) trên Kho tri thức CLB.
-    Chỉ truy xuất các mục nằm trong phạm vi quyền (`PUBLIC`, `INTERNAL`, `CONFIDENTIAL`).
+    Hybrid RAG nhẹ (BM25 + so khớp từ khoá tiếng Việt bỏ dấu + metadata/approval) trên Kho tri thức CLB.
+    Chỉ truy xuất các mục đã phê duyệt (`APPROVED`), còn hiệu lực và nằm trong phạm vi quyền.
     """
     try:
-        from .models import ClubKnowledge
+        from django.db.models import Q
+        from django.utils import timezone
+        from .models import ApprovalStatus, ClubKnowledge
         allowed_levels = visible_knowledge_levels(user)
-        items = list(ClubKnowledge.objects.filter(is_active=True, visibility__in=allowed_levels))
+        today = timezone.localdate()
+        items = list(
+            ClubKnowledge.objects.filter(
+                is_active=True,
+                approval_status=ApprovalStatus.APPROVED,
+                visibility__in=allowed_levels,
+            ).filter(Q(effective_date__isnull=True) | Q(effective_date__lte=today))
+        )
     except Exception:
         logger.warning("Không đọc được Kho tri thức CLB", exc_info=True)
         return ("", [], DataClassification.PUBLIC.value) if return_classification else ("", [])
@@ -1182,10 +1195,14 @@ def retrieve_knowledge_with_sources(
     highest_cls = DataClassification.PUBLIC.value
     for _, item in scored[:limit]:
         title_clean = sanitize_untrusted_input(redact(item.title))
-        snippet = sanitize_untrusted_input(redact(" ".join(item.content.split())[:350]))
+        snippet = sanitize_untrusted_input(redact(" ".join(item.content.split())[:650]))
         cat = item.get_category_display()
         lines.append(f"- [{cat}] {title_clean}: {snippet}")
-        sources.append({"title": title_clean, "category": cat})
+        src_entry = {"title": title_clean, "category": cat, "visibility": item.visibility}
+        if item.knowledge_id:
+            src_entry["knowledge_id"] = item.knowledge_id
+            src_entry["version"] = item.version
+        sources.append(src_entry)
         highest_cls = max_classification(highest_cls, item.visibility)
     joined = "\n".join(lines)
     if return_classification:
@@ -1216,7 +1233,8 @@ def build_assistant_context(
     from django.utils import timezone
 
     from events.models import Event, EventStatus, EventVisibility
-    from organizing.models import Department
+    from organization.models import Department as OrgDepartment
+    from organizing.models import Department as LegacyDepartment
     from recruitment.models import RecruitmentRound
 
     now = timezone.now()
@@ -1251,11 +1269,16 @@ def build_assistant_context(
         "\n".join(blocks) if blocks else "(Hiện chưa có sự kiện công khai nào.)"
     ]
 
-    # Nạp thông tin Các Ban chuyên môn
-    depts = list(Department.objects.all()[:12])
+    # Nạp thông tin Các Ban chuyên môn (ưu tiên model organization hiện hành)
+    depts = list(OrgDepartment.objects.filter(is_active=True, is_demo=False).order_by("display_order", "id")[:12])
+    if not depts:
+        depts = list(LegacyDepartment.objects.all()[:12])
     if depts:
         dept_lines = [
-            f"- {d.name}" + (f": {d.description[:120]}" if d.description else "")
+            f"- {d.name}" + (
+                f": {(getattr(d, 'short_description', '') or getattr(d, 'description', ''))[:120]}"
+                if (getattr(d, 'short_description', '') or getattr(d, 'description', '')) else ""
+            )
             for d in depts
         ]
         sections.append("CÁC BAN CHUYÊN MÔN CỦA CLB:\n" + "\n".join(dept_lines))

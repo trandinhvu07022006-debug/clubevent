@@ -58,7 +58,11 @@ class IntentAndHybridRetrievalTests(TestCase):
         self.assertIn("chuyển nhượng vé", text)
         self.assertEqual(
             sources,
-            [{"title": self.transfer_kb.title, "category": self.transfer_kb.get_category_display()}],
+            [{
+                "title": self.transfer_kb.title,
+                "category": self.transfer_kb.get_category_display(),
+                "visibility": "PUBLIC",
+            }],
         )
         noise_text, noise_sources = retrieve_knowledge_with_sources("tỷ giá đô hôm nay")
         self.assertEqual(noise_text, "")

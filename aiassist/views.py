@@ -11,9 +11,10 @@ from django.contrib.auth.views import redirect_to_login
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.management import CommandError, call_command
-from django.db.models import Q
+from django.db.models import Avg, Q
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.security import is_rate_limited
@@ -24,8 +25,9 @@ from .egress import DataClassification, normalize_classification
 from .eval_data import to_jsonl
 from .management.commands.export_finetune_dataset import build_finetune_records
 from .models import (AIInteractionLog, AIPromptProfile, AITaskKey,
-                     ClubKnowledge, FeedbackRating, KnowledgeCategory,
-                     KnowledgeVisibility)
+                     ApprovalStatus, ClubKnowledge, FeedbackRating,
+                     KnowledgeCategory, KnowledgeVisibility,
+                     MusicLearningProfile, MusicLevel, MusicPracticeLog)
 from .privacy import known_names, redact
 from .services import visible_knowledge_levels
 
@@ -70,9 +72,120 @@ def _studio_required(view_func):
     return wrapper
 
 
+def _suggestions_for_user(user) -> list[str]:
+    """Gợi ý câu hỏi phù hợp theo vai trò người dùng (không lộ tính năng vượt quyền)."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return [
+            "KMG là gì?",
+            "CLB có những ban nào?",
+            "Sắp tới có sự kiện gì?",
+            "Lập lộ trình 7 ngày học guitar 15 phút/ngày",
+            "Đăng ký vé thế nào?",
+        ]
+    if PermissionEngine.authorize(user, "club.event.approve"):
+        return [
+            "Chỉ số vận hành CLB",
+            "Tổng hợp công việc các Ban",
+            "Tối nay có lịch tập không?",
+            "Lập lộ trình 7 ngày học guitar 15 phút/ngày",
+            "Sắp tới có sự kiện gì?",
+        ]
+    if PermissionEngine.authorize(user, "club.event.view_internal"):
+        return [
+            "Tối nay có lịch tập không?",
+            "Việc của tôi có gì?",
+            "Lập lộ trình 7 ngày học guitar 15 phút/ngày",
+            "Tiến độ học nhạc của tôi",
+            "Vé của tôi thế nào?",
+        ]
+    return list(SUGGESTIONS)
+
+
 def chat_page(request):
     """Trang chat đầy đủ, ai cũng vào được."""
-    return render(request, "aiassist/chat.html", {"suggestions": SUGGESTIONS})
+    return render(request, "aiassist/chat.html", {"suggestions": _suggestions_for_user(request.user)})
+
+
+def music_profile_api(request):
+    """
+    Quản lý hồ sơ học nhạc cá nhân hóa (GET/POST/DELETE):
+    cho phép người dùng xem, bật/tắt cá nhân hóa, cập nhật mục tiêu hoặc xóa dữ liệu.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Vui lòng đăng nhập."}, status=401)
+
+    if request.method == "GET":
+        prof = MusicLearningProfile.objects.filter(user=request.user).first()
+        if not prof:
+            return JsonResponse({"configured": False, "personalization_enabled": True})
+        return JsonResponse({
+            "configured": True,
+            "personalization_enabled": prof.personalization_enabled,
+            "instrument": prof.instrument,
+            "level": prof.level,
+            "goal": prof.goal,
+            "daily_minutes": prof.daily_minutes,
+            "favorite_genres": prof.favorite_genres,
+            "current_challenges": prof.current_challenges,
+        })
+
+    if request.method == "DELETE":
+        MusicLearningProfile.objects.filter(user=request.user).delete()
+        return JsonResponse({"status": "deleted"})
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Phương thức không hỗ trợ."}, status=405)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"error": "Dữ liệu không hợp lệ."}, status=400)
+
+    if payload.get("action") == "delete":
+        MusicLearningProfile.objects.filter(user=request.user).delete()
+        return JsonResponse({"status": "deleted"})
+
+    prof, _ = MusicLearningProfile.objects.get_or_create(user=request.user)
+    if "personalization_enabled" in payload:
+        prof.personalization_enabled = bool(payload["personalization_enabled"])
+    if "instrument" in payload:
+        prof.instrument = str(payload["instrument"])[:64].strip() or prof.instrument
+    if payload.get("level") in MusicLevel.values:
+        prof.level = payload["level"]
+    if "goal" in payload:
+        prof.goal = str(payload["goal"])[:200].strip()
+    if "daily_minutes" in payload:
+        try:
+            prof.daily_minutes = max(5, min(int(payload["daily_minutes"]), 240))
+        except (TypeError, ValueError):
+            pass
+    if "favorite_genres" in payload:
+        prof.favorite_genres = str(payload["favorite_genres"])[:160].strip()
+    if "current_challenges" in payload:
+        prof.current_challenges = str(payload["current_challenges"])[:500].strip()
+    prof.save()
+
+    if payload.get("log_topic"):
+        try:
+            dur = max(5, min(int(payload.get("log_minutes", prof.daily_minutes)), 240))
+        except (TypeError, ValueError):
+            dur = prof.daily_minutes
+        try:
+            rating = max(1, min(int(payload.get("log_rating", 3)), 5))
+        except (TypeError, ValueError):
+            rating = 3
+        MusicPracticeLog.objects.create(
+            profile=prof,
+            duration_minutes=dur,
+            focus_topic=str(payload["log_topic"])[:160].strip(),
+            completed_exercise=bool(payload.get("completed_exercise", True)),
+            self_rating=rating,
+            notes=str(payload.get("log_notes", ""))[:255].strip(),
+        )
+
+    return JsonResponse({"status": "ok", "personalization_enabled": prof.personalization_enabled})
 
 
 def _is_rate_limited(request):
@@ -370,18 +483,44 @@ def ai_studio(request):
             if title and content:
                 ClubKnowledge.objects.create(
                     title=title, category=category, visibility=visibility,
+                    approval_status=ApprovalStatus.APPROVED,
                     keywords=keywords, content=content, priority=priority,
+                    owner=request.user, is_admin_edited=True,
                 )
                 messages.success(request, f"Đã thêm tri thức RAG: '{title}'.")
             else:
                 messages.error(request, "Vui lòng nhập đầy đủ tiêu đề và nội dung tri thức.")
+
+        elif action == "approve_kb":
+            kb = get_object_or_404(ClubKnowledge, pk=request.POST.get("kb_id"))
+            if kb.visibility == KnowledgeVisibility.CONFIDENTIAL and not can_manage_confidential:
+                raise PermissionDenied("Bạn không có quyền duyệt tri thức CONFIDENTIAL.")
+            kb.approval_status = ApprovalStatus.APPROVED
+            kb.is_active = True
+            kb.is_admin_edited = True
+            hist = list(kb.revision_history or [])
+            hist.append({"action": "approved", "at": timezone.now().isoformat()})
+            kb.revision_history = hist[-20:]
+            kb.save(update_fields=["approval_status", "is_active", "is_admin_edited", "revision_history", "updated_at"])
+            messages.success(request, f"Đã phê duyệt và kích hoạt '{kb.title}'.")
+
+        elif action == "archive_kb":
+            kb = get_object_or_404(ClubKnowledge, pk=request.POST.get("kb_id"))
+            if kb.visibility == KnowledgeVisibility.CONFIDENTIAL and not can_manage_confidential:
+                raise PermissionDenied("Bạn không có quyền lưu trữ tri thức CONFIDENTIAL.")
+            kb.approval_status = ApprovalStatus.ARCHIVED
+            kb.is_active = False
+            kb.is_admin_edited = True
+            kb.save(update_fields=["approval_status", "is_active", "is_admin_edited", "updated_at"])
+            messages.success(request, f"Đã chuyển '{kb.title}' sang trạng thái Lưu trữ.")
 
         elif action == "toggle_kb":
             kb = get_object_or_404(ClubKnowledge, pk=request.POST.get("kb_id"))
             if kb.visibility == KnowledgeVisibility.CONFIDENTIAL and not can_manage_confidential:
                 raise PermissionDenied("Bạn không có quyền sửa tri thức CONFIDENTIAL.")
             kb.is_active = not kb.is_active
-            kb.save(update_fields=["is_active", "updated_at"])
+            kb.is_admin_edited = True
+            kb.save(update_fields=["is_active", "is_admin_edited", "updated_at"])
             messages.success(request, f"Đã {'bật' if kb.is_active else 'tắt'} mục '{kb.title}'.")
 
         elif action == "delete_kb":
@@ -439,11 +578,14 @@ def ai_studio(request):
     rated_total = up_count + down_count
     satisfaction_rate = (up_count * 100 // rated_total) if rated_total else 100
 
+    avg_latency_ms = int(log_scope.aggregate(avg=Avg("latency_ms"))["avg"] or 0)
+
     need_review_logs = log_scope.filter(
         Q(feedback=FeedbackRating.DOWN) | Q(intent="unknown")
     ).order_by("-created_at")[:15]
 
     knowledge_items = ClubKnowledge.objects.filter(visibility__in=allowed_levels)
+    pending_kb_count = knowledge_items.filter(approval_status=ApprovalStatus.PENDING).count()
     profiles_map = {p.task_key: p for p in AIPromptProfile.objects.all()}
     profiles_list = []
     for key, label in AITaskKey.choices:
@@ -464,7 +606,9 @@ def ai_studio(request):
         "down_count": down_count,
         "satisfaction_rate": satisfaction_rate,
         "knowledge_items": knowledge_items,
-        "active_kb_count": knowledge_items.filter(is_active=True).count(),
+        "active_kb_count": knowledge_items.filter(is_active=True, approval_status=ApprovalStatus.APPROVED).count(),
+        "pending_kb_count": pending_kb_count,
+        "avg_latency_ms": avg_latency_ms,
         "profiles_list": profiles_list,
         "need_review_logs": need_review_logs,
         "categories": KnowledgeCategory.choices,
