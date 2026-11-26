@@ -115,9 +115,12 @@ INTENTS = [
     },
 ]
 
-# Câu trả lời của các ý định này chứa dữ liệu riêng của người đang đăng nhập
-# (mã vé, công việc, tên): không đưa vào lịch sử gửi AI, không lưu vào log.
-PRIVATE_INTENTS = frozenset({"my_tickets", "my_tasks", "greeting"})
+# Không đưa câu trả lời chứa dữ liệu riêng/nội bộ vào lịch sử gửi AI hoặc log.
+# Hai ý định sự kiện có thể trả dữ liệu INTERNAL cho thành viên có quyền;
+# loại trừ toàn bộ hai ý định để không phụ thuộc vào quyền tại lượt chat sau.
+PRIVATE_INTENTS = frozenset({
+    "my_tickets", "my_tasks", "greeting", "upcoming_events", "seats_left",
+})
 
 # Câu gợi ý hiện sẵn dưới ô chat để người dùng biết hỏi được gì
 SUGGESTIONS = [
@@ -195,6 +198,13 @@ UNKNOWN_TEXT = ("Mình chưa hiểu câu hỏi này. Mình trả lời được 
                 "công việc được giao, và cách đăng ký hoặc check-in.")
 
 
+def _can_use_ai(question, allow_ai):
+    """Chỉ giữ lượt AI khi thực sự đi vào nhánh AI; vẫn hỗ trợ bool cũ."""
+    if not normalize(question):
+        return False
+    return bool(allow_ai() if callable(allow_ai) else allow_ai)
+
+
 def answer(question, user=None, allow_ai=True, history=None):
     """
     Trả lời một câu hỏi.
@@ -205,13 +215,13 @@ def answer(question, user=None, allow_ai=True, history=None):
     `source` cho giao diện biết câu trả lời đến từ luật (chính xác) hay từ AI
     (có thể chưa chính xác) để gắn nhãn tương ứng.
 
-    `allow_ai=False` khi người dùng đã dùng hết lượt AI (view quyết định).
+    `allow_ai` là bool hoặc callback giữ lượt nguyên tử trước khi gọi AI.
     """
     intent = detect_intent(question)
 
     if intent is None:
         # Chỉ tới đây mới gọi AI - 8 ý định có sẵn LUÔN đi nhánh luật.
-        if allow_ai and normalize(question):
+        if _can_use_ai(question, allow_ai):
             ai_result = _answer_with_ai(question, history=history, user=user)
             if ai_result is not None:
                 return ai_result
@@ -236,7 +246,7 @@ def answer(question, user=None, allow_ai=True, history=None):
 
 def stream_answer(question, user=None, allow_ai=True, history=None):
     """
-    Generator sinh token theo thời gian thực (Server-Sent Events).
+    Generator SSE chia nhỏ câu trả lời đã sinh; chưa stream token từ provider.
     Yield các dict:
       - {"token": str, "done": False}
       - {"done": True, "text": str, "links": list, "intent": str, "source": str}
@@ -244,7 +254,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
     intent = detect_intent(question)
 
     if intent is None:
-        if allow_ai and normalize(question):
+        if _can_use_ai(question, allow_ai):
             ai_result = _answer_with_ai(question, history=history, user=user)
             if ai_result is not None:
                 text = ai_result["text"]
@@ -322,8 +332,15 @@ def _answer_with_ai(question, history=None, user=None):
 
     Link do SERVER tạo từ mã sự kiện đã được kiểm tra, AI không tự viết URL.
     """
+    from django.conf import settings
     from .privacy import known_names
     from .services import AIError, ask_assistant
+
+    if getattr(settings, "AI_FOUNDATION_AGENT", False) and not history:
+        from .adapters import ask_with_foundation
+        foundation_result = ask_with_foundation(question, user=user)
+        if foundation_result is not None:
+            return foundation_result
 
     try:
         data = ask_assistant(question, history=history, names=known_names(user))

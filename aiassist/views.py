@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from accounts.permissions import lead_required
-from core.security import is_rate_limited, record_rate_event
+from core.security import is_rate_limited
 
 from .chatbot import PRIVATE_INTENTS, SUGGESTIONS, answer, stream_answer
 from .eval_data import to_jsonl
@@ -29,10 +29,11 @@ logger = logging.getLogger(__name__)
 RATE_LIMIT = 30
 RATE_WINDOW = 60  # giây
 
-# Giới hạn RIÊNG cho nhánh AI (tốn quota, chậm): tối đa 10 câu trả lời AI mỗi
-# 10 phút mỗi IP. Hết lượt thì trợ lý vẫn trả lời bằng luật như bình thường.
+# Tối đa 10 lượt vào nhánh AI mỗi 10 phút/IP, tính cả lỗi và ngắt kết nối.
+# Đây là ngân sách request chat, chưa phải ngân sách token hoặc số lần retry.
 AI_LIMIT = 10
 AI_WINDOW = 600   # giây
+CHAT_HISTORY_POLICY_VERSION = 2
 
 # Token đánh giá: chỉ người nhận câu trả lời mới có, hết hạn sau 24 giờ.
 FEEDBACK_SALT = "aiassist.feedback"
@@ -54,24 +55,24 @@ def _is_rate_limited(request):
     )
 
 
-def _ai_allowed(request):
-    """Kiểm tra hạn mức nhánh LLM mà chưa ghi nhận tiêu thụ."""
+def _reserve_ai_attempt(request):
+    """Kiểm tra và ghi nhận cùng một thao tác nguyên tử, trước khi gọi AI."""
     return not is_rate_limited(
         request,
         scope="aiassist_llm_budget",
         limit=AI_LIMIT,
         window_seconds=AI_WINDOW,
-        record=False,
+        record=True,
     )
 
 
-def _record_ai_use(request):
-    """Chỉ tính lượt khi AI THẬT SỰ trả lời - câu hỏi đi nhánh luật không tốn lượt."""
-    record_rate_event(
-        request,
-        scope="aiassist_llm_budget",
-        window_seconds=AI_WINDOW,
-    )
+def _load_chat_history(request):
+    """Loại bỏ lịch sử cũ chưa được lọc theo chính sách dữ liệu nội bộ."""
+    if request.session.get("chat_history_policy") != CHAT_HISTORY_POLICY_VERSION:
+        request.session["chat_history"] = []
+        request.session["chat_history_policy"] = CHAT_HISTORY_POLICY_VERSION
+    history = request.session.get("chat_history", [])
+    return list(history) if isinstance(history, list) else []
 
 
 def _log_interaction(question: str, result: dict, user=None,
@@ -157,12 +158,11 @@ def chat_api(request):
         return JsonResponse({"error": "Dữ liệu gửi lên không hợp lệ."},
                             status=400)
 
-    chat_history = request.session.get("chat_history", [])
+    chat_history = _load_chat_history(request)
     started = time.monotonic()
-    result = answer(question, user=request.user, allow_ai=_ai_allowed(request),
-                    history=chat_history)
-    if result.get("source") == "ai":
-        _record_ai_use(request)
+    result = answer(question, user=request.user,
+                    allow_ai=lambda: _reserve_ai_attempt(request),
+                    history=list(chat_history))
 
     _attach_feedback_token(question, result, request.user, started)
 
@@ -176,8 +176,8 @@ def chat_api(request):
 @require_POST
 def chat_stream_api(request):
     """
-    Endpoint SSE trả token thời gian thực (Real-time Streaming via Server-Sent Events).
-    Cho phép hiển thị câu trả lời dạng máy gõ (typewriter) giảm độ trễ cảm nhận.
+    Endpoint SSE chia nhỏ câu trả lời hoàn chỉnh để hiển thị dạng máy gõ.
+    Chưa phải streaming token trực tiếp từ LLM.
     """
     if _is_rate_limited(request):
         return JsonResponse(
@@ -197,8 +197,7 @@ def chat_stream_api(request):
         return JsonResponse({"error": "Dữ liệu gửi lên không hợp lệ."},
                             status=400)
 
-    allow_ai = _ai_allowed(request)
-    chat_history = list(request.session.get("chat_history", []))
+    chat_history = _load_chat_history(request)
 
     # Đảm bảo session key tồn tại trước khi mở stream để Set-Cookie được gửi đúng
     if not request.session.session_key:
@@ -207,15 +206,16 @@ def chat_stream_api(request):
     def sse_event_stream():
         final_result = None
         started = time.monotonic()
-        for chunk in stream_answer(question, user=request.user, allow_ai=allow_ai, history=chat_history):
+        for chunk in stream_answer(
+            question, user=request.user,
+            allow_ai=lambda: _reserve_ai_attempt(request), history=list(chat_history),
+        ):
             if chunk.get("done"):
                 final_result = chunk
                 _attach_feedback_token(question, chunk, request.user, started)
             yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
         if final_result:
-            if final_result.get("source") == "ai":
-                _record_ai_use(request)
             if _remember(chat_history, question, final_result, request.user):
                 request.session["chat_history"] = chat_history[-6:]
                 request.session.modified = True
