@@ -15,31 +15,38 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand
 
+from aiassist.chatbot import PRIVATE_INTENTS
 from aiassist.models import (AIInteractionLog, AIPromptProfile, ClubKnowledge,
                              FeedbackRating)
+from aiassist.privacy import redact
 
 
 def build_finetune_records(fmt: str = "gemini", module: str = "all",
                            include_unrated: bool = False) -> list[dict]:
-    """Tạo danh sách bản ghi huấn luyện sạch (Zero PII) theo định dạng Gemini hoặc OpenAI."""
+    """Tạo danh sách bản ghi huấn luyện sạch (Zero PII & chỉ dữ liệu công khai) theo định dạng Gemini hoặc OpenAI."""
     pairs: list[tuple[str, str, str]] = []
 
     if module in ("all", "chatbot"):
-        qs = AIInteractionLog.objects.exclude(answer_preview="")
+        qs = (AIInteractionLog.objects
+              .exclude(answer_preview="")
+              .exclude(intent__in=PRIVATE_INTENTS))
         qs = qs.exclude(feedback=FeedbackRating.DOWN) if include_unrated else qs.filter(feedback=FeedbackRating.UP)
         for log in qs.order_by("-created_at")[:300]:
-            pairs.append((
-                "Bạn là trợ lý hỏi đáp thân thiện của KMG Club.",
-                log.question,
-                log.answer_preview,
-            ))
+            q_clean = redact(log.question).strip()
+            a_clean = redact(log.answer_preview).strip()
+            if q_clean and a_clean:
+                pairs.append((
+                    "Bạn là trợ lý hỏi đáp thân thiện của KMG Club.",
+                    q_clean,
+                    a_clean,
+                ))
 
         # Kho tri thức CLB (RAG -> Q&A training pairs)
         for kb in ClubKnowledge.objects.filter(is_active=True).order_by("priority", "id"):
             pairs.append((
                 "Bạn là trợ lý hỏi đáp thân thiện của KMG Club. Chỉ trả lời dựa trên thông tin chính thức của CLB.",
                 f"Cho mình hỏi về {kb.title.lower()}?",
-                kb.content.strip(),
+                redact(kb.content.strip()),
             ))
 
         # Thông tin các Ban chuyên môn thực tế
@@ -49,7 +56,7 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 pairs.append((
                     "Bạn là trợ lý hỏi đáp thân thiện của KMG Club.",
                     f"{dept.name} trong CLB phụ trách những việc gì?",
-                    f"{dept.name} phụ trách: {dept.description.strip()}",
+                    f"{dept.name} phụ trách: {redact(dept.description.strip())}",
                 ))
 
     if module in ("all", "marketing"):
@@ -62,7 +69,7 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
             pairs.append((
                 "Bạn là chuyên viên truyền thông sự kiện của KMG Club.",
                 f"Viết mô tả hấp dẫn cho sự kiện '{ev.name}' tại {ev.location} (sức chứa {ev.capacity}).",
-                ev.description.strip(),
+                redact(ev.description.strip()),
             ))
 
     if module in ("all", "tasks"):
@@ -77,10 +84,10 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 continue
             out_tasks = [
                 {
-                    "title": t.title,
+                    "title": redact(t.title)[:200],
                     "department": t.department.name if t.department else "",
                     "priority": t.priority,
-                    "note": t.description[:150] if t.description else "",
+                    "note": redact(t.description[:150]) if t.description else "",
                 }
                 for t in task_list
             ]
@@ -91,8 +98,12 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
             ))
 
     if module in ("all", "postmortem"):
+        from events.models import EventVisibility
         from organizing.models import EventPostMortem
-        for pm in EventPostMortem.objects.select_related("event").exclude(executive_summary="")[:100]:
+        for pm in (EventPostMortem.objects
+                   .select_related("event")
+                   .filter(event__visibility=EventVisibility.PUBLIC)
+                   .exclude(executive_summary="")[:100]):
             stats = pm.stats_snapshot or {}
             inp = (
                 f"Lập báo cáo điều hành cho sự kiện '{pm.event.name}': "
@@ -101,12 +112,12 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 f"đánh giá {stats.get('avg_rating', 0)}/5 sao."
             )
             out = json.dumps({
-                "executive_summary": pm.executive_summary,
-                "highlights": pm.highlights,
-                "financial_analysis": pm.financial_analysis,
-                "feedback_analysis": pm.feedback_analysis,
-                "lessons_learned": pm.lessons_learned,
-                "action_items": pm.action_items,
+                "executive_summary": redact(pm.executive_summary),
+                "highlights": [redact(str(x)) for x in (pm.highlights or [])],
+                "financial_analysis": redact(pm.financial_analysis),
+                "feedback_analysis": redact(pm.feedback_analysis),
+                "lessons_learned": [redact(str(x)) for x in (pm.lessons_learned or [])],
+                "action_items": [redact(str(x)) for x in (pm.action_items or [])],
             }, ensure_ascii=False)
             pairs.append((
                 "Bạn là Cố vấn Điều hành và Quản lý Sự kiện KMG Club.",
@@ -115,12 +126,23 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
             ))
 
     if module in ("all", "proposals"):
-        from programs.models import DepartmentProposal
-        for prop in DepartmentProposal.objects.select_related("department").exclude(summary="")[:100]:
+        from programs.models import DepartmentProposal, ProposalStatus
+        for prop in (DepartmentProposal.objects
+                     .select_related("department", "proposer")
+                     .filter(status=ProposalStatus.APPROVED)
+                     .exclude(summary="")[:100]):
+            proposer = getattr(prop, "proposer", None)
+            names = tuple(filter(None, (
+                getattr(proposer, "full_name", ""),
+                getattr(proposer, "display_name", ""),
+            )))
+            title_clean = redact(prop.title, names)[:160]
+            summary_clean = redact(prop.summary, names)[:300]
+            obj_clean = redact((prop.objectives or prop.summary), names)[:300]
             pairs.append((
                 "Bạn là Cố vấn thẩm định đề xuất hoạt động CLB sinh viên.",
-                f"Thẩm định đề xuất '{prop.title}' của {prop.department.name}: {prop.summary[:300]}",
-                f"Đề xuất '{prop.title}' thuộc {prop.department.name} với mục tiêu: {(prop.objectives or prop.summary)[:300]}",
+                f"Thẩm định đề xuất '{title_clean}' của {prop.department.name}: {summary_clean}",
+                f"Đề xuất '{title_clean}' thuộc {prop.department.name} với mục tiêu: {obj_clean}",
             ))
 
     if module == "all":

@@ -21,7 +21,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import AuditLog, User as UserModel, canonical_email
-from events.models import EventStatus, TicketType
+from events.models import (EventStatus, EventVisibility, TicketType,
+                           can_view_internal_events)
 from notifications.models import NotificationKind
 from notifications.services import notify_on_commit
 
@@ -176,7 +177,8 @@ def _issue_tickets(user, ticket_type, quantity, booking_ref) -> list[Ticket]:
 
 
 @transaction.atomic
-def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]:
+def book_tickets(user: User, ticket_type_id: int, quantity: int,
+                 event_id: int | None = None) -> list[Ticket]:
     """
     Đặt `quantity` vé loại `ticket_type_id` cho `user`.
 
@@ -201,6 +203,8 @@ def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]
     """
     if quantity < 1:
         raise BookingError("Số lượng vé phải lớn hơn 0.")
+    if getattr(user, "is_locked", False):
+        raise BookingError("Tài khoản của bạn đang bị khoá.")
     _require_verified(user)
 
     # (1) KHOÁ DÒNG loại vé. Mọi kiểm tra bên dưới đọc dữ liệu đã được khoá.
@@ -213,6 +217,10 @@ def book_tickets(user: User, ticket_type_id: int, quantity: int) -> list[Ticket]
         raise BookingError("Loại vé không tồn tại.")
 
     event = ticket_type.event
+    if event_id is not None and ticket_type.event_id != event_id:
+        raise BookingError("Loại vé không thuộc sự kiện này.")
+    if event.visibility == EventVisibility.INTERNAL and not can_view_internal_events(user):
+        raise BookingError("Sự kiện nội bộ chỉ dành cho thành viên CLB.")
 
     # (2) Kiểm tra trạng thái sự kiện
     if event.status != EventStatus.OPEN:
@@ -725,6 +733,8 @@ def join_waitlist(user: User, ticket_type_id: int) -> WaitlistEntry:
     Mọi join cho cùng loại vé phải xếp hàng chờ khoá dòng TicketType, nên
     kiểm tra "đã chờ chưa" rồi mới tạo là an toàn trên cả MySQL.
     """
+    if getattr(user, "is_locked", False):
+        raise BookingError("Tài khoản của bạn đang bị khoá.")
     _require_verified(user)
     try:
         tt = (TicketType.objects.select_for_update().select_related("event")
@@ -732,6 +742,8 @@ def join_waitlist(user: User, ticket_type_id: int) -> WaitlistEntry:
     except TicketType.DoesNotExist:
         raise BookingError("Loại vé không tồn tại.")
     ev = tt.event
+    if ev.visibility == EventVisibility.INTERNAL and not can_view_internal_events(user):
+        raise BookingError("Sự kiện nội bộ chỉ dành cho thành viên CLB.")
     if ev.status != EventStatus.OPEN or timezone.now() > ev.register_deadline:
         raise BookingError("Sự kiện không còn nhận đăng ký.")
     if tt.remaining > 0:

@@ -53,3 +53,40 @@ class SecretGuardTests(SimpleTestCase):
     def test_development_still_boots_without_keys(self):
         result = self._boot("True", **{name: None for name in KEY_NAMES})
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_cache_url_and_proxy_headers_configured_when_set(self):
+        probe = """
+import json
+import config.settings as s
+print(json.dumps({
+    "backend": s.CACHES["default"]["BACKEND"],
+    "location": s.CACHES["default"].get("LOCATION", ""),
+    "trust_xff": s.TRUST_X_FORWARDED_FOR,
+    "proxy_ssl": list(s.SECURE_PROXY_SSL_HEADER or ()),
+}))
+"""
+        env = {k: v for k, v in os.environ.items() if k not in KEY_NAMES}
+        for name in KEY_NAMES:
+            env[name] = f"khoa-rieng-{name}-" + "x" * 32
+        with tempfile.TemporaryDirectory() as logs:
+            env.update({
+                "KMG_ENV_FILE": "",
+                "DEBUG": "False",
+                "DB_ENGINE": "sqlite",
+                "DATABASE_URL": "",
+                "CACHE_URL": "redis://127.0.0.1:6379/1",
+                "TRUST_PROXY_HEADERS": "True",
+                "TRUST_X_FORWARDED_FOR": "True",
+                "LOG_ROOT": logs,
+                "PYTHONIOENCODING": "utf-8",
+            })
+            res = subprocess.run(
+                [sys.executable, "-c", probe], cwd=settings.BASE_DIR, env=env,
+                capture_output=True, encoding="utf-8", timeout=60,
+            )
+        self.assertEqual(res.returncode, 0, res.stderr)
+        data = __import__("json").loads(res.stdout.strip())
+        self.assertEqual(data["backend"], "django.core.cache.backends.redis.RedisCache")
+        self.assertEqual(data["location"], "redis://127.0.0.1:6379/1")
+        self.assertTrue(data["trust_xff"])
+        self.assertEqual(data["proxy_ssl"], ["HTTP_X_FORWARDED_PROTO", "https"])

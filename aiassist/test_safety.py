@@ -307,3 +307,80 @@ class PlatformAIPrivacyTests(SimpleTestCase):
     def test_social_digest(self, mock_ai):
         summarize_social_feed([self.TEXT], names=("Nguyễn Văn An",))
         self.assert_clean(mock_ai)
+
+
+class ExportFinetuneIsolationTests(TestCase):
+    def test_export_excludes_internal_events_unapproved_proposals_and_pii(self):
+        from aiassist.management.commands.export_finetune_dataset import build_finetune_records
+        from events.models import EventVisibility
+        from organizing.models import EventPostMortem
+        from organization.models import Department
+        from programs.models import DepartmentProposal, ProposalStatus
+
+        user = User.objects.create_user(
+            username="exp_user", password="x", full_name="Trần Thị Minh", email="minh@kmg.vn"
+        )
+        dept = Department.objects.create(name="Ban Kỹ thuật", code="KY_THUAT", slug="ky-thuat")
+        now = timezone.now()
+
+        internal_ev = Event.objects.create(
+            name="Họp nội bộ mật",
+            location="Phòng B302",
+            starts_at=now - timezone.timedelta(days=2),
+            register_deadline=now - timezone.timedelta(days=3),
+            status=EventStatus.DONE,
+            visibility=EventVisibility.INTERNAL,
+        )
+        EventPostMortem.objects.create(
+            event=internal_ev,
+            executive_summary="Báo cáo nội bộ tuyệt mật 0912345678",
+        )
+
+        public_ev = Event.objects.create(
+            name="Đêm nhạc công khai",
+            location="Sảnh A",
+            starts_at=now - timezone.timedelta(days=1),
+            register_deadline=now - timezone.timedelta(days=2),
+            status=EventStatus.DONE,
+            visibility=EventVisibility.PUBLIC,
+        )
+        EventPostMortem.objects.create(
+            event=public_ev,
+            executive_summary="Tổng kết thành công, liên hệ 0987654321",
+        )
+
+        DepartmentProposal.objects.create(
+            code="DX-DRAFT-1",
+            title="Đề xuất nháp bí mật",
+            department=dept,
+            proposer=user,
+            summary="Kế hoạch chưa duyệt",
+            status=ProposalStatus.DRAFT,
+        )
+        DepartmentProposal.objects.create(
+            code="DX-APP-1",
+            title="Workshop công khai",
+            department=dept,
+            proposer=user,
+            summary="Phụ trách Trần Thị Minh sđt 0912345678",
+            objectives="Đào tạo thành viên mới",
+            status=ProposalStatus.APPROVED,
+        )
+        AIInteractionLog.objects.create(
+            question="Sắp tới có sự kiện gì?",
+            intent="upcoming_events",
+            source="rules",
+            answer_preview="INTERNAL-EVENT-SECRET",
+            feedback=FeedbackRating.UP,
+        )
+
+        records = build_finetune_records(fmt="openai", module="all", include_unrated=False)
+        blob = json.dumps(records, ensure_ascii=False)
+        self.assertNotIn("Họp nội bộ mật", blob)
+        self.assertNotIn("Báo cáo nội bộ tuyệt mật", blob)
+        self.assertNotIn("Đề xuất nháp bí mật", blob)
+        self.assertNotIn("INTERNAL-EVENT-SECRET", blob)
+        self.assertNotIn("0912345678", blob)
+        self.assertNotIn("0987654321", blob)
+        self.assertNotIn("Trần Thị Minh", blob)
+        self.assertIn("Workshop công khai", blob)

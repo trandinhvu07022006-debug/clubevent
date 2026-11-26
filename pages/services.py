@@ -10,7 +10,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import AuditLog, Role, User
-from events.models import Event, EventStatus
+from events.models import (Event, EventStatus, EventVisibility,
+                           can_view_internal_events)
 from events.services import upcoming_for_user
 from feedback.models import Feedback
 from organizing.models import Department, Task, TaskStatus
@@ -24,9 +25,10 @@ from registrations.services import user_stats
 # TRANG CHỦ CÔNG KHAI
 # ---------------------------------------------------------------------------
 def public_events(limit=3):
-    """Sự kiện sắp tới đang mở đăng ký (ưu tiên) rồi tới sắp diễn ra."""
+    """Sự kiện CÔNG KHAI sắp tới đang mở đăng ký (ưu tiên) rồi tới sắp diễn ra."""
     now = timezone.now()
     return list(Event.objects.filter(
+        visibility=EventVisibility.PUBLIC,
         starts_at__gte=now,
         status__in=[EventStatus.OPEN, EventStatus.CLOSED],
     ).prefetch_related("ticket_types").order_by("starts_at")[:limit])
@@ -38,8 +40,9 @@ def club_numbers():
     Không bịa số: CSDL trống thì trả 0 và template tự ẩn dải này.
     """
     return {
-        "events_done": Event.objects.filter(status=EventStatus.DONE).count(),
-        "events_total": Event.objects.exclude(
+        "events_done": Event.objects.filter(
+            visibility=EventVisibility.PUBLIC, status=EventStatus.DONE).count(),
+        "events_total": Event.objects.filter(visibility=EventVisibility.PUBLIC).exclude(
             status__in=[EventStatus.DRAFT, EventStatus.CANCELLED]).count(),
         "members": User.objects.filter(is_locked=False, is_superuser=False).count(),
         "checkins": Ticket.objects.filter(status=TicketStatus.CHECKED_IN).count(),
@@ -110,13 +113,16 @@ def personal_space(user):
         starts_at__gte=window, starts_at__lte=now,
     ).exclude(pk__in=rated).distinct()[:3])
 
-    # Gợi ý: sự kiện đang mở mà mình CHƯA có vé, gần nhất trước
+    # Gợi ý: sự kiện đang mở mà mình CHƯA có vé, gần nhất trước (ẩn sự kiện nội bộ với Khách)
     mine = Ticket.objects.filter(user=user).exclude(
         status=TicketStatus.CANCELLED).values_list("event_id", flat=True)
-    suggestions = list(Event.objects.filter(
+    suggestions_qs = Event.objects.filter(
         status=EventStatus.OPEN, starts_at__gte=now, register_deadline__gte=now,
-    ).exclude(pk__in=mine).prefetch_related("ticket_types")
-        .order_by("starts_at")[:3])
+    ).exclude(pk__in=mine)
+    if not can_view_internal_events(user):
+        suggestions_qs = suggestions_qs.filter(visibility=EventVisibility.PUBLIC)
+    suggestions = list(suggestions_qs.prefetch_related("ticket_types")
+                       .order_by("starts_at")[:3])
 
     steps, steps_done = onboarding_steps(user)
     # Khách: tình trạng đơn ứng tuyển / đợt tuyển. Thành viên: Ban của mình.

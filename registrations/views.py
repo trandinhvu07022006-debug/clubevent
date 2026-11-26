@@ -20,7 +20,8 @@ from core import once
 from core.pagination import paginate
 from core.qr import qr_data_uri
 from core.security import safe_csv_row
-from events.models import Event, TicketType
+from events.models import (Event, EventStatus, EventVisibility, TicketType,
+                           can_view_internal_events)
 
 from .models import Ticket, TicketStatus, WaitlistEntry, WaitlistStatus
 from .services import (CHECKIN_OK, CHECKIN_USED, CHECKIN_VERIFY, BookingError,
@@ -45,10 +46,19 @@ def _to_verify(request, event_id):
     return redirect(f"{reverse('accounts:verify_email')}?{urlencode({'next': next_url})}")
 
 
+def _require_event_visible(user, event: Event) -> None:
+    """Chặn người dùng không đủ quyền truy cập sự kiện nội bộ hoặc bản nháp."""
+    if event.visibility == EventVisibility.INTERNAL and not can_view_internal_events(user):
+        raise Http404
+    if event.status == EventStatus.DRAFT and not (user.is_authenticated and user.is_staff_btc):
+        raise Http404
+
+
 @login_required
 def book(request, event_id):
     """F4.1 - Đăng ký tham gia / đặt vé."""
     event = get_object_or_404(Event, pk=event_id)
+    _require_event_visible(request.user, event)
 
     if request.method != "POST":
         return redirect("events:detail", pk=event_id)
@@ -65,7 +75,7 @@ def book(request, event_id):
         return redirect("events:detail", pk=event_id)
 
     try:
-        tickets = book_tickets(request.user, ticket_type_id, quantity)
+        tickets = book_tickets(request.user, ticket_type_id, quantity, event_id=event.pk)
     except EmailNotVerified:
         return _to_verify(request, event_id)
     except BookingError as e:
@@ -186,7 +196,8 @@ def transfer(request, pk):
 @login_required
 def waitlist_join(request, ticket_type_id):
     """F4.8 - Vào danh sách chờ của loại vé đã hết chỗ."""
-    tt = get_object_or_404(TicketType, pk=ticket_type_id)
+    tt = get_object_or_404(TicketType.objects.select_related("event"), pk=ticket_type_id)
+    _require_event_visible(request.user, tt.event)
     try:
         entry = join_waitlist(request.user, tt.pk)
         messages.success(

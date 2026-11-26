@@ -1,0 +1,70 @@
+name: Clubevent CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: kmg_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=3s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt redis
+      - name: Django system & migration checks
+        run: |
+          python manage.py check --settings=config.settings_test
+          python manage.py makemigrations --check --dry-run --settings=config.settings_test
+      - name: Simulated production deploy check
+        env:
+          KMG_ENV_FILE: ""
+          DEBUG: "False"
+          DB_ENGINE: sqlite
+          ALLOWED_HOSTS: clubevent.example.com
+          USE_HTTPS: "True"
+          SECRET_KEY: ci-deploy-check-secret-key-0123456789abcdef0123456789
+          CERT_SIGNING_KEY: ci-deploy-check-cert-key-0123456789abcdef0123456789
+          CHAT_MASTER_KEK: ci-deploy-check-chat-key-0123456789abcdef0123456789
+        run: python manage.py check --deploy --settings=config.settings
+      - name: Run full test suite (MySQL + Redis)
+        env:
+          KMG_TEST_DB_ENGINE: mysql
+          KMG_TEST_DB_NAME: kmg_ci
+          KMG_TEST_DB_TEST_NAME: test_kmg_ci
+          KMG_TEST_DB_HOST: 127.0.0.1
+          KMG_TEST_DB_PORT: "3306"
+          KMG_TEST_DB_USER: root
+          KMG_TEST_DB_PASSWORD: ""
+          KMG_TEST_REDIS_URL: redis://127.0.0.1:6379/1
+        run: python manage.py test --settings=config.settings_test

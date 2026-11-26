@@ -24,8 +24,15 @@ def env_bool(key, default=False):
 
 
 # --- Đọc file .env thủ công (không cần thư viện ngoài) ---
-_env_file = BASE_DIR / ".env"
-if _env_file.exists():
+_env_override = os.environ.get("KMG_ENV_FILE")
+if _env_override is None:
+    _env_file = BASE_DIR / ".env"
+elif _env_override.strip():
+    _env_file = Path(_env_override.strip())
+else:
+    _env_file = None
+
+if _env_file is not None and _env_file.exists():
     for _line in _env_file.read_text(encoding="utf-8").splitlines():
         _line = _line.strip()
         if not _line or _line.startswith("#") or "=" not in _line:
@@ -45,6 +52,11 @@ ALLOWED_HOSTS = [h for h in env("ALLOWED_HOSTS", "*").split(",") if h]
 # Bắt buộc khi truy cập qua HTTPS của tên miền khác (ngrok, host thật), nếu
 # không mọi form POST bị chặn CSRF 403. Ví dụ: https://abc.ngrok-free.app
 CSRF_TRUSTED_ORIGINS = [o for o in env("CSRF_TRUSTED_ORIGINS", "").split(",") if o]
+TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS", False)
+TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", False)
+if TRUST_PROXY_HEADERS:
+    USE_X_FORWARDED_HOST = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # DEBUG=False mà khoá còn để trống hoặc còn giá trị mặc định (repo công khai nên
 # ai cũng đọc được) thì dừng ngay, không khởi động
@@ -197,6 +209,21 @@ else:
         }
     }
 
+_cache_url = (env("CACHE_URL", "") or "").strip()
+if _cache_url.startswith(("redis://", "rediss://")):
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _cache_url,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+
 # --- Email ---
 # Dev/demo: in email ra terminal, KHÔNG cần mạng. Deploy: đổi sang SMTP qua .env.
 EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
@@ -325,7 +352,7 @@ if not DEBUG:
     }
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR / "media")))
 PRIVATE_VAULT_ROOT = Path(env("PRIVATE_VAULT_ROOT", str(BASE_DIR / "private_vault")))
 PRIVATE_VAULT_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -366,6 +393,7 @@ AI_MODEL = env("AI_MODEL", "gemini-3.6-flash")
 # ăn hết lượt của tóm tắt phản hồi. Để trống thì trợ lý dùng AI_MODEL.
 AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL", "")
 AI_TIMEOUT_SECONDS = int(env("AI_TIMEOUT_SECONDS", "40"))
+AI_FOUNDATION_AGENT = env_bool("AI_FOUNDATION_AGENT", False)
 
 # Chạy test thì KHÔNG BAO GIỜ gọi AI thật: test phải cho cùng một kết quả mỗi
 # lần, chạy được khi mất mạng và không tốn quota. Thiếu dòng này thì khi .env
@@ -377,8 +405,9 @@ if len(sys.argv) > 1 and sys.argv[1] == "test":
 # --- Logging ---
 # AuditLog chỉ ghi hành động nghiệp vụ vào DB. Phần logging ở đây ghi lỗi
 # kỹ thuật (500, timeout, exception) vào file để debug khi deploy.
-_log_dir = BASE_DIR / "logs"
-_log_dir.mkdir(exist_ok=True)
+_log_dir = Path(env("LOG_ROOT", str(BASE_DIR / "logs")))
+_log_dir.mkdir(parents=True, exist_ok=True)
+LOG_TO_CONSOLE = env_bool("LOG_TO_CONSOLE", DEBUG)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -397,7 +426,7 @@ LOGGING = {
             "encoding": "utf-8",
         },
         "console": {
-            "level": "DEBUG" if DEBUG else "WARNING",
+            "level": "DEBUG" if DEBUG else ("INFO" if LOG_TO_CONSOLE else "WARNING"),
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
