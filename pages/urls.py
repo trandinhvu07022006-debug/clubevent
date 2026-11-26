@@ -10,4 +10,5 @@ urlpatterns = [
     path("danh-cho-ban-to-chuc/", views.for_organizers, name="for_organizers"),
     path("gioi-thieu/", views.about, name="about"),
     path("tong-quan/", views.dashboard, name="dashboard"),
+    path("dev/design-system/", views.design_system_showcase, name="design_system"),
 ]

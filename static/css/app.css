@@ -909,3 +909,37 @@ html:not([data-bs-theme="dark"]) .theme-icon-dark { display: none; }
   --bs-table-color: var(--bs-body-color);
   --bs-table-border-color: var(--app-border);
 }
+
+/* ---- 21. CẦU NỐI AN TOÀN DARK MODE & SIDEBAR --------------------------- */
+.app-sidebar .nav-link.active i,
+.app-sidebar .nav-link.active .kmg-icon {
+  color: inherit !important;
+}
+
+[data-bs-theme="dark"] .text-bg-light {
+  background-color: var(--app-surface-2) !important;
+  color: var(--bs-body-color) !important;
+  border-color: var(--app-border) !important;
+}
+
+[data-bs-theme="dark"] .alert-light {
+  background-color: var(--app-surface-2);
+  color: var(--bs-body-color);
+  border-color: var(--app-border);
+}
+
+[data-bs-theme="dark"] .bg-light {
+  background-color: var(--app-surface-2) !important;
+  color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .btn-outline-dark {
+  color: var(--bs-body-color);
+  border-color: var(--app-border);
+}
+
+[data-bs-theme="dark"] .btn-outline-dark:hover {
+  background-color: var(--app-surface-2);
+  color: var(--bs-body-color);
+  border-color: var(--brand);
+}

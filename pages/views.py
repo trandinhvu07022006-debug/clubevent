@@ -8,10 +8,13 @@ cá nhân hoá theo vai trò.
   - ĐÃ ĐĂNG NHẬP vào "/" được đưa thẳng tới /tong-quan/ - nơi mỗi người thấy
     đúng việc của mình: Không gian cá nhân và (nếu là BTC) Không gian tổ chức.
 """
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
+from core.icons import KMG_SOFT_ICONS, grouped_soft_icons
 from organizing.services import departments_with_stats
 from recruitment.models import RecruitmentRound
 
@@ -88,3 +91,17 @@ def dashboard(request):
     else:
         ctx.update(personal_space(user))
     return render(request, "pages/dashboard.html", ctx)
+
+
+def design_system_showcase(request):
+    """Trang nội bộ đối chiếu Design System & KMG Soft Icons 1.0 (cổng phê duyệt)."""
+    user = request.user
+    is_allowed = settings.DEBUG or (
+        user.is_authenticated and (getattr(user, "is_admin_role", False) or user.is_superuser)
+    )
+    if not is_allowed:
+        raise Http404
+    return render(request, "pages/design_system.html", {
+        "icon_groups": grouped_soft_icons(),
+        "icon_count": len(KMG_SOFT_ICONS),
+    })

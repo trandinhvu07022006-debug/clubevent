@@ -4,11 +4,37 @@ Các filter dùng chung cho giao diện.
 Đặt trong app events nhưng dùng được ở mọi template, chỉ cần {% load ui %}.
 """
 from django import template
-from django.utils.html import format_html
+from django.utils.html import escape, format_html
+from django.utils.safestring import mark_safe
 
 from core import once
+from core.icons import KMG_SOFT_ICONS
 
 register = template.Library()
+
+_ICON_SIZES = {"sm", "md", "lg", "xl"}
+
+
+@register.simple_tag
+def kmg_icon(name: str, size: str = "md", css_class: str = "", label: str = ""):
+    """Render SVG icon nét mềm KMG Soft Icons 1.0 (tương thích Light & Dark)."""
+    spec = KMG_SOFT_ICONS.get(name) or KMG_SOFT_ICONS["sparkles"]
+    size_key = size if size in _ICON_SIZES else "md"
+    classes = f"kmg-icon kmg-icon-{size_key}"
+    if css_class:
+        classes = f"{classes} {escape(str(css_class).strip())}"
+    if label:
+        return format_html(
+            '<svg class="{}" viewBox="0 0 24 24" role="img" aria-label="{}">{}</svg>',
+            mark_safe(classes),
+            escape(str(label)),
+            mark_safe(spec.svg_inner),
+        )
+    return format_html(
+        '<svg class="{}" viewBox="0 0 24 24" aria-hidden="true">{}</svg>',
+        mark_safe(classes),
+        mark_safe(spec.svg_inner),
+    )
 
 
 @register.simple_tag

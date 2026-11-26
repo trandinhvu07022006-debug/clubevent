@@ -1,0 +1,101 @@
+/* =========================================================================
+   KMG DESIGN TOKENS 1.0 (Light & Dark Unified Source of Truth)
+   -------------------------------------------------------------------------
+   Giữ nguyên bản sắc Xanh mực (#34477d) + Vàng cát ấm (#a87d26) + Giấy ấm
+   (#f7f6f3), đồng bộ giữa app chính, workspace tổ chức và cổng công khai.
+   ========================================================================= */
+
+:root {
+  /* Màu thương hiệu & điểm nhấn */
+  --brand: #34477d;
+  --brand-strong: #2f4070;
+  --brand-rgb: 52, 71, 125;
+  --brand-text: var(--brand);
+
+  --accent: #a87d26;
+  --accent-rgb: 168, 125, 38;
+  --accent-soft: rgba(168, 125, 38, 0.14);
+
+  /* Bề mặt & viền */
+  --app-bg: #f7f6f3;
+  --app-surface: #ffffff;
+  --app-surface-2: #f0efeb;
+  --app-border: #e3e1db;
+  --app-muted: #5d6475;
+  --app-header-bg: #1c2440;
+  --app-header-blur: blur(10px);
+
+  /* Tương thích Bootstrap 5.3 */
+  --bs-primary: var(--brand);
+  --bs-primary-rgb: var(--brand-rgb);
+  --bs-link-color: var(--brand-text);
+  --bs-link-hover-color: var(--brand-strong);
+  --bs-body-bg: var(--app-bg);
+  --bs-body-color: #23262e;
+
+  /* Nhịp bo góc mềm mại (Spacing / Radius Scale) */
+  --kmg-radius-sm: 0.55rem;
+  --kmg-radius-md: 0.85rem;
+  --kmg-radius-lg: 1.1rem;
+  --kmg-radius-xl: 1.5rem;
+  --bs-border-radius-sm: var(--kmg-radius-sm);
+  --bs-border-radius: var(--kmg-radius-md);
+  --bs-border-radius-lg: var(--kmg-radius-lg);
+  --bs-border-radius-xl: var(--kmg-radius-xl);
+
+  /* Độ nổi (Elevation) dịu mắt */
+  --app-shadow-sm: 0 2px 6px rgba(30, 35, 55, 0.06), 0 1px 2px rgba(30, 35, 55, 0.05);
+  --app-shadow: 0 12px 22px -6px rgba(30, 35, 55, 0.1), 0 4px 8px -4px rgba(30, 35, 55, 0.06);
+  --app-shadow-lg: 0 24px 30px -8px rgba(30, 35, 55, 0.14), 0 10px 14px -8px rgba(30, 35, 55, 0.07);
+  --app-shadow-hover: 0 16px 26px -8px rgba(var(--brand-rgb), 0.22), 0 8px 12px -8px rgba(var(--brand-rgb), 0.14);
+
+  /* Cầu nối token Editorial / Workspace (--kmg-*) */
+  --kmg-ink: var(--brand);
+  --kmg-ink-deep: var(--app-header-bg);
+  --kmg-ink-rgb: var(--brand-rgb);
+  --kmg-gold: var(--accent);
+  --kmg-gold-soft: var(--accent-soft);
+  --kmg-paper: var(--app-bg);
+  --kmg-card: var(--app-surface);
+  --kmg-card-alt: var(--app-surface-2);
+  --kmg-border: var(--app-border);
+  --kmg-muted: var(--app-muted);
+}
+
+[data-bs-theme="dark"] {
+  --brand: #5068c0;
+  --brand-strong: #6b80d0;
+  --brand-rgb: 80, 104, 192;
+  --brand-text: #93a7e0;
+
+  --accent: #d9a441;
+  --accent-rgb: 217, 164, 65;
+  --accent-soft: rgba(217, 164, 65, 0.18);
+
+  --app-bg: #14161d;
+  --app-surface: #1d202a;
+  --app-surface-2: #181b23;
+  --app-border: #2e323f;
+  --app-muted: #9ca4b8;
+  --app-header-bg: #0f1320;
+
+  --bs-body-bg: var(--app-bg);
+  --bs-body-color: #eceef4;
+  --bs-border-color: var(--app-border);
+
+  --app-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --app-shadow: 0 12px 20px -6px rgba(0, 0, 0, 0.5);
+  --app-shadow-lg: 0 22px 28px -8px rgba(0, 0, 0, 0.6);
+  --app-shadow-hover: 0 16px 26px -8px rgba(var(--brand-rgb), 0.28);
+
+  --kmg-ink: var(--brand);
+  --kmg-ink-deep: var(--app-header-bg);
+  --kmg-ink-rgb: var(--brand-rgb);
+  --kmg-gold: var(--accent);
+  --kmg-gold-soft: var(--accent-soft);
+  --kmg-paper: var(--app-bg);
+  --kmg-card: var(--app-surface);
+  --kmg-card-alt: var(--app-surface-2);
+  --kmg-border: var(--app-border);
+  --kmg-muted: var(--app-muted);
+}

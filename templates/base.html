@@ -41,9 +41,13 @@
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
   {% comment %} Bộ icon thật (Bootstrap Icons) self-host trong static/vendor - KHÔNG CDN. {% endcomment %}
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% comment %} Lớp giao diện trang công khai + Tổng quan + các Ban. {% endcomment %}
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  <link rel="stylesheet" href="{% static 'css/kmg_editorial.css' %}">
+  <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+  <link rel="stylesheet" href="{% static 'css/components/icons.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="{% if user.is_authenticated %}is-app{% else %}is-public{% endif %} {% block body_class %}{% endblock %}">
@@ -210,7 +214,7 @@
       <ul class="nav nav-pills flex-column gap-1">
         <li class="nav-item">
           <a href="{% url 'organization:workspace_home' %}" class="nav-link d-flex align-items-center gap-2 {% if request.path|slice:':11' == '/workspace/' %}active{% else %}text-body-emphasis{% endif %}" title="Không gian nội bộ CLB">
-            <i class="bi bi-grid-1x2-fill text-primary"></i><span class="nav-text">Không gian CLB</span>
+            <i class="bi bi-grid-1x2-fill"></i><span class="nav-text">Không gian CLB</span>
           </a>
         </li>
       </ul>
@@ -231,6 +235,9 @@
           <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="bi bi-person me-2"></i>Trang cá nhân</a></li>
           <li><a class="dropdown-item" href="{% url 'accounts:password_change' %}"><i class="bi bi-key me-2"></i>Đổi mật khẩu</a></li>
           <li><a class="dropdown-item" href="{% url 'pages:home' %}?xem=1"><i class="bi bi-globe2 me-2"></i>Trang giới thiệu CLB</a></li>
+          {% if user.is_admin_role or debug %}
+            <li><a class="dropdown-item" href="{% url 'pages:design_system' %}"><i class="bi bi-palette2 me-2"></i>Hệ thống Thiết kế KMG</a></li>
+          {% endif %}
           <li class="d-flex align-items-center px-3 py-1">
             <span class="me-auto text-body-secondary small">Giao diện</span>
             <button class="btn btn-sm btn-outline-secondary py-0 px-2 themeToggleBtn" type="button" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện sáng/tối">

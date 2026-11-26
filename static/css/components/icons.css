@@ -1,0 +1,65 @@
+/* =========================================================================
+   KMG SOFT ICON SYSTEM 1.0
+   -------------------------------------------------------------------------
+   Biểu tượng nét mềm 24x24, bo tròn đầu/góc (linecap="round", linejoin="round"),
+   kế thừa màu currentColor để đồng bộ Sáng/Tối và không xung đột CSS Bootstrap.
+   ========================================================================= */
+
+.kmg-icon {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.18em;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.kmg-icon-sm {
+  width: 0.95rem;
+  height: 0.95rem;
+  stroke-width: 1.7;
+}
+
+.kmg-icon-md {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.kmg-icon-lg {
+  width: 1.5rem;
+  height: 1.5rem;
+  stroke-width: 1.6;
+}
+
+.kmg-icon-xl {
+  width: 2.25rem;
+  height: 2.25rem;
+  stroke-width: 1.45;
+}
+
+.kmg-icon-badge {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--brand-rgb), 0.1);
+  color: var(--brand-text, var(--brand));
+  flex-shrink: 0;
+}
+
+[data-bs-theme="dark"] .kmg-icon-badge {
+  background: rgba(var(--brand-rgb), 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kmg-icon {
+    transition: none;
+  }
+}

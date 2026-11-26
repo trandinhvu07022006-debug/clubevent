@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load static ui %}
+{% block title %}Hệ thống Thiết kế &amp; So sánh Icon — KMG Platform{% endblock %}
+
+{% block content %}
+<header class="page-header d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <span class="kmg-kicker mb-2">{% kmg_icon "sparkles" "sm" %} Cổng phê duyệt thiết kế · KMG UI 3.0</span>
+    <h1 class="h2 fw-bold mb-1">Hệ thống Thiết kế KMG &amp; Đối chiếu Biểu tượng</h1>
+    <p class="text-body-secondary mb-0 prose">
+      Trang nội bộ giúp Ban Chủ nhiệm và Chủ dự án kiểm tra đồng bộ Light/Dark Mode, hệ thống màu sắc thương hiệu,
+      mẫu thẻ tinh giản và so sánh trực tiếp giữa Bootstrap Icons hiện tại với <strong>KMG Soft Icons 1.0</strong> trước khi áp dụng toàn hệ thống.
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    <button class="btn btn-outline-secondary btn-sm themeToggleBtn" type="button">
+      <span class="theme-icon-light">{% kmg_icon "moon" "sm" "me-1" %} Chuyển sang Nền tối</span>
+      <span class="theme-icon-dark">{% kmg_icon "sun" "sm" "me-1" %} Chuyển sang Nền sáng</span>
+    </button>
+    <a href="{% url 'pages:dashboard' %}" class="btn btn-primary btn-sm">
+      {% kmg_icon "home" "sm" "me-1" %} Về Tổng quan
+    </a>
+  </div>
+</header>
+
+<!-- 1. TỔNG QUAN NGUYÊN TẮC & THƯƠNG HIỆU -->
+<section class="mb-5" aria-labelledby="ds-tokens-heading">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 id="ds-tokens-heading" class="h4 fw-bold mb-0">1. Bảng màu &amp; Token Sáng / Tối (Identity Preservation)</h2>
+    <span class="kmg-badge-gold">{% kmg_icon "shield" "sm" %} Bảo toàn Xanh mực &amp; Vàng cát</span>
+  </div>
+  <div class="row g-3">
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="kmg-card p-3 h-100">
+        <div class="rounded-3 mb-2 border" style="height: 54px; background: var(--brand);"></div>
+        <div class="fw-bold small">Thương hiệu (--brand)</div>
+        <div class="small text-body-secondary">Light: #34477d<br>Dark: #5068c0</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="kmg-card p-3 h-100">
+        <div class="rounded-3 mb-2 border" style="height: 54px; background: var(--accent);"></div>
+        <div class="fw-bold small">Điểm nhấn (--accent)</div>
+        <div class="small text-body-secondary">Light: #a87d26<br>Dark: #d9a441</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="kmg-card p-3 h-100">
+        <div class="rounded-3 mb-2 border" style="height: 54px; background: var(--app-bg);"></div>
+        <div class="fw-bold small">Nền trang (--app-bg)</div>
+        <div class="small text-body-secondary">Light: #f7f6f3<br>Dark: #14161d</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="kmg-card p-3 h-100">
+        <div class="rounded-3 mb-2 border" style="height: 54px; background: var(--app-surface);"></div>
+        <div class="fw-bold small">Bề mặt thẻ</div>
+        <div class="small text-body-secondary">Light: #ffffff<br>Dark: #1d202a</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="kmg-card p-3 h-100">
+        <div class="rounded-3 mb-2 border" style="height: 54px; background: var(--app-surface-2);"></div>
+        <div class="fw-bold small">Bề mặt phụ</div>
+        <div class="small text-body-secondary">Light: #f0efeb<br>Dark: #181b23</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="kmg-card p-3 h-100">
+        <div class="rounded-3 mb-2 border" style="height: 54px; background: var(--app-header-bg);"></div>
+        <div class="fw-bold small">Thanh đầu trang</div>
+        <div class="small text-body-secondary">Light: #1c2440<br>Dark: #0f1320</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. ĐỐI CHIẾU ICON CŨ VS KMG SOFT ICONS 1.0 -->
+<section class="mb-5" aria-labelledby="ds-icons-heading">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h2 id="ds-icons-heading" class="h4 fw-bold mb-1">2. Đối chiếu Biểu tượng: Bootstrap Icons (Cũ) vs KMG Soft Icons 1.0</h2>
+      <p class="small text-body-secondary mb-0">
+        Nét vẽ đồng nhất <code>1.65px</code>, bo tròn đầu/góc (<code>round</code>), khung chuẩn <code>24x24</code> và tự động ăn theo <code>currentColor</code> ở cả Sáng/Tối.
+      </p>
+    </div>
+    <span class="badge bg-body-secondary text-body border">Tổng {{ icon_count }} biểu tượng chuẩn hoá</span>
+  </div>
+
+  {% for category, items in icon_groups %}
+  <div class="kmg-card p-3 p-md-4 mb-3">
+    <h3 class="h6 fw-bold text-primary mb-3">{{ category }}</h3>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width: 18%;">Mã icon</th>
+            <th style="width: 24%;">Nhãn chức năng</th>
+            <th class="text-center" style="width: 20%;">Hiện tại (Bootstrap)</th>
+            <th class="text-center" style="width: 20%;">Đề xuất (Soft 1.0)</th>
+            <th style="width: 18%;">Hiển thị trong nút</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for spec in items %}
+          <tr>
+            <td><code>{{ spec.key }}</code></td>
+            <td class="small fw-medium">{{ spec.label_vi }}</td>
+            <td class="text-center">
+              <span class="d-inline-flex align-items-center gap-2 px-2 py-1 rounded bg-body-secondary border">
+                <i class="bi {{ spec.legacy_bi }} fs-5"></i>
+                <code class="small">{{ spec.legacy_bi }}</code>
+              </span>
+            </td>
+            <td class="text-center">
+              <span class="kmg-icon-badge" title="{{ spec.label_vi }}">
+                {% kmg_icon spec.key "lg" %}
+              </span>
+            </td>
+            <td>
+              <button type="button" class="btn btn-sm btn-outline-primary">
+                {% kmg_icon spec.key "sm" "me-1" %} {{ spec.label_vi|truncatechars:18 }}
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<!-- 3. TINH GIẢN THỊ GIÁC: TRƯỚC VÀ SAU -->
+<section class="mb-4" aria-labelledby="ds-declutter-heading">
+  <h2 id="ds-declutter-heading" class="h4 fw-bold mb-3">3. Đề xuất Tinh giản Thị giác (Card Nesting Before / After)</h2>
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="kmg-card p-4 h-100">
+        <span class="badge text-bg-secondary mb-2">Trước đây (Rối viền lồng nhau)</span>
+        <div class="card border p-3 bg-body-tertiary">
+          <div class="kmg-card p-3 border">
+            <div class="border rounded p-2">
+              <div class="small fw-bold"><i class="bi bi-diagram-3 me-1"></i> Quá nhiều lớp viền lồng ghép</div>
+              <div class="small text-body-secondary">4 lớp khung lồng nhau làm mắt phân tán và nặng giao diện trên di động.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="kmg-card p-4 h-100">
+        <span class="badge text-bg-success mb-2">Đề xuất Sprint 2–3 (1 bề mặt + khoảng thở)</span>
+        <div class="d-flex align-items-start gap-3 pt-1">
+          <span class="kmg-icon-badge">{% kmg_icon "guitar" "lg" %}</span>
+          <div>
+            <h3 class="h6 fw-bold mb-1">Không gian thoáng, phân cấp rõ ràng</h3>
+            <p class="small text-body-secondary mb-2">
+              Giảm xuống tối đa 1 bề mặt thẻ, dùng khoảng trống và cỡ chữ chuẩn để làm nổi bật hành động chính.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+              <span class="kmg-badge-gold">{% kmg_icon "check-circle" "sm" %} Đồng bộ Light/Dark</span>
+              <span class="badge bg-body-secondary text-body border">Tối đa 2 cấp lồng</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

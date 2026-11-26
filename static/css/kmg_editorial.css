@@ -1,0 +1,138 @@
+/* =========================================================================
+   KMG EDITORIAL & WORKSPACE LAYER
+   -------------------------------------------------------------------------
+   Khôi phục lớp trình bày cho Public Portal (/portal/) và Workspace (/workspace/)
+   sử dụng trực tiếp bộ token hợp nhất từ tokens.css (Light & Dark parity).
+   ========================================================================= */
+
+.kmg-public-body {
+  background-color: var(--kmg-paper);
+  font-family: var(--bs-body-font-family, "Be Vietnam Pro", system-ui, -apple-system, sans-serif);
+  min-height: 100vh;
+}
+
+.kmg-public-header {
+  background: rgba(var(--kmg-ink-rgb), 0.94);
+  color: #ffffff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.kmg-hero {
+  background: linear-gradient(135deg, #1b2441 0%, var(--kmg-ink) 58%, #3f5799 100%);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.kmg-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 82% 20%, rgba(var(--accent-rgb), 0.26), transparent 46%);
+  pointer-events: none;
+}
+
+.kmg-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.34rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(var(--kmg-ink-rgb), 0.1);
+  color: var(--brand-text, var(--kmg-ink));
+}
+
+.kmg-hero .kmg-kicker {
+  background: rgba(255, 255, 255, 0.16);
+  color: #f6e7c6;
+}
+
+[data-bs-theme="dark"] .kmg-kicker {
+  background: rgba(var(--kmg-ink-rgb), 0.22);
+  color: var(--brand-text, #93a7e0);
+}
+
+.kmg-card {
+  background: var(--kmg-card);
+  border: 1px solid var(--kmg-border);
+  border-radius: var(--kmg-radius-lg, 1rem);
+  box-shadow: var(--app-shadow-sm);
+}
+
+.kmg-card-hover {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.kmg-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--kmg-ink-rgb), 0.35);
+  box-shadow: var(--app-shadow);
+}
+
+.kmg-dept-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--kmg-ink-rgb), 0.11);
+  color: var(--brand-text, var(--kmg-ink));
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+[data-bs-theme="dark"] .kmg-dept-icon {
+  background: rgba(var(--kmg-ink-rgb), 0.22);
+  color: var(--brand-text, #93a7e0);
+}
+
+.kmg-badge-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--kmg-gold-soft);
+  color: #7c5812;
+  border: 1px solid rgba(var(--accent-rgb), 0.32);
+  border-radius: 999px;
+  padding: 0.24rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+[data-bs-theme="dark"] .kmg-badge-gold {
+  color: #f0c975;
+  border-color: rgba(var(--accent-rgb), 0.42);
+}
+
+.kmg-section-title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.24;
+}
+
+.kmg-stat-box {
+  background: var(--kmg-card-alt);
+  border: 1px solid var(--kmg-border);
+  border-radius: var(--kmg-radius-md, 0.85rem);
+  padding: 1rem 1.1rem;
+}
+
+.kmg-footer {
+  background: var(--kmg-ink-deep);
+  color: #d8deee;
+}
+
+.kmg-footer a {
+  color: #e6ebf7;
+}
+
+.kmg-footer a:hover {
+  color: #ffffff;
+}
