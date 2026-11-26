@@ -25,7 +25,7 @@ class SecretGuardTests(SimpleTestCase):
         env = {k: v for k, v in os.environ.items() if k not in KEY_NAMES}
         env.update({k: v for k, v in values.items() if v is not None})
         with tempfile.TemporaryDirectory() as logs:
-            env.update({"DEBUG": debug, "DB_ENGINE": "sqlite", "DATABASE_URL": "",
+            env.update({"DEBUG": debug, "DB_ENGINE": "mysql", "DATABASE_URL": "",
                         "CACHE_URL": "", "ALLOWED_HOSTS": "localhost,127.0.0.1",
                         "LOG_ROOT": logs, "PYTHONIOENCODING": "utf-8"})
             env.update({k: v for k, v in overrides.items() if v is not None})
@@ -77,7 +77,7 @@ print(json.dumps({
             env.update({
                 "KMG_ENV_FILE": "",
                 "DEBUG": "False",
-                "DB_ENGINE": "sqlite",
+                "DB_ENGINE": "mysql",
                 "DATABASE_URL": "",
                 "ALLOWED_HOSTS": "localhost,127.0.0.1",
                 "CACHE_URL": "redis://127.0.0.1:6379/1",
@@ -114,7 +114,7 @@ print(json.dumps({
             env.update({
                 "KMG_ENV_FILE": "",
                 "DEBUG": "False",
-                "DB_ENGINE": "sqlite",
+                "DB_ENGINE": "mysql",
                 "DATABASE_URL": "",
                 "ALLOWED_HOSTS": "localhost,127.0.0.1",
                 "CACHE_URL": "",

@@ -47,7 +47,15 @@ SECRET_KEY = env("SECRET_KEY", "dev-only-doi-key-nay-truoc-khi-deploy")
 CERT_SIGNING_KEY = env("CERT_SIGNING_KEY", "dev-only-cert-signing-key-32chars!!")
 CHAT_MASTER_KEK = env("CHAT_MASTER_KEK", "dev-only-chat-master-kek-32chars!!")
 DEBUG = env_bool("DEBUG", True)
-ALLOW_DEMO_SEED = env_bool("ALLOW_DEMO_SEED", DEBUG)
+KMG_ENV = (env("KMG_ENV", "dev" if DEBUG else "prod") or "dev").strip().lower()
+ALLOW_DEMO_SEED = env_bool("ALLOW_DEMO_SEED", DEBUG and KMG_ENV != "prod")
+if KMG_ENV == "prod":
+    ALLOW_DEMO_SEED = False
+_is_static_build = (
+    os.environ.get("KMG_BUILD_STATIC") == "1"
+    and len(sys.argv) > 1
+    and sys.argv[1] == "collectstatic"
+)
 ALLOWED_HOSTS = [h.strip() for h in env("ALLOWED_HOSTS", "*").split(",") if h.strip()]
 ALLOW_WILDCARD_ALLOWED_HOSTS = env_bool("ALLOW_WILDCARD_ALLOWED_HOSTS", False)
 # Bắt buộc khi truy cập qua HTTPS của tên miền khác (ngrok, host thật), nếu
@@ -325,7 +333,7 @@ if _db_url:
         "mysql": "django.db.backends.mysql",
     }
     if _u.scheme in _engines:
-        DATABASES["default"] = {
+        _db_cfg = {
             "ENGINE": _engines[_u.scheme],
             "NAME": (_u.path or "/").lstrip("/"),
             "USER": unquote(_u.username or ""),
@@ -333,6 +341,21 @@ if _db_url:
             "HOST": _u.hostname or "",
             "PORT": str(_u.port or ""),
         }
+        if _engines[_u.scheme] == "django.db.backends.mysql":
+            _db_cfg["OPTIONS"] = {
+                "charset": "utf8mb4",
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            }
+        DATABASES["default"] = _db_cfg
+
+if (not DEBUG or KMG_ENV in ("staging", "prod")) and not _is_static_build:
+    if DATABASES["default"].get("ENGINE") != "django.db.backends.mysql":
+        raise ImproperlyConfigured(
+            "Môi trường Staging/Production bắt buộc dùng MySQL 8.4 (django.db.backends.mysql); "
+            "từ chối SQLite hoặc engine khác (Fail-Closed)."
+        )
+    if KMG_ENV == "prod" and env_bool("ALLOW_DEMO_SEED", False):
+        raise ImproperlyConfigured("ALLOW_DEMO_SEED bị cấm tuyệt đối ở môi trường Production.")
 
 AUTH_USER_MODEL = "accounts.User"
 

@@ -5,7 +5,7 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 ---
 
 ## 1. Trạng thái hệ thống hiện tại
-- **Cập nhật lần cuối:** 2026-11-26 (Antigravity — hoàn tất **UI/UX Refinement 3.0 Sprint 1** + **Design System / KMG Soft Icons 1.0 Showcase `/dev/design-system/`** trên `feature/kmg-system-stabilization`, chờ Design Approval Gate trước Sprint 2–4)
+- **Cập nhật lần cuối:** 2026-11-26 (Antigravity — hoàn tất **KMG Phase 7: MySQL 8.4 Unification & Production Data Readiness** trên nhánh `feature/mysql-production-readiness`)
 - **Thư mục gốc dự án:** `D:\clubevent\clubevent`
 - **Nhánh Git hiện hành:** `feature/kmg-system-stabilization` (tách từ `feature/kmg-ai-v2` @ `57ad934`; `main` vẫn giữ nguyên tại `315535c`, `feature/sprint7-chong-gom-ve` tại `458ef9e`).
 - **Phần cứng dev:** Intel Core i5-12500H (12 nhân / 16 luồng), RAM 16 GB DDR4-3200 (`16,869,548,032` bytes), NVIDIA GeForce RTX 3050 Laptop GPU (**4 GB VRAM**, `4,293,918,720` bytes) + Intel Iris Xe Graphics.
@@ -55,7 +55,7 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 
 | File / Thư mục | Chủ sở hữu | Nhánh | Mục đích | Thời điểm khóa |
 |---|---|---|---|---|
-| *(Trống — đã giải phóng khóa sau Sprint 1 UI/UX Refinement 3.0; chờ Design Approval Gate)* | — | — | — | — |
+| *(Trống — đã giải phóng khóa sau khi hoàn tất KMG Phase 7 trên `feature/mysql-production-readiness`)* | — | — | — | — |
 
 - **Hàng đợi bàn giao:**
   - `[T-010]` Push nhánh `feature/kmg-system-stabilization` lên `origin` và theo dõi kết quả GitHub Actions (`test-mysql-redis`, `docker-build-check`) — `READY`.

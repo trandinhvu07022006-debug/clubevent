@@ -25,6 +25,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import AccountStatus, Role, User, UserProfile
+from core.db_guard import assert_non_production_seed_allowed
 from events.models import Event, EventCategory, EventStatus, EventVisibility
 from organization.models import (
     ApplicationStatus,
@@ -65,8 +66,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        if not settings.ALLOW_DEMO_SEED:
-            raise CommandError("Dữ liệu demo bị tắt. Dùng bootstrap_kmg cho môi trường pilot.")
+        assert_non_production_seed_allowed("seed_kmg")
         catalog = bootstrap_organization_catalog()
         depts = catalog["departments"]
         positions = catalog["positions"]

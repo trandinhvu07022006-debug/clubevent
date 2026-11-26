@@ -20,6 +20,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Role, User
+from core.db_guard import assert_non_production_seed_allowed
 from events.models import Event, EventCategory, EventStatus, TicketType
 from feedback.models import Feedback
 from notifications.models import Notification, NotificationKind
@@ -92,8 +93,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        if not getattr(settings, "ALLOW_DEMO_SEED", True):
-            raise CommandError("Dữ liệu demo bị tắt. Dùng bootstrap_kmg cho môi trường pilot.")
+        assert_non_production_seed_allowed("seed_demo")
         random.seed(42)  # kết quả giống nhau mỗi lần chạy, dễ kiểm tra
 
         if options["reset"]:

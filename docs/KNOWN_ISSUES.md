@@ -1,0 +1,12 @@
+# DANH SÁCH VẤN ĐỀ TỒN ĐỌNG & GIỚI HẠN MÔI TRƯỜNG (`KNOWN_ISSUES.md`)
+
+Cập nhật: 2026-11-26 — Nhánh `feature/mysql-production-readiness`
+
+| Mã | Mức độ | Mô tả vấn đề / Giới hạn | Trạng thái | Khuyến nghị tiếp theo |
+|---|---|---|---|---|
+| **KI-001** | P1 | **Redis Server chưa cài đặt trên máy dev Windows:** 2 bài test `RedisRateLimitTests` bị skip (`skipped=2`) khi chạy kiểm thử cục bộ; Staging benchmark chưa bật Redis cache. | `BLOCKED (Môi trường Windows)` | Kiểm chứng job `test-mysql-redis` trên GitHub Actions Linux hoặc chạy Docker Compose stack (`redis:7-alpine`). |
+| **KI-002** | P1 | **Song song Model Legacy & Enterprise:** Còn tồn tại 2 hệ bảng song song (`organizing.Department/Task` vs `organization.Department/operations.ClubTask`; `recruitment.Application` vs `organization.MembershipApplication`; `pages.ClubOfficer` migration `0002` nạp cứng tên cán bộ). | `DEFERRED (An toàn tương thích)` | Giữ nguyên tránh gãy dữ liệu cũ ở Phase 7; lên kế hoạch hợp nhất FK ở Phase 8 khi đã chốt quy trình vận hành thực tế. |
+| **KI-003** | P2 | **Thiếu `psutil` & `openpyxl` trong `venv`:** Importer đã hỗ trợ đọc `.xlsx` thuần stdlib; tuy nhiên script load benchmark chưa đo được RSS RAM chính xác (`0.0 MB` qua ctypes `psapi`). | `PARTIAL` | Bổ sung `psutil` vào môi trường Staging/Load-test Linux hoặc giám sát trực tiếp qua `docker stats` / `htop` / `cgroups`. |
+| **KI-004** | P2 | **Độ trễ `p95` tại mức đồng thời `C=50` đạt `3,183.57 ms`:** Đo trên 1 tiến trình Python Windows test client + khóa dòng đồng loạt 1 loại vé nóng. | `MEASURED` | Đo lại bằng k6/Locust trên Nginx + Gunicorn đa worker (`WEB_CONCURRENCY=2..4`) + Redis cache thật trước khi công bố ngưỡng chịu tải tối đa. |
+| **KI-005** | P2 | **Công cụ chạy thử SQLite cục bộ (`chay-thu.bat/.sh`, `settings_local.py`):** Vẫn tồn tại phục vụ demo nhanh không cài MySQL. | `ISOLATED` | Đã khóa chặt không thể chạy khi `DEBUG=False` hoặc `KMG_ENV in (staging, prod)`; không dùng kết quả SQLite thay cho MySQL. |
+| **KI-006** | P1 | **Kiểm tra trực quan Chrome (`360px–1920px`) & Cổng phê duyệt UI 3.0:** Chưa chụp ảnh trực tiếp do máy chưa bật Chrome Remote Debugging (`DevToolsActivePort` ENOENT); Sprint 2–4 UI chờ phê duyệt tại `/dev/design-system/`. | `BLOCKED / REVIEW_REQUIRED` | Mở `http://127.0.0.1:8001/dev/design-system/` để Chủ dự án duyệt Sprint 2–4 hoặc bật `chrome://inspect/#remote-debugging` cho tác nhân trình duyệt. |

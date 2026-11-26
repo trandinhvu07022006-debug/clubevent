@@ -56,8 +56,12 @@ jobs:
       - name: Simulated production deploy check
         env:
           KMG_ENV_FILE: ""
+          KMG_ENV: prod
           DEBUG: "False"
-          DB_ENGINE: sqlite
+          DB_ENGINE: mysql
+          DB_NAME: kmg_prod
+          DB_USER: kmg
+          DB_PASSWORD: ci-deploy-db-password-placeholder
           ALLOWED_HOSTS: clubevent.example.com
           USE_HTTPS: "True"
           ALLOW_DEMO_SEED: "False"

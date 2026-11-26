@@ -11,8 +11,8 @@ COPY --chown=kmg:kmg . .
 RUN mkdir -p /app/media /app/private_vault /app/logs /app/staticfiles \
     && chown -R kmg:kmg /app/media /app/private_vault /app/logs /app/staticfiles
 USER kmg
-# Khóa tạm chỉ để build static; runtime bắt buộc nạp khóa riêng từ môi trường.
-RUN KMG_ENV_FILE='' DEBUG=False DB_ENGINE=sqlite ALLOWED_HOSTS=localhost \
+# Khóa tạm chỉ để build static; runtime bắt buộc nạp khóa riêng và MySQL từ môi trường.
+RUN KMG_ENV_FILE='' KMG_BUILD_STATIC=1 DEBUG=False DB_ENGINE=sqlite ALLOWED_HOSTS=localhost \
     SECRET_KEY=build-only-static-secret-key-0000000000000000 \
     CERT_SIGNING_KEY=build-only-static-certificate-key-000000000000 \
     CHAT_MASTER_KEK=build-only-static-chat-master-key-000000000000 \
