@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Nhắn tin Nội bộ Bảo mật AES-256-GCM — KMG Platform{% endblock %}
+{% block title %}Nhắn tin Nội bộ Bảo mật — KMG{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
@@ -147,7 +147,7 @@
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pb-2 mb-3 border-bottom">
         <div>
           <h2 class="h6 fw-bold mb-0">{{ active_conv.title|default:active_conv.get_conv_type_display }}</h2>
-          <div class="small text-success"><i class="bi bi-shield-lock-fill me-1"></i>Đang giải mã AES-256-GCM hợp lệ (`INV-05`)</div>
+          <div class="small text-success"><i class="bi bi-shield-lock-fill me-1"></i>Đang giải mã tin nhắn bảo mật hợp lệ</div>
         </div>
         <form method="get" class="d-flex gap-1">
           <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Tìm trong phòng...">
@@ -268,7 +268,7 @@
       {% endif %}
 
       <div class="border-top pt-2 small text-body-secondary">
-        <strong>Bất biến `INV-05`:</strong> Hệ thống không có cửa sau đọc trộm tin nhắn. Ngay cả Chủ nhiệm hoặc Admin Server cũng nhận lỗi <code>403</code> nếu không có tên trong danh sách bên trên.
+        <strong>Bảo mật riêng tư:</strong> Hệ thống không có cửa sau đọc trộm tin nhắn. Ngay cả Chủ nhiệm hoặc Quản trị viên hệ thống cũng không thể xem nội dung nếu không có tên trong danh sách thành viên cuộc trò chuyện.
       </div>
     </div>
   </div>

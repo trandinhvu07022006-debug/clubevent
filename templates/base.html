@@ -84,7 +84,7 @@
       <ul class="nav nav-pills flex-column gap-1 mt-2">
         <li class="nav-item">
           <a href="{% url 'pages:dashboard' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'dashboard' and rm.namespace == 'pages' %}active{% else %}text-body-emphasis{% endif %}" title="Tổng quan">
-            <i class="bi bi-house-door"></i><span class="nav-text">Tổng quan</span>
+            {% kmg_icon "home" size="md" %}<span class="nav-text">Tổng quan</span>
           </a>
         </li>
       </ul>
@@ -93,12 +93,12 @@
       <ul class="nav nav-pills flex-column gap-1">
         <li class="nav-item">
           <a href="{% url 'events:list' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.namespace == 'events' and rm.url_name in 'list detail create update tt_create' %}active{% else %}text-body-emphasis{% endif %}" title="Sự kiện">
-            <i class="bi bi-calendar-event"></i><span class="nav-text">Sự kiện</span>
+            {% kmg_icon "calendar" size="md" %}<span class="nav-text">Sự kiện</span>
           </a>
         </li>
         <li class="nav-item">
           <a href="{% url 'events:calendar' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'calendar' %}active{% else %}text-body-emphasis{% endif %}" title="Lịch sự kiện">
-            <i class="bi bi-calendar3"></i><span class="nav-text">Lịch sự kiện</span>
+            {% kmg_icon "clock" size="md" %}<span class="nav-text">Lịch sự kiện</span>
           </a>
         </li>
       </ul>
@@ -107,37 +107,37 @@
       <ul class="nav nav-pills flex-column gap-1">
         <li class="nav-item">
           <a href="{% url 'registrations:my_tickets' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'my_tickets' %}active{% else %}text-body-emphasis{% endif %}" title="Vé của tôi">
-            <i class="bi bi-ticket-perforated"></i><span class="nav-text">Vé của tôi</span>
+            {% kmg_icon "ticket" size="md" %}<span class="nav-text">Vé của tôi</span>
           </a>
         </li>
         <li class="nav-item">
           <a href="{% url 'notifications:list' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.namespace == 'notifications' %}active{% else %}text-body-emphasis{% endif %}" title="Thông báo">
-            <span class="d-flex align-items-center gap-2"><i class="bi bi-bell"></i> <span class="nav-text">Thông báo</span></span>
+            <span class="d-flex align-items-center gap-2">{% kmg_icon "bell" size="md" %} <span class="nav-text">Thông báo</span></span>
             {% if unread_count %}<span class="badge rounded-pill nav-badge">{% if unread_count > 9 %}9+{% else %}{{ unread_count }}{% endif %}</span>{% endif %}
           </a>
         </li>
         <li class="nav-item">
           <a href="{% url 'accounts:profile' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'profile' or rm.url_name == 'password_change' %}active{% else %}text-body-emphasis{% endif %}" title="Hồ sơ">
-            <i class="bi bi-person-circle"></i><span class="nav-text">Hồ sơ cá nhân</span>
+            {% kmg_icon "users" size="md" %}<span class="nav-text">Hồ sơ cá nhân</span>
           </a>
         </li>
         {% if not user.is_club_member %}
         <li class="nav-item">
           <a href="{% url 'recruitment:home' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.namespace == 'recruitment' %}active{% else %}text-body-emphasis{% endif %}" title="Ứng tuyển thành viên">
-            <span class="d-flex align-items-center gap-2"><i class="bi bi-person-plus"></i> <span class="nav-text">Ứng tuyển thành viên</span></span>
+            <span class="d-flex align-items-center gap-2">{% kmg_icon "plus" size="md" %} <span class="nav-text">Ứng tuyển thành viên</span></span>
             {% if recruit_open %}<span class="badge rounded-pill text-bg-success">Mở</span>{% endif %}
           </a>
         </li>
         {% elif not user.is_staff_btc %}
         <li class="nav-item">
           <a href="{% url 'organizing:department_list' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name and 'department' in rm.url_name %}active{% else %}text-body-emphasis{% endif %}" title="Ban của tôi">
-            <i class="bi bi-diagram-3"></i><span class="nav-text">Các Ban của CLB</span>
+            {% kmg_icon "layers" size="md" %}<span class="nav-text">Các Ban của CLB</span>
           </a>
         </li>
         {% endif %}
         <li class="nav-item">
-          <a href="{% url 'aiassist:chat' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.namespace == 'aiassist' %}active{% else %}text-body-emphasis{% endif %}" title="Hỗ trợ">
-            <i class="bi bi-chat-dots"></i><span class="nav-text">Hỗ trợ</span>
+          <a href="{% url 'aiassist:chat' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.namespace == 'aiassist' and rm.url_name == 'chat' %}active{% else %}text-body-emphasis{% endif %}" title="Hỗ trợ">
+            {% kmg_icon "message" size="md" %}<span class="nav-text">Hỗ trợ</span>
           </a>
         </li>
       </ul>
@@ -147,20 +147,20 @@
       <ul class="nav nav-pills flex-column gap-1">
         <li class="nav-item">
           <a href="{% url 'organizing:my_tasks' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.url_name == 'my_tasks' %}active{% else %}text-body-emphasis{% endif %}" title="Việc của tôi">
-            <span class="d-flex align-items-center gap-2"><i class="bi bi-list-check"></i> <span class="nav-text">Việc của tôi</span></span>
+            <span class="d-flex align-items-center gap-2">{% kmg_icon "clipboard-list" size="md" %} <span class="nav-text">Việc của tôi</span></span>
             {% if my_tasks_count %}<span class="badge rounded-pill nav-badge">{{ my_tasks_count }}</span>{% endif %}
           </a>
         </li>
         <li class="nav-item">
           <a href="{% url 'organizing:department_list' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.url_name and 'department' in rm.url_name %}active{% else %}text-body-emphasis{% endif %}" title="Các Ban">
-            <span class="d-flex align-items-center gap-2"><i class="bi bi-diagram-3"></i> <span class="nav-text">Các Ban</span></span>
+            <span class="d-flex align-items-center gap-2">{% kmg_icon "layers" size="md" %} <span class="nav-text">Các Ban</span></span>
             {% if claimable_count %}<span class="badge rounded-pill text-bg-warning" title="Việc của Ban đang chờ người nhận">{{ claimable_count }}</span>{% endif %}
           </a>
         </li>
         {% if can_review %}
         <li class="nav-item">
           <a href="{% url 'recruitment:review_list' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.namespace == 'recruitment' %}active{% else %}text-body-emphasis{% endif %}" title="Tuyển thành viên">
-            <span class="d-flex align-items-center gap-2"><i class="bi bi-person-plus"></i> <span class="nav-text">Tuyển thành viên</span></span>
+            <span class="d-flex align-items-center gap-2">{% kmg_icon "users" size="md" %} <span class="nav-text">Tuyển thành viên</span></span>
             {% if pending_applications_count %}<span class="badge rounded-pill nav-badge">{{ pending_applications_count }}</span>{% endif %}
           </a>
         </li>
@@ -168,13 +168,13 @@
         {% if can_assign %}
         <li class="nav-item">
           <a href="{% url 'organizing:assign' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'assign' %}active{% else %}text-body-emphasis{% endif %}" title="Giao việc">
-            <i class="bi bi-send"></i><span class="nav-text">Giao việc</span>
+            {% kmg_icon "send" size="md" %}<span class="nav-text">Giao việc</span>
           </a>
         </li>
         {% endif %}
         <li class="nav-item">
           <a href="{% url 'registrations:payment_list' %}" class="nav-link d-flex align-items-center justify-content-between {% if rm.url_name == 'payment_list' %}active{% else %}text-body-emphasis{% endif %}" title="Xác nhận thanh toán">
-            <span class="d-flex align-items-center gap-2"><i class="bi bi-cash-coin"></i> <span class="nav-text">Xác nhận TT</span></span>
+            <span class="d-flex align-items-center gap-2">{% kmg_icon "wallet" size="md" %} <span class="nav-text">Xác nhận TT</span></span>
             {% if pending_tickets_count %}<span class="badge rounded-pill nav-badge">{{ pending_tickets_count }}</span>{% endif %}
           </a>
         </li>
@@ -186,23 +186,23 @@
       <ul class="nav nav-pills flex-column gap-1">
         <li class="nav-item">
           <a href="{% url 'events:dashboard' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.namespace == 'events' and rm.url_name == 'dashboard' %}active{% else %}text-body-emphasis{% endif %}" title="Thống kê">
-            <i class="bi bi-graph-up"></i><span class="nav-text">Thống kê</span>
+            {% kmg_icon "sliders" size="md" %}<span class="nav-text">Thống kê</span>
           </a>
         </li>
         <li class="nav-item">
           <a href="{% url 'aiassist:studio' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.namespace == 'aiassist' and rm.url_name == 'studio' %}active{% else %}text-body-emphasis{% endif %}" title="Huấn luyện AI">
-            <i class="bi bi-cpu"></i><span class="nav-text">Huấn luyện AI</span>
+            {% kmg_icon "sparkles" size="md" %}<span class="nav-text">Huấn luyện AI</span>
           </a>
         </li>
         {% if user.is_admin_role %}
         <li class="nav-item">
           <a href="{% url 'accounts:user_list' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'user_list' or rm.url_name == 'user_role' %}active{% else %}text-body-emphasis{% endif %}" title="Tài khoản">
-            <i class="bi bi-people"></i><span class="nav-text">Tài khoản</span>
+            {% kmg_icon "users" size="md" %}<span class="nav-text">Tài khoản</span>
           </a>
         </li>
         <li class="nav-item">
           <a href="{% url 'accounts:audit_log' %}" class="nav-link d-flex align-items-center gap-2 {% if rm.url_name == 'audit_log' %}active{% else %}text-body-emphasis{% endif %}" title="Nhật ký thao tác">
-            <i class="bi bi-journal-text"></i><span class="nav-text">Nhật ký</span>
+            {% kmg_icon "file-text" size="md" %}<span class="nav-text">Nhật ký</span>
           </a>
         </li>
         {% endif %}
@@ -210,11 +210,11 @@
       {% endif %}
 
       {% if user.has_active_club_access or user.is_staff_btc or user.is_lead %}
-      <h6 class="sidebar-heading">KMG Platform</h6>
+      <h6 class="sidebar-heading">Nội bộ CLB</h6>
       <ul class="nav nav-pills flex-column gap-1">
         <li class="nav-item">
           <a href="{% url 'organization:workspace_home' %}" class="nav-link d-flex align-items-center gap-2 {% if request.path|slice:':11' == '/workspace/' %}active{% else %}text-body-emphasis{% endif %}" title="Không gian nội bộ CLB">
-            <i class="bi bi-grid-1x2-fill"></i><span class="nav-text">Không gian CLB</span>
+            {% kmg_icon "grid" size="md" %}<span class="nav-text">Không gian CLB</span>
           </a>
         </li>
       </ul>

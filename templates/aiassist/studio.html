@@ -45,7 +45,7 @@
   <div class="col-6 col-lg-3">
     <div class="stat-tile">
       <div class="num text-primary">{{ active_kb_count }}</div>
-      <div class="lbl">Mục Tri thức RAG đang bật</div>
+      <div class="lbl">Tri thức RAG đang bật ({{ pending_kb_count }} chờ duyệt)</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
@@ -57,7 +57,7 @@
   <div class="col-6 col-lg-3">
     <div class="stat-tile">
       <div class="num">{{ total_logs }}</div>
-      <div class="lbl">Tổng tương tác (đã che PII theo mẫu)</div>
+      <div class="lbl">Tổng tương tác · ~{{ avg_latency_ms }}ms</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
@@ -140,10 +140,20 @@
                 <div class="d-flex justify-content-between align-items-start gap-2">
                   <div>
                     <span class="badge text-bg-light border me-1">{{ kb.get_category_display }}</span>
+                    <span class="badge {% if kb.approval_status == 'APPROVED' %}text-bg-success{% elif kb.approval_status == 'PENDING' %}text-bg-warning{% else %}text-bg-secondary{% endif %} me-1">{{ kb.get_approval_status_display }}</span>
+                    {% if kb.knowledge_id %}<code class="small me-1">{{ kb.knowledge_id }}</code>{% endif %}
                     <strong>{{ kb.title }}</strong>
-                    <span class="text-xs text-muted ms-1">(Ưu tiên #{{ kb.priority }})</span>
+                    <span class="text-xs text-muted ms-1">(v{{ kb.version }} · Ưu tiên #{{ kb.priority }})</span>
                   </div>
                   <div class="d-flex gap-1">
+                    {% if kb.approval_status != 'APPROVED' %}
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="approve_kb">
+                      <input type="hidden" name="kb_id" value="{{ kb.pk }}">
+                      <button type="submit" class="btn btn-xs btn-outline-success py-0 px-2 small">Duyệt</button>
+                    </form>
+                    {% endif %}
                     <form method="post" class="d-inline">
                       {% csrf_token %}
                       <input type="hidden" name="action" value="toggle_kb">
@@ -151,6 +161,12 @@
                       <button type="submit" class="btn btn-xs btn-outline-secondary py-0 px-2 small">
                         {% if kb.is_active %}Tắt{% else %}Bật{% endif %}
                       </button>
+                    </form>
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="archive_kb">
+                      <input type="hidden" name="kb_id" value="{{ kb.pk }}">
+                      <button type="submit" class="btn btn-xs btn-outline-warning py-0 px-2 small">Lưu trữ</button>
                     </form>
                     <form method="post" class="d-inline" onsubmit="return confirm('Xoá mục tri thức này?')">
                       {% csrf_token %}

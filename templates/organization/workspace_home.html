@@ -1,10 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Không gian Nội bộ CLB — KMG Platform{% endblock %}
+{% load ui %}
+{% block title %}Không gian Nội bộ CLB — {{ club.name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
   <div>
-    <span class="kmg-kicker mb-2"><i class="bi bi-grid-1x2-fill"></i> KMG Internal Workspace</span>
+    <span class="kmg-kicker mb-2"><i class="bi bi-grid-1x2-fill"></i> Không gian Nội bộ CLB</span>
     <h1 class="h3 fw-bold mb-1">Xin chào, {{ user.public_name }}</h1>
     <p class="text-body-secondary mb-0">
       {% if actor_ctx.member_code %}
@@ -15,163 +16,77 @@
   </div>
   <div class="d-flex flex-wrap gap-2">
     <a href="{% url 'organization:member_lifecycle' user.id %}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-clock-history me-1"></i>Lịch sử vòng đời của tôi
+      <i class="bi bi-clock-history me-1"></i>Lịch sử của tôi
     </a>
     {% if actor_ctx.is_advisor or actor_ctx.can_access_club_governance %}
     <a href="{% url 'organization:advisor_overview' %}" class="btn btn-outline-primary btn-sm">
-      <i class="bi bi-eye me-1"></i>Cổng Giám sát CLB
+      <i class="bi bi-eye me-1"></i>Giám sát CLB
     </a>
     {% endif %}
     {% if actor_ctx.can_access_club_governance %}
     <a href="{% url 'organization:governance_center' %}" class="btn btn-primary btn-sm">
-      <i class="bi bi-shield-lock me-1"></i>Trung tâm Quản trị &amp; Phân quyền
+      <i class="bi bi-shield-lock me-1"></i>Quản trị &amp; Phân quyền
     </a>
     {% endif %}
   </div>
 </div>
 
-{% if actor_ctx.appointments or actor_ctx.grants %}
-<div class="kmg-card p-3 p-md-4 mb-4">
-  <div class="row g-3 align-items-center">
-    <div class="col-lg-6">
-      <h2 class="h6 text-uppercase text-body-secondary fw-bold mb-2">
-        <i class="bi bi-award me-1 text-warning"></i>Chức vụ đương nhiệm
-      </h2>
-      {% if actor_ctx.appointments %}
-        <div class="d-flex flex-wrap gap-2">
-          {% for a in actor_ctx.appointments %}
-            <span class="badge text-bg-primary py-2 px-3">
-              {{ a.position_name }}
-              {% if a.department_name %}· {{ a.department_name }}{% else %}· Toàn CLB{% endif %}
-              ({{ a.term_label }})
-            </span>
-          {% endfor %}
-        </div>
-      {% else %}
-        <span class="text-body-secondary small">Thành viên CLB (không giữ chức vụ điều hành).</span>
-      {% endif %}
-    </div>
-    <div class="col-lg-6">
-      <h2 class="h6 text-uppercase text-body-secondary fw-bold mb-2">
-        <i class="bi bi-key me-1 text-success"></i>Gói quyền / Mảng phụ trách được ủy quyền
-      </h2>
-      {% if actor_ctx.grants %}
-        <div class="d-flex flex-wrap gap-2">
-          {% for g in actor_ctx.grants %}
-            <span class="badge kmg-badge-gold py-2 px-3">
-              {{ g.bundle_label }} ({{ g.department_name }})
-            </span>
-          {% endfor %}
-        </div>
-      {% else %}
-        <span class="text-body-secondary small">Đang áp dụng quyền mặc định theo chức vụ / tư cách thành viên.</span>
-      {% endif %}
-    </div>
-  </div>
+{% if open_discipline_cases %}
+<div class="alert alert-warning small border-0 shadow-sm mb-4">
+  <i class="bi bi-exclamation-octagon-fill me-1"></i>Bạn có {{ open_discipline_cases }} hồ sơ cảnh báo chuyên cần đang chờ xem xét.
+  <a href="{% url 'operations:discipline_center' %}" class="alert-link">Xem &amp; gửi giải trình</a>
 </div>
 {% endif %}
 
-<!-- Phase 2: Bảng điều khiển vận hành cá nhân -->
+<!-- Bảng điều khiển công việc cá nhân -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-xl-3"><a href="{% url 'operations:task_list' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Nhiệm vụ đang mở</div><div class="h3 fw-bold mb-0">{{ task_kpis.open }}</div></div></a></div>
-  <div class="col-6 col-xl-3"><a href="{% url 'operations:task_list' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Quá hạn / Cần chỉnh sửa</div><div class="h3 fw-bold text-danger mb-0">{{ task_kpis.overdue }} / {{ task_kpis.revision }}</div></div></a></div>
-  <div class="col-6 col-xl-3"><a href="{% url 'operations:event_hub' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Sự kiện chờ tôi phản hồi</div><div class="h3 fw-bold text-primary mb-0">{{ pending_rsvps|length }}</div></div></a></div>
-  <div class="col-6 col-xl-3"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Nhiệm vụ đã hoàn thành</div><div class="h3 fw-bold text-success mb-0">{{ task_kpis.approved_total }}</div></div></div>
+  <div class="col-6 col-xl-3"><a href="{% url 'operations:task_list' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Quá hạn / Cần sửa</div><div class="h3 fw-bold text-danger mb-0">{{ task_kpis.overdue }} / {{ task_kpis.revision }}</div></div></a></div>
+  <div class="col-6 col-xl-3"><a href="{% url 'operations:event_hub' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Sự kiện chờ phản hồi</div><div class="h3 fw-bold text-primary mb-0">{{ pending_rsvps|length }}</div></div></a></div>
+  <div class="col-6 col-xl-3"><a href="{% url 'operations:task_list' %}" class="text-decoration-none"><div class="kmg-card p-3 h-100"><div class="small text-body-secondary">Đã hoàn thành</div><div class="h3 fw-bold text-success mb-0">{{ task_kpis.approved_total }}</div></div></a></div>
 </div>
 
-<!-- Phase 3: Điều hướng Chuyên môn, Đề xuất, Đào tạo & Kho Tài liệu Mật -->
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <a href="{% url 'programs:proposal_hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-lightbulb"></i></span>
-      <div>
-        <div class="fw-bold small">Đề xuất Hoạt động &amp; Sự kiện</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">Gửi ý tưởng, góp ý &amp; theo dõi thẩm định 2 cấp</div>
+<!-- Ưu tiên 1: Việc cần xử lý & Thông báo chính thức -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h6 fw-bold mb-0"><i class="bi bi-list-check me-2"></i>Việc sắp đến hạn</h2>
+        <a href="{% url 'operations:task_list' %}" class="small text-decoration-none">Tất cả công việc</a>
       </div>
-    </a>
+      {% for t in open_my_tasks %}
+        <div class="d-flex justify-content-between small border-bottom py-1">
+          <a href="{% url 'operations:task_detail' t.pk %}" class="text-decoration-none">{{ t.title }} <span class="text-body-secondary">· {{ t.department.name }}</span></a>
+          <span class="{% if t.is_overdue %}text-danger fw-semibold{% else %}text-body-secondary{% endif %}">{{ t.deadline|date:"H:i d/m" }}</span>
+        </div>
+      {% empty %}
+        <p class="small text-body-secondary mb-0">Không có nhiệm vụ đang mở.</p>
+      {% endfor %}
+      {% for att in pending_rsvps %}
+        <div class="d-flex justify-content-between small border-bottom py-1">
+          <a href="{% url 'operations:event_detail' att.club_event_id %}" class="text-decoration-none"><i class="bi bi-calendar2-check text-primary"></i> Xác nhận tham gia: {{ att.club_event.event.name }}</a>
+          <span class="text-body-secondary">{% if att.club_event.rsvp_freeze_at %}chốt {{ att.club_event.rsvp_freeze_at|date:"H:i d/m" }}{% endif %}</span>
+        </div>
+      {% endfor %}
+    </div>
   </div>
-  <div class="col-md-4">
-    <a href="{% url 'programs:training_practice_hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-music-note-list"></i></span>
-      <div>
-        <div class="fw-bold small">Đào tạo &amp; Lịch tập Band</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">{{ my_enrollments|length }} khóa đã ghi danh · {{ my_practices|length }} buổi tập sắp tới</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="{% url 'programs:document_vault' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-shield-lock"></i></span>
-      <div>
-        <div class="fw-bold small">Kho Tài liệu Bảo mật ({{ accessible_docs_count }})</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">Phân quyền ACL chặt chẽ theo từng tài liệu</div>
-      </div>
-    </a>
-  </div>
-</div>
-
-<!-- Phase 4: Mạng xã hội Nội bộ, Nhắn tin Bảo mật AES-256-GCM & Âm nhạc -->
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <a href="{% url 'social:feed' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-stars"></i></span>
-      <div>
-        <div class="fw-bold small">Mạng xã hội Nội bộ</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">{{ recent_social_posts|length }} bài mới hiển thị theo phạm vi của bạn</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="{% url 'social:messaging_inbox' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-chat-lock"></i></span>
-      <div>
-        <div class="fw-bold small">Nhắn tin Bảo mật ({{ active_chat_count }})</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">Mã hoá AES-256-GCM · Zero-Admin-Read (`INV-05`)</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="{% url 'social:music_hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-disc"></i></span>
-      <div>
-        <div class="fw-bold small">Playlist ({{ my_playlist_count }}) &amp; Tặng nhạc{% if received_music_gifts_count %} <span class="badge text-bg-warning">{{ received_music_gifts_count }} quà mới</span>{% endif %}</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">Danh sách riêng tư &amp; gửi tặng bài hát chống nhầm tên</div>
-      </div>
-    </a>
+  <div class="col-lg-6">
+    <div class="kmg-card p-4 h-100">
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-megaphone me-2"></i>Thông báo chính thức</h2>
+      {% for a in announcements %}
+        <div class="border-bottom py-2">
+          <div class="small fw-semibold">{% if a.is_pinned %}<i class="bi bi-pin-angle-fill text-warning"></i> {% endif %}{{ a.title }}</div>
+          <div class="small text-body-secondary">{{ a.content|truncatechars:160 }}</div>
+          <div class="text-body-secondary" style="font-size:0.75rem;">{{ a.department.name|default:"Toàn CLB" }} · {{ a.published_by.public_name|default:"BCN" }} · {{ a.created_at|date:"d/m/Y H:i" }}</div>
+        </div>
+      {% empty %}
+        <p class="small text-body-secondary mb-0">Chưa có thông báo chính thức.</p>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
-<!-- Phase 5: Quỹ Bất biến, Đánh giá 7 Tiêu chí & Vinh danh -->
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <a href="{% url 'finance:hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-cash-coin"></i></span>
-      <div>
-        <div class="fw-bold small">Quỹ &amp; Tài chính CLB</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">{{ my_contributions_count }} khoản đóng góp cá nhân · Sổ cái bất biến (WF22)</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="{% url 'evaluations:hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-clipboard2-pulse"></i></span>
-      <div>
-        <div class="fw-bold small">Đánh giá 7 Tiêu chí &amp; Vinh danh</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">{{ my_evaluations_count }} phiếu đánh giá đã chốt · Phản hồi hai chiều (BE-06)</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="{% url 'evaluations:analytics' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
-      <span class="kmg-dept-icon"><i class="bi bi-bar-chart-fill"></i></span>
-      <div>
-        <div class="fw-bold small">Phân tích &amp; Báo cáo Vận hành</div>
-        <div class="text-body-secondary" style="font-size:0.78rem;">Chỉ số nhiệm vụ, sự kiện, đào tạo &amp; xuất CSV an toàn (SEC-02)</div>
-      </div>
-    </a>
-  </div>
-</div>
-
+<!-- Ưu tiên 2: Lịch đào tạo & tập band sắp tới -->
 {% if my_enrollments or my_practices %}
 <div class="kmg-card p-3 p-md-4 mb-4">
   <div class="d-flex justify-content-between align-items-center mb-2">
@@ -205,50 +120,145 @@
 </div>
 {% endif %}
 
-{% if open_discipline_cases %}
-<div class="alert alert-warning small border-0 shadow-sm mb-4">
-  <i class="bi bi-exclamation-octagon-fill me-1"></i>Bạn có {{ open_discipline_cases }} hồ sơ cảnh báo chuyên cần đang chờ xem xét.
-  <a href="{% url 'operations:discipline_center' %}" class="alert-link">Xem &amp; gửi giải trình</a>
-</div>
+<!-- Lối tắt thường dùng (4 mục chính) + Danh mục mở rộng (Progressive Disclosure) -->
+<section class="mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h6 fw-bold mb-0"><i class="bi bi-compass me-2"></i>Hoạt động, Âm nhạc &amp; Cộng đồng</h2>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6 col-xl-3">
+      <a href="{% url 'programs:training_practice_hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset h-100">
+        <span class="kmg-icon-badge">{% kmg_icon "music" size="lg" %}</span>
+        <div>
+          <div class="fw-bold small">Đào tạo &amp; Tập Band</div>
+          <div class="text-body-secondary" style="font-size:0.78rem;">{{ my_enrollments|length }} khóa · {{ my_practices|length }} buổi tập</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <a href="{% url 'social:music_hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset h-100">
+        <span class="kmg-icon-badge">{% kmg_icon "headphones" size="lg" %}</span>
+        <div>
+          <div class="fw-bold small">Playlist &amp; Tặng nhạc{% if received_music_gifts_count %} <span class="badge text-bg-warning">{{ received_music_gifts_count }}</span>{% endif %}</div>
+          <div class="text-body-secondary" style="font-size:0.78rem;">{{ my_playlist_count }} playlist cá nhân</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <a href="{% url 'social:feed' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset h-100">
+        <span class="kmg-icon-badge">{% kmg_icon "sparkles" size="lg" %}</span>
+        <div>
+          <div class="fw-bold small">Bảng tin Nội bộ</div>
+          <div class="text-body-secondary" style="font-size:0.78rem;">{{ recent_social_posts|length }} bài viết mới</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <a href="{% url 'social:messaging_inbox' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset h-100">
+        <span class="kmg-icon-badge">{% kmg_icon "message" size="lg" %}</span>
+        <div>
+          <div class="fw-bold small">Nhắn tin Bảo mật ({{ active_chat_count }})</div>
+          <div class="text-body-secondary" style="font-size:0.78rem;">Trao đổi riêng tư theo nhóm</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <details class="kmg-card p-3">
+    <summary class="small fw-semibold text-primary" style="cursor:pointer;">
+      <i class="bi bi-folder2-open me-1"></i>Chức năng khác: Đề xuất, Tài liệu, Tài chính &amp; Đánh giá
+    </summary>
+    <div class="row g-3 mt-1">
+      <div class="col-md-4">
+        <a href="{% url 'programs:proposal_hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
+          <span class="kmg-icon-badge">{% kmg_icon "compass" size="lg" %}</span>
+          <div>
+            <div class="fw-bold small">Đề xuất Hoạt động</div>
+            <div class="text-body-secondary" style="font-size:0.78rem;">Gửi ý tưởng &amp; theo dõi thẩm định</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="{% url 'programs:document_vault' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
+          <span class="kmg-icon-badge">{% kmg_icon "shield" size="lg" %}</span>
+          <div>
+            <div class="fw-bold small">Kho Tài liệu ({{ accessible_docs_count }})</div>
+            <div class="text-body-secondary" style="font-size:0.78rem;">Tài liệu nội bộ theo phân quyền</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="{% url 'finance:hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
+          <span class="kmg-icon-badge">{% kmg_icon "wallet" size="lg" %}</span>
+          <div>
+            <div class="fw-bold small">Quỹ &amp; Tài chính CLB</div>
+            <div class="text-body-secondary" style="font-size:0.78rem;">{{ my_contributions_count }} khoản đóng góp cá nhân</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-6">
+        <a href="{% url 'evaluations:hub' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
+          <span class="kmg-icon-badge">{% kmg_icon "award" size="lg" %}</span>
+          <div>
+            <div class="fw-bold small">Đánh giá Định kỳ &amp; Vinh danh</div>
+            <div class="text-body-secondary" style="font-size:0.78rem;">{{ my_evaluations_count }} phiếu đánh giá đã chốt</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-6">
+        <a href="{% url 'evaluations:analytics' %}" class="kmg-card kmg-card-hover p-3 d-flex align-items-center gap-3 text-decoration-none text-reset">
+          <span class="kmg-icon-badge">{% kmg_icon "sliders" size="lg" %}</span>
+          <div>
+            <div class="fw-bold small">Phân tích &amp; Báo cáo Vận hành</div>
+            <div class="text-body-secondary" style="font-size:0.78rem;">Chỉ số nhiệm vụ, sự kiện &amp; xuất CSV</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </details>
+</section>
+
+{% if actor_ctx.appointments or actor_ctx.grants %}
+<details class="kmg-card p-3 p-md-4 mb-4">
+  <summary class="small fw-semibold text-body-secondary" style="cursor:pointer;">
+    <i class="bi bi-award me-1 text-warning"></i>Thông tin chức vụ &amp; quyền hạn hiện tại
+  </summary>
+  <div class="row g-3 align-items-center mt-2">
+    <div class="col-lg-6">
+      <h2 class="h6 text-uppercase text-body-secondary fw-bold mb-2">Chức vụ đương nhiệm</h2>
+      {% if actor_ctx.appointments %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for a in actor_ctx.appointments %}
+            <span class="badge text-bg-primary py-2 px-3">
+              {{ a.position_name }}
+              {% if a.department_name %}· {{ a.department_name }}{% else %}· Toàn CLB{% endif %}
+              ({{ a.term_label }})
+            </span>
+          {% endfor %}
+        </div>
+      {% else %}
+        <span class="text-body-secondary small">Thành viên CLB.</span>
+      {% endif %}
+    </div>
+    <div class="col-lg-6">
+      <h2 class="h6 text-uppercase text-body-secondary fw-bold mb-2">Phạm vi phụ trách được ủy quyền</h2>
+      {% if actor_ctx.grants %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for g in actor_ctx.grants %}
+            <span class="badge kmg-badge-gold py-2 px-3">
+              {{ g.bundle_label }} ({{ g.department_name }})
+            </span>
+          {% endfor %}
+        </div>
+      {% else %}
+        <span class="text-body-secondary small">Áp dụng quyền mặc định theo tư cách thành viên.</span>
+      {% endif %}
+    </div>
+  </div>
+</details>
 {% endif %}
 
-<div class="row g-4 mb-5">
-  <div class="col-lg-6">
-    <div class="kmg-card p-4 h-100">
-      <h2 class="h6 fw-bold mb-3"><i class="bi bi-list-check me-2"></i>Việc sắp đến hạn</h2>
-      {% for t in open_my_tasks %}
-        <div class="d-flex justify-content-between small border-bottom py-1">
-          <a href="{% url 'operations:task_detail' t.pk %}" class="text-decoration-none">{{ t.title }} <span class="text-body-secondary">· {{ t.department.name }}</span></a>
-          <span class="{% if t.is_overdue %}text-danger fw-semibold{% else %}text-body-secondary{% endif %}">{{ t.deadline|date:"H:i d/m" }}</span>
-        </div>
-      {% empty %}
-        <p class="small text-body-secondary mb-0">Không có nhiệm vụ đang mở.</p>
-      {% endfor %}
-      {% for att in pending_rsvps %}
-        <div class="d-flex justify-content-between small border-bottom py-1">
-          <a href="{% url 'operations:event_detail' att.club_event_id %}" class="text-decoration-none"><i class="bi bi-calendar2-check text-primary"></i> RSVP: {{ att.club_event.event.name }}</a>
-          <span class="text-body-secondary">{% if att.club_event.rsvp_freeze_at %}chốt {{ att.club_event.rsvp_freeze_at|date:"H:i d/m" }}{% endif %}</span>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="kmg-card p-4 h-100">
-      <h2 class="h6 fw-bold mb-3"><i class="bi bi-megaphone me-2"></i>Thông báo chính thức</h2>
-      {% for a in announcements %}
-        <div class="border-bottom py-2">
-          <div class="small fw-semibold">{% if a.is_pinned %}<i class="bi bi-pin-angle-fill text-warning"></i> {% endif %}{{ a.title }}</div>
-          <div class="small text-body-secondary">{{ a.content|truncatechars:160 }}</div>
-          <div class="text-body-secondary" style="font-size:0.75rem;">{{ a.department.name|default:"Toàn CLB" }} · {{ a.published_by.public_name|default:"BCN" }} · {{ a.created_at|date:"d/m/Y H:i" }}</div>
-        </div>
-      {% empty %}
-        <p class="small text-body-secondary mb-0">Chưa có thông báo chính thức.</p>
-      {% endfor %}
-    </div>
-  </div>
-</div>
-
-<!-- Danh sách Ban đang trực thuộc hoặc quản lý (Hỗ trợ đa ban M-N, không tự ép vào 1 Ban) -->
+<!-- Danh sách Ban đang trực thuộc hoặc quản lý -->
 <section class="mb-5">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h2 class="h5 fw-bold mb-0"><i class="bi bi-diagram-3 me-2"></i>Không gian Ban của bạn</h2>
@@ -267,9 +277,9 @@
               <span class="badge text-bg-warning">Demo</span>
             {% endif %}
             {% if item.access_mode == 'MANAGE' %}
-              <span class="badge text-bg-primary">Chế độ Quản lý (MANAGE)</span>
+              <span class="badge text-bg-primary">Quản lý Ban</span>
             {% elif item.access_mode == 'MEMBER' %}
-              <span class="badge text-bg-success">Thành viên Ban (MEMBER)</span>
+              <span class="badge text-bg-success">Thành viên Ban</span>
             {% else %}
               <span class="badge text-bg-secondary">{{ item.access_mode }}</span>
             {% endif %}
@@ -295,12 +305,12 @@
   </div>
 </section>
 
-<!-- Các Ban khác trong CLB (Chế độ Xem chéo Ban READ_ONLY) -->
+<!-- Các Ban khác trong CLB -->
 {% if other_depts %}
 <section class="mb-5">
   <h2 class="h5 fw-bold mb-3">
     <i class="bi bi-binoculars me-2"></i>Các Ban khác trong CLB
-    <small class="text-body-secondary fw-normal fs-6">(Chế độ xem chéo Ban — Read-Only)</small>
+    <small class="text-body-secondary fw-normal fs-6">(Chế độ xem thông tin)</small>
   </h2>
   <div class="row g-3">
     {% for item in other_depts %}
@@ -313,7 +323,7 @@
             </span>
             <strong>{{ item.dept.name }}</strong>
           </div>
-          <span class="badge text-bg-secondary">READ_ONLY</span>
+          <span class="badge text-bg-secondary">Chỉ xem</span>
         </div>
         <p class="text-body-secondary small flex-grow-1 mb-3">{{ item.dept.short_description }}</p>
         <div class="d-flex align-items-center justify-content-between">
@@ -329,14 +339,14 @@
 </section>
 {% endif %}
 
-<!-- Hồ sơ Kỹ năng Nghệ thuật / Chuyên môn & Lịch sử Vòng đời -->
+<!-- Hồ sơ Kỹ năng Chuyên môn & Lịch sử -->
 <div class="row g-4">
   <div class="col-lg-7">
     <div class="kmg-card p-4 h-100">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <h2 class="h5 fw-bold mb-0"><i class="bi bi-music-note-beamed me-2"></i>Hồ sơ Kỹ năng Chuyên môn</h2>
-        <span class="badge text-bg-light border text-body-secondary" title="Bất biến bảo mật INV-01">
-          <i class="bi bi-shield-check me-1"></i>Skill dùng để lọc/đề xuất, không tự cấp quyền mật
+        <span class="badge text-bg-light border text-body-secondary">
+          <i class="bi bi-shield-check me-1"></i>Kỹ năng dùng để gợi ý phân công
         </span>
       </div>
 

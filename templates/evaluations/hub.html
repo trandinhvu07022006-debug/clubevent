@@ -32,7 +32,7 @@
             <div class="small text-body-secondary mb-2">Chốt ngày: {{ ev.finalized_at|date:"d/m/Y H:i" }} bởi {{ ev.finalized_by.public_name }}</div>
             {% if ev.strengths %}<div class="small text-muted mb-1"><strong>Điểm mạnh:</strong> {{ ev.strengths|truncatechars:80 }}</div>{% endif %}
           </div>
-          <a href="{% url 'evaluations:detail' ev.pk %}" class="btn btn-sm btn-outline-primary mt-2">Xem chi tiết &amp; Phản hồi hai chiều (BE-06)</a>
+          <a href="{% url 'evaluations:detail' ev.pk %}" class="btn btn-sm btn-outline-primary mt-2">Xem chi tiết &amp; Phản hồi hai chiều</a>
         </div>
       </div>
     {% empty %}
