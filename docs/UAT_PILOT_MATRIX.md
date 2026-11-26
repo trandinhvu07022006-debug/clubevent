@@ -26,8 +26,31 @@ Tài liệu rà soát kịch bản kiểm thử vận hành và phân quyền ch
 | **UAT-06** | Bảo vệ luồng KMG AI & Fallback | Toàn bộ vai trò | Hỏi thông tin cá nhân không gửi PII ra LLM ngoài; hết lượt / lỗi API / circuit mở mạch vẫn trả về câu trả lời quy tắc hoặc fallback an toàn không lỗi 500. |
 | **UAT-07** | Tài chính Maker-Checker & Kho chứng từ | Trưởng BTC, Chủ nhiệm, Cố vấn | Chứng từ lưu trong `PRIVATE_VAULT_ROOT`, URL `/private-vault/` chỉ người có quyền tải được; khoản chi không thể tự duyệt chính mình. |
 
-## 3. Điều kiện trước khi chốt Pilot thực tế trên Server
+## 3. Phân tách Trạng thái Kiểm chứng RC1 (AUD-010 / AUD-011)
 
-- Kiểm thử lại trên **MySQL 8.4** và **Redis** thật (`DATABASE_URL`, `CACHE_URL`) vì bộ test hiện tại chạy trên `SQLite` + `LocMemCache`.
+| Hạng mục | Hình thức kiểm chứng | Trạng thái | Ghi chú & Bằng chứng |
+|---|---|---|---|
+| **Automated E2E (Django Client & Integration)** | Tự động trong bộ test (`core/test_uat_e2e.py`, `registrations/test_rc1_concurrency.py`, `finance/test_rc1_regressions.py`, `aiassist/test_rc1_security.py`) | **VERIFIED** | Xác minh đầy đủ 7 vai trò qua HTTP view/API thật, template chứa `viewport` + Bootstrap shell, zero HTTP 500 trên các trang trọng tâm. |
+| **Headless Browser / Playwright Viewport (`360px–1920px`)** | Render trình duyệt thật & chụp màn hình responsive trên server test cô lập | **BLOCKED** | Môi trường dev/CI hiện chưa cài đặt `playwright` / binary Chromium (`pip list` không có `playwright`, `where.exe playwright` trả về rỗng); không giả lập kết quả. |
+| **Developer Verification** | Chạy `check`, `check --deploy`, `makemigrations --check`, `evaluate_ai --with-migrate`, full test suite | **VERIFIED** | Xem chi tiết nhật ký trong `docs/AI_DEVELOPMENT_STATE.md` và `docs/audit/08_INDEPENDENT_REVIEW_REMEDIATION.md`. |
+| **Human UAT (Pilot Operators — 7 vai trò)** | Diễn tập thực tế bởi BCN / BTC / Thành viên / Khách trước ngày mở sự kiện thật | **REVIEW_REQUIRED** | Đợi nghiệm thu thực tế trên staging cô lập sử dụng tài khoản UAT giả lập riêng bên dưới. |
+
+## 4. Bộ Tài khoản UAT Giả lập Độc lập (Chỉ dùng trong môi trường Staging / Test cô lập)
+
+> **Cảnh báo:** Tuyệt đối không dùng thông tin/mật khẩu thật hoặc dữ liệu production trong UAT. Tạo bằng script/fixture cô lập rồi thu hồi sau diễn tập.
+
+| STT | Tài khoản giả lập (`username`) | Email giả lập | Vai trò & Scope kiểm thử | Kịch bản kiểm thử phụ trách |
+|---|---|---|---|---|
+| 1 | `uat_guest` | `uat_guest@example.com` | `GUEST` (đã xác minh OTP mẫu) | `UAT-01`, `UAT-05`, `UAT-06` |
+| 2 | `uat_member` | `uat_member@example.com` | `MEMBER` (`ACTIVE` + `Ban Truyền thông`) | `UAT-03`, `UAT-05` |
+| 3 | `uat_staff` | `uat_staff@example.com` | `STAFF` (BTC quét QR check-in) | `UAT-04` |
+| 4 | `uat_lead` | `uat_lead@example.com` | `LEAD` (Trưởng BTC sự kiện) | `UAT-01`, `UAT-02`, `UAT-04` |
+| 5 | `uat_chair` | `uat_chair@example.com` | `Appointment(CHAIRMAN)` | `UAT-07` & `AI Studio` |
+| 6 | `uat_advisor` | `uat_advisor@example.com` | `Appointment(ADVISOR)` Read-Only `INV-04` | `UAT-07` (xác minh chặn mutation) |
+| 7 | `uat_admin` | `uat_admin@example.com` | `ADMIN` (`is_superuser` kỹ thuật) | Healthcheck, Admin & Export tách biệt |
+
+## 5. Điều kiện trước khi chốt Pilot thực tế trên Server
+
+- Kiểm thử lại trên **MySQL 8.4** và **Redis** thật (`DATABASE_URL`, `CACHE_URL`) kết hợp CI `docker compose` (`AUD-001`).
 - Khởi chạy thử bằng `gunicorn` + `Nginx` kiểm tra `X-Forwarded-For` (`TRUST_X_FORWARDED_FOR`), SSL (`USE_HTTPS=True`) và `/health/`.
-- Thực hiện diễn tập UAT tối thiểu 1 vòng với 5–10 tài khoản đại diện đầy đủ các vai trò trên trước giờ mở bán vé sự kiện thật.
+- Chạy Playwright/Chromium kiểm tra responsive `360px`–`1920px` và hoàn tất diễn tập **Human UAT** theo bảng 7 vai trò trước khi mở bán vé sự kiện thật.
