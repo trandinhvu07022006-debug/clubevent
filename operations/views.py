@@ -425,12 +425,15 @@ def download_task_submission_file(request, submission_id: int):
 
     filename = os.path.basename(sub.attachment.name)
     content_type, _ = mimetypes.guess_type(filename)
-    return FileResponse(
+    resp = FileResponse(
         file_handle,
         as_attachment=True,
         filename=filename,
         content_type=content_type or "application/octet-stream",
     )
+    resp["X-Content-Type-Options"] = "nosniff"
+    resp["Cache-Control"] = "private, no-store"
+    return resp
 
 
 # ---------------------------------------------------------------------------

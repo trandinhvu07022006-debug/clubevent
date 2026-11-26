@@ -7,8 +7,8 @@ from .models import AIInteractionLog, AIPromptProfile, ClubKnowledge
 
 @admin.register(ClubKnowledge)
 class ClubKnowledgeAdmin(admin.ModelAdmin):
-    list_display = ("title", "category", "priority", "is_active", "updated_at")
-    list_filter = ("category", "is_active")
+    list_display = ("title", "category", "visibility", "priority", "is_active", "updated_at")
+    list_filter = ("category", "visibility", "is_active")
     search_fields = ("title", "keywords", "content")
     list_editable = ("priority", "is_active")
 

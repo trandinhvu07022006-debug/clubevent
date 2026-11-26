@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 
 from . import providers, schemas
-from .privacy import redact
+from .privacy import redact, sanitize_untrusted_input
 
 if TYPE_CHECKING:
     from events.models import Event
@@ -1034,14 +1034,30 @@ def _knowledge_score(query: str, tokens: set, item) -> int:
     return score
 
 
-def retrieve_knowledge_with_sources(query: str = "", limit: int = 4) -> tuple[str, list[dict]]:
+def visible_knowledge_levels(user=None) -> tuple[str, ...]:
+    """Xác định các mức phân loại ClubKnowledge người dùng hiện tại được phép truy xuất."""
+    from events.models import can_view_internal_events
+    from .models import KnowledgeVisibility
+
+    if not user or not getattr(user, "is_authenticated", False) or getattr(user, "is_locked", False):
+        return (KnowledgeVisibility.PUBLIC,)
+    levels = [KnowledgeVisibility.PUBLIC]
+    if can_view_internal_events(user):
+        levels.append(KnowledgeVisibility.INTERNAL)
+        if getattr(user, "is_lead", False) or getattr(user, "is_admin_role", False):
+            levels.append(KnowledgeVisibility.CONFIDENTIAL)
+    return tuple(levels)
+
+
+def retrieve_knowledge_with_sources(query: str = "", limit: int = 4, user=None) -> tuple[str, list[dict]]:
     """
     Hybrid RAG nhẹ (BM25 + so khớp từ khoá tiếng Việt bỏ dấu) trên Kho tri thức CLB.
-    Trả về (văn_bản_gắn_ngữ_cảnh, danh_sách_trích_dẫn).
+    Chỉ truy xuất các mục nằm trong phạm vi quyền (`PUBLIC`, `INTERNAL`, `CONFIDENTIAL`).
     """
     try:
         from .models import ClubKnowledge
-        items = list(ClubKnowledge.objects.filter(is_active=True))
+        allowed_levels = visible_knowledge_levels(user)
+        items = list(ClubKnowledge.objects.filter(is_active=True, visibility__in=allowed_levels))
     except Exception:
         logger.warning("Không đọc được Kho tri thức CLB", exc_info=True)
         return "", []
@@ -1060,7 +1076,7 @@ def retrieve_knowledge_with_sources(query: str = "", limit: int = 4) -> tuple[st
         return "", []
 
     # Điểm BM25 chuẩn hoá (Foundation 0.2.1)
-    anon_actor = Actor(user_id="rag:public", club_id="kmg", permissions=frozenset({"public.read"}))
+    anon_actor = Actor(user_id="rag:scoped", club_id="kmg", permissions=frozenset({"public.read"}))
     bm25_docs = [
         Document(
             source_id=str(item.pk),
@@ -1093,16 +1109,16 @@ def retrieve_knowledge_with_sources(query: str = "", limit: int = 4) -> tuple[st
     return "\n".join(lines), sources
 
 
-def retrieve_knowledge(query: str = "", limit: int = 4) -> str:
+def retrieve_knowledge(query: str = "", limit: int = 4, user=None) -> str:
     """
     RAG nhẹ (Hybrid BM25 + khớp từ khoá tiếng Việt bỏ dấu) lấy top-K mục tri thức liên quan.
     Không mục nào đạt ngưỡng thì trả chuỗi rỗng.
     """
-    text, _ = retrieve_knowledge_with_sources(query, limit=limit)
+    text, _ = retrieve_knowledge_with_sources(query, limit=limit, user=user)
     return text
 
 
-def build_assistant_context(question: str = "", *, return_sources: bool = False):
+def build_assistant_context(question: str = "", *, user=None, return_sources: bool = False):
     """
     Dữ liệu nền gửi cho AI (Grounding + RAG nhẹ):
       1. Các sự kiện CÔNG KHAI (bỏ bản nháp DRAFT).
@@ -1170,8 +1186,8 @@ def build_assistant_context(question: str = "", *, return_sources: bool = False)
             f"- Ban nhận đơn: {dept_names}"
         )
 
-    # Nạp Kho tri thức CLB (Hybrid BM25 + Lexical RAG)
-    kb_text, kb_sources = retrieve_knowledge_with_sources(question, limit=4)
+    # Nạp Kho tri thức CLB (Hybrid BM25 + Lexical RAG, lọc theo phân quyền người dùng)
+    kb_text, kb_sources = retrieve_knowledge_with_sources(question, limit=4, user=user)
     if kb_text:
         sections.append("KHO TRI THỨC & FAQ CLB:\n" + kb_text)
 
@@ -1193,7 +1209,7 @@ def _assistant_rules() -> str:
 
 
 def ask_assistant(question: str, history: list[dict] | None = None,
-                  names: tuple = ()) -> dict:
+                  names: tuple = (), user=None) -> dict:
     """
     Hỏi AI một câu KHÔNG thuộc các ý định có sẵn.
     Có thể truyền kèm `history` ([{"role": "user"|"assistant", "text": "..."}])
@@ -1205,21 +1221,22 @@ def ask_assistant(question: str, history: list[dict] | None = None,
     """
     from django.utils import timezone
 
-    # Chốt chặn cuối: che PII ngay trước khi ghép prompt, kể cả với lịch sử cũ
-    # còn nằm trong session.
-    question = redact(question.strip(), names)[:500]
+    # Chốt chặn cuối: che PII + chặn injection delimiter ngay trước khi ghép prompt.
+    question = sanitize_untrusted_input(redact(question.strip(), names))[:500]
     history_block = ""
     if history:
         lines = ["LỊCH SỬ TRAO ĐỔI GẦN ĐÂY:"]
         for msg in history[-4:]:
             role = "Người dùng" if msg.get("role") == "user" else "Trợ lý"
-            text_val = redact(msg.get("text", ""), names).strip()[:200]
+            text_val = sanitize_untrusted_input(redact(msg.get("text", ""), names)).strip()[:200]
             if text_val:
                 lines.append(f"- {role}: {text_val}")
         if len(lines) > 1:
             history_block = "\n".join(lines) + "\n\n"
 
-    events_text, known_ids, kb_sources = build_assistant_context(question, return_sources=True)
+    events_text, known_ids, kb_sources = build_assistant_context(
+        question, user=user, return_sources=True
+    )
     now = timezone.localtime()
     addendum = get_prompt_addendum("chatbot")
     model = settings.AI_ASSISTANT_MODEL or settings.AI_MODEL
@@ -1232,7 +1249,7 @@ def ask_assistant(question: str, history: list[dict] | None = None,
         events=events_text,
         rules=_assistant_rules(),
         history_block=history_block,
-        question=question,
+        question=f"<USER_QUERY>\n{question}\n</USER_QUERY>",
     ) + addendum
     # Trợ lý dùng model RIÊNG (thường là bản lite): hỏi đáp nhiều, câu ngắn,
     # cần nhanh; và hạn mức miễn phí tính riêng từng model nên không ăn vào
@@ -1289,26 +1306,28 @@ QUY ĐỊNH VÉ:
 
 
 def stream_assistant_reply(question: str, history: list[dict] | None = None,
-                           names: tuple = ()):
+                           names: tuple = (), user=None):
     """
     Generator SSE stream từng delta văn bản trực tiếp từ provider (Gemini / OpenAI / Local LLM).
     Yield: {"token": str} rồi kết thúc bằng {"done": True, "text", "event_ids", "sources", "model", "prompt_version"}.
     """
     from django.utils import timezone
 
-    clean_q = redact(question.strip(), names)[:500]
+    clean_q = sanitize_untrusted_input(redact(question.strip(), names))[:500]
     history_block = ""
     if history:
         lines = ["LỊCH SỬ TRAO ĐỔI GẦN ĐÂY:"]
         for msg in history[-4:]:
             role = "Người dùng" if msg.get("role") == "user" else "Trợ lý"
-            text_val = redact(msg.get("text", ""), names).strip()[:200]
+            text_val = sanitize_untrusted_input(redact(msg.get("text", ""), names)).strip()[:200]
             if text_val:
                 lines.append(f"- {role}: {text_val}")
         if len(lines) > 1:
             history_block = "\n".join(lines) + "\n\n"
 
-    events_text, known_ids, kb_sources = build_assistant_context(clean_q, return_sources=True)
+    events_text, known_ids, kb_sources = build_assistant_context(
+        clean_q, user=user, return_sources=True
+    )
     now = timezone.localtime()
     addendum = get_prompt_addendum("chatbot")
     active_provider = (getattr(settings, "AI_PROVIDER", "gemini") or "gemini").strip().lower()
@@ -1322,7 +1341,7 @@ def stream_assistant_reply(question: str, history: list[dict] | None = None,
         events=events_text,
         rules=_assistant_rules(),
         history_block=history_block,
-        question=clean_q,
+        question=f"<USER_QUERY>\n{clean_q}\n</USER_QUERY>",
     ) + addendum
 
     parts: list[str] = []

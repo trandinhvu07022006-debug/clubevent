@@ -38,14 +38,29 @@ def club_numbers():
     """
     Con số THẬT của CLB cho dải "Con số nói lên tất cả".
     Không bịa số: CSDL trống thì trả 0 và template tự ẩn dải này.
+    Chỉ đếm thành viên chính thức (không đếm tài khoản Khách) và check-in
+    của sự kiện CÔNG KHAI (không làm lộ số liệu sự kiện nội bộ).
     """
+    from organization.models import ClubMembershipStatus
+
     return {
         "events_done": Event.objects.filter(
             visibility=EventVisibility.PUBLIC, status=EventStatus.DONE).count(),
         "events_total": Event.objects.filter(visibility=EventVisibility.PUBLIC).exclude(
             status__in=[EventStatus.DRAFT, EventStatus.CANCELLED]).count(),
-        "members": User.objects.filter(is_locked=False, is_superuser=False).count(),
-        "checkins": Ticket.objects.filter(status=TicketStatus.CHECKED_IN).count(),
+        "members": (
+            User.objects.filter(is_locked=False, is_superuser=False)
+            .filter(
+                Q(club_membership__status=ClubMembershipStatus.ACTIVE)
+                | Q(role__in=[Role.MEMBER, Role.STAFF, Role.LEAD])
+            )
+            .distinct()
+            .count()
+        ),
+        "checkins": Ticket.objects.filter(
+            status=TicketStatus.CHECKED_IN,
+            event__visibility=EventVisibility.PUBLIC,
+        ).count(),
         "departments": Department.objects.count(),
     }
 

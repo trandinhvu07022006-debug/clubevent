@@ -148,6 +148,8 @@ def api_auth_register(request):
     pw2 = str(payload.get("password2") or pw)
     form_data = {
         "full_name": str(payload.get("full_name") or ""),
+        "affiliation": str(payload.get("affiliation") or "KMA"),
+        "school": str(payload.get("school") or ""),
         "email": str(payload.get("email") or ""),
         "phone": str(payload.get("phone") or ""),
         "otp_channel": str(payload.get("otp_channel") or "AUTO"),

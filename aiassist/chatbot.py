@@ -313,7 +313,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
                 try:
                     final_evt = None
                     for item in services.stream_assistant_reply(
-                        question, history=history, names=known_names(user)
+                        question, history=history, names=known_names(user), user=user
                     ):
                         if item.get("done"):
                             final_evt = item
@@ -446,7 +446,7 @@ def _answer_with_ai(question, history=None, user=None):
             return foundation_result
 
     try:
-        data = ask_assistant(question, history=history, names=known_names(user))
+        data = ask_assistant(question, history=history, names=known_names(user), user=user)
     except AIError:
         return None
 

@@ -39,6 +39,7 @@ class LLMOpsPipelineTests(TestCase):
             category=KnowledgeCategory.RULE,
             keywords="hoan ve, doi ve, chuyen nhuong",
             content="Vé đã mua có thể chuyển nhượng cho bạn khác trước giờ diễn ra sự kiện.",
+            visibility="PUBLIC",
             priority=1,
         )
 
@@ -223,6 +224,7 @@ class LLMOpsPipelineTests(TestCase):
             category=KnowledgeCategory.GENERAL,
             keywords="nhan tin, ma hoa",
             content="Tin nhắn trong không gian nội bộ được bảo vệ bằng mã hóa AES-256-GCM.",
+            visibility="PUBLIC",
             priority=10,
         )
         rag_res = retrieve_knowledge("bảo mật mã hóa tin nhắn AES", limit=1)

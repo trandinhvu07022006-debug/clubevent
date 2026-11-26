@@ -3,6 +3,8 @@ server {
     server_name _;
     server_tokens off;
     client_max_body_size 12m;
+    add_header Referrer-Policy "same-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://img.vietqr.io; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
 
     # Chỉ media công khai được phục vụ ở đây, vault không được mount vào Nginx.
     location /media/ {
@@ -16,6 +18,7 @@ server {
         proxy_pass http://web:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Real-IP $remote_addr;
         # Giá trị cấu hình cố định http/https; không lấy header do client gửi.

@@ -18,8 +18,8 @@ from .core.agent import Agent
 from .core.contracts import Actor, Message, ModelProvider, ModelReply, ToolCall
 from .core.retrieval import Document, search as bm25_search
 from .core.tools import Field, ReadTool, ToolRegistry
-from .models import ClubKnowledge
-from .privacy import known_names, redact
+from .models import ClubKnowledge, KnowledgeVisibility
+from .privacy import known_names, redact, sanitize_untrusted_input
 from .services import RETRIEVAL_STOPWORDS, _ask_ai
 
 
@@ -82,18 +82,26 @@ def _tool_list_public_events(actor: Actor, args: Mapping[str, Any]) -> list[dict
     return results
 
 
+_KB_PERMISSION_MAP = {
+    KnowledgeVisibility.PUBLIC: "public.read",
+    KnowledgeVisibility.INTERNAL: "club.event.view_internal",
+    KnowledgeVisibility.CONFIDENTIAL: "organizing.lead",
+}
+
+
 def _kb_documents() -> list[tuple[ClubKnowledge, Document]]:
-    """Build normalized BM25 documents for active public ClubKnowledge entries."""
+    """Build normalized BM25 documents for active ClubKnowledge with classification permissions."""
     docs: list[tuple[ClubKnowledge, Document]] = []
     for item in ClubKnowledge.objects.filter(is_active=True).order_by("priority", "-updated_at"):
         norm_text = prepare_query(f"{item.title} {item.keywords} {item.content}")
+        perm = _KB_PERMISSION_MAP.get(item.visibility, "club.event.view_internal")
         docs.append((
             item,
             Document(
                 source_id=f"kb:{item.pk}",
                 club_id="kmg",
                 text=norm_text,
-                permission="public.read",
+                permission=perm,
             ),
         ))
     return docs
@@ -237,7 +245,7 @@ def ask_with_foundation(question: str, user=None) -> dict | None:
     Returns None on unavailable/empty/error so caller can fall back cleanly.
     """
     actor = build_server_actor(user)
-    clean_question = redact((question or "").strip(), known_names(user))[:500]
+    clean_question = sanitize_untrusted_input(redact((question or "").strip(), known_names(user)))[:500]
     if not clean_question:
         return None
     agent = Agent(

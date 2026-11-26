@@ -46,3 +46,39 @@ def known_names(user):
         return ()
     return tuple(filter(None, (getattr(user, "full_name", ""),
                                getattr(user, "display_name", ""))))
+
+
+_INJECTION_DELIMITERS_RE = re.compile(
+    r"(?:<\|(?:im_start|im_end|system|assistant|user)\|>|"
+    r"</?(?:system|USER_QUERY|INSTRUCTIONS|CONTEXT)>|"
+    r"^\s*#{2,}\s*(?:SYSTEM|INSTRUCTIONS|DEVELOPER)\s*:?)",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+_INJECTION_PHRASES_RE = re.compile(
+    r"(?:ignore\s+(?:all\s+)?previous\s+instructions|"
+    r"disregard\s+(?:all\s+)?rules|"
+    r"reveal\s+(?:system\s+prompt|api[_\s]?key|secret)|"
+    r"bo\s+qua\s+(?:tat\s+ca\s+|moi\s+)?quy\s+tac|"
+    r"in\s+ra\s+(?:api\s+key|mat\s+khau|system\s+prompt))",
+    re.IGNORECASE,
+)
+
+
+def sanitize_untrusted_input(text: str) -> str:
+    """Loại bỏ ký tự điều khiển và thẻ giả mạo ranh giới prompt trong câu hỏi người dùng."""
+    cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", " ", str(text or ""))
+    cleaned = _INJECTION_DELIMITERS_RE.sub(" ", cleaned)
+    return " ".join(cleaned.split())
+
+
+def has_prompt_injection_signal(text: str) -> bool:
+    """Nhận diện dấu hiệu thử chèn chỉ thị hệ thống (chỉ dùng phòng vệ/giám sát)."""
+    raw = str(text or "")
+    norm = unicodedata.normalize("NFD", raw).replace("đ", "d")
+    norm = "".join(c for c in norm if unicodedata.category(c) != "Mn")
+    return bool(
+        _INJECTION_DELIMITERS_RE.search(raw)
+        or _INJECTION_PHRASES_RE.search(raw)
+        or _INJECTION_PHRASES_RE.search(norm)
+    )

@@ -47,15 +47,16 @@ SECRET_KEY = env("SECRET_KEY", "dev-only-doi-key-nay-truoc-khi-deploy")
 CERT_SIGNING_KEY = env("CERT_SIGNING_KEY", "dev-only-cert-signing-key-32chars!!")
 CHAT_MASTER_KEK = env("CHAT_MASTER_KEK", "dev-only-chat-master-kek-32chars!!")
 DEBUG = env_bool("DEBUG", True)
-ALLOW_DEMO_SEED = env_bool("ALLOW_DEMO_SEED", True)
+ALLOW_DEMO_SEED = env_bool("ALLOW_DEMO_SEED", DEBUG)
 ALLOWED_HOSTS = [h for h in env("ALLOWED_HOSTS", "*").split(",") if h]
 # Bắt buộc khi truy cập qua HTTPS của tên miền khác (ngrok, host thật), nếu
 # không mọi form POST bị chặn CSRF 403. Ví dụ: https://abc.ngrok-free.app
 CSRF_TRUSTED_ORIGINS = [o for o in env("CSRF_TRUSTED_ORIGINS", "").split(",") if o]
 TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS", False)
 TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", False)
+TRUST_X_FORWARDED_HOST = env_bool("TRUST_X_FORWARDED_HOST", False)
 if TRUST_PROXY_HEADERS:
-    USE_X_FORWARDED_HOST = True
+    USE_X_FORWARDED_HOST = TRUST_X_FORWARDED_HOST
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # DEBUG=False mà khoá còn để trống hoặc còn giá trị mặc định (repo công khai nên
@@ -456,6 +457,7 @@ LOGGING = {
 # --- Bảo mật khi deploy thật (DEBUG=False) ---
 if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True   # chặn browser tự đoán kiểu file
+    SECURE_REFERRER_POLICY = env("SECURE_REFERRER_POLICY", "same-origin")
     SESSION_COOKIE_HTTPONLY = True       # JavaScript không đọc được cookie session
     CSRF_COOKIE_HTTPONLY = True
     X_FRAME_OPTIONS = "DENY"             # chống clickjacking (nhúng site vào iframe)
@@ -467,6 +469,6 @@ if not DEBUG:
         SECURE_SSL_REDIRECT = True       # tự chuyển http -> https
         SESSION_COOKIE_SECURE = True     # cookie chỉ gửi qua https
         CSRF_COOKIE_SECURE = True
-        SECURE_HSTS_SECONDS = 31536000   # 1 năm, buộc browser luôn dùng https
+        SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "31536000"))
         SECURE_HSTS_INCLUDE_SUBDOMAINS = True
         SECURE_HSTS_PRELOAD = True

@@ -59,6 +59,7 @@ class FoundationIntegrationTests(TestCase):
             category=KnowledgeCategory.RULE,
             keywords="chuyen nhuong, doi ve",
             content="Bạn có thể chuyển vé cho bạn khác trước 3 giờ diễn ra sự kiện.",
+            visibility="PUBLIC",
             priority=1,
         )
 

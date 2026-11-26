@@ -190,7 +190,8 @@ class MatchingTests(TestCase):
     def test_retrieval_returns_nothing_for_off_topic(self):
         ClubKnowledge.objects.create(
             title="Nội quy quỹ", keywords="quy, dong phi",
-            content="Thành viên đóng quỹ theo tháng.")
+            content="Thành viên đóng quỹ theo tháng.",
+            visibility="PUBLIC")
         for question in ("thời tiết Tokyo hôm nay", "xyz qqq", "hi"):
             with self.subTest(question=question):
                 self.assertEqual(retrieve_knowledge(question), "")

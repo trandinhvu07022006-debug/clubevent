@@ -206,6 +206,9 @@ def book_tickets(user: User, ticket_type_id: int, quantity: int,
     if getattr(user, "is_locked", False):
         raise BookingError("Tài khoản của bạn đang bị khoá.")
     _require_verified(user)
+    # Khoá hàng User trước TicketType để chống vượt MAX_TICKETS_PER_USER_PER_EVENT
+    # khi một người đặt song song nhiều loại vé khác nhau của cùng một sự kiện.
+    UserModel.objects.select_for_update().only("pk").get(pk=user.pk)
 
     # (1) KHOÁ DÒNG loại vé. Mọi kiểm tra bên dưới đọc dữ liệu đã được khoá.
     try:
@@ -736,6 +739,7 @@ def join_waitlist(user: User, ticket_type_id: int) -> WaitlistEntry:
     if getattr(user, "is_locked", False):
         raise BookingError("Tài khoản của bạn đang bị khoá.")
     _require_verified(user)
+    UserModel.objects.select_for_update().only("pk").get(pk=user.pk)
     try:
         tt = (TicketType.objects.select_for_update().select_related("event")
               .get(pk=ticket_type_id))

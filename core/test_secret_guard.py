@@ -90,3 +90,37 @@ print(json.dumps({
         self.assertEqual(data["location"], "redis://127.0.0.1:6379/1")
         self.assertTrue(data["trust_xff"])
         self.assertEqual(data["proxy_ssl"], ["HTTP_X_FORWARDED_PROTO", "https"])
+
+    def test_production_defaults_fail_closed_demo_seed_and_forwarded_host(self):
+        probe = """
+import json
+import config.settings as s
+print(json.dumps({
+    "allow_demo_seed": s.ALLOW_DEMO_SEED,
+    "use_x_forwarded_host": s.USE_X_FORWARDED_HOST,
+    "referrer": getattr(s, "SECURE_REFERRER_POLICY", None),
+}))
+"""
+        env = {k: v for k, v in os.environ.items() if k not in KEY_NAMES}
+        for name in KEY_NAMES:
+            env[name] = f"khoa-rieng-{name}-" + "x" * 32
+        with tempfile.TemporaryDirectory() as logs:
+            env.update({
+                "KMG_ENV_FILE": "",
+                "DEBUG": "False",
+                "DB_ENGINE": "sqlite",
+                "DATABASE_URL": "",
+                "CACHE_URL": "",
+                "TRUST_PROXY_HEADERS": "True",
+                "LOG_ROOT": logs,
+                "PYTHONIOENCODING": "utf-8",
+            })
+            res = subprocess.run(
+                [sys.executable, "-c", probe], cwd=settings.BASE_DIR, env=env,
+                capture_output=True, encoding="utf-8", timeout=60,
+            )
+        self.assertEqual(res.returncode, 0, res.stderr)
+        data = __import__("json").loads(res.stdout.strip())
+        self.assertFalse(data["allow_demo_seed"])
+        self.assertFalse(data["use_x_forwarded_host"])
+        self.assertEqual(data["referrer"], "same-origin")

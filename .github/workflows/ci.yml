@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-mysql-redis:
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -38,10 +38,17 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install dependencies
+      - name: Install dependencies & security tools
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt redis
+          pip install -r requirements-production.txt coverage ruff pip-audit
+          pip check
+      - name: Static syntax & lint checks
+        run: |
+          python -m compileall -q .
+          ruff check --select E9,F63,F7,F82 .
+      - name: Dependency vulnerability scan
+        run: pip-audit
       - name: Django system & migration checks
         run: |
           python manage.py check --settings=config.settings_test
@@ -53,11 +60,15 @@ jobs:
           DB_ENGINE: sqlite
           ALLOWED_HOSTS: clubevent.example.com
           USE_HTTPS: "True"
+          ALLOW_DEMO_SEED: "False"
           SECRET_KEY: ci-deploy-check-secret-key-0123456789abcdef0123456789
           CERT_SIGNING_KEY: ci-deploy-check-cert-key-0123456789abcdef0123456789
           CHAT_MASTER_KEK: ci-deploy-check-chat-key-0123456789abcdef0123456789
         run: python manage.py check --deploy --settings=config.settings
-      - name: Run full test suite (MySQL + Redis)
+      - name: Deployment unit tests (backup/restore & scheduler)
+        run: |
+          python -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v
+      - name: Run full test suite with coverage (MySQL 8.4 + Redis 7)
         env:
           KMG_TEST_DB_ENGINE: mysql
           KMG_TEST_DB_NAME: kmg_ci
@@ -67,4 +78,36 @@ jobs:
           KMG_TEST_DB_USER: root
           KMG_TEST_DB_PASSWORD: ""
           KMG_TEST_REDIS_URL: redis://127.0.0.1:6379/1
+        run: |
+          coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test
+          coverage report --skip-covered
+      - name: AI quality gate on isolated SQLite
+        run: |
+          python manage.py evaluate_ai --with-migrate --settings=config.settings_test
+
+  test-sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run full test suite (SQLite isolation)
         run: python manage.py test --settings=config.settings_test
+
+  docker-build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production Docker image
+        run: docker build -t kmg-app:ci .
+      - name: Validate Compose config
+        env:
+          DB_PASSWORD: ci-temp-db-password
+          MYSQL_ROOT_PASSWORD: ci-temp-root-password
+        run: docker compose config -q

@@ -184,6 +184,7 @@ class RealSSEStreamingTests(TransactionTestCase):
             category=KnowledgeCategory.GENERAL,
             keywords="gui xe, bai xe, hoi truong",
             content="Sinh viên gửi xe tại cổng sau nhà A miễn phí.",
+            visibility="PUBLIC",
             priority=1,
             is_active=True,
         )

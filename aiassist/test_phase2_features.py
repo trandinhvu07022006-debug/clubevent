@@ -29,6 +29,7 @@ class IntentAndHybridRetrievalTests(TestCase):
             category=KnowledgeCategory.EVENT,
             keywords="tham gia, check in, ma qr, ve dien tu, chuyen nhuong ve",
             content="Hệ thống hỗ trợ chuyển nhượng vé hợp lệ trước giờ diễn ra.",
+            visibility="PUBLIC",
             priority=1,
             is_active=True,
         )
@@ -37,6 +38,7 @@ class IntentAndHybridRetrievalTests(TestCase):
             category=KnowledgeCategory.RULE,
             keywords="danh gia, 7 tieu chi",
             content="Đánh giá theo 7 tiêu chí.",
+            visibility="PUBLIC",
             priority=2,
             is_active=True,
         )

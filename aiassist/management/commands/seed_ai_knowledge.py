@@ -1,7 +1,8 @@
 """Nạp dữ liệu mẫu cho Kho tri thức CLB (RAG) và Cấu hình Prompt cho cả 8 modun AI."""
 from django.core.management.base import BaseCommand
 
-from aiassist.models import AIPromptProfile, AITaskKey, ClubKnowledge, KnowledgeCategory
+from aiassist.models import (AIPromptProfile, AITaskKey, ClubKnowledge,
+                             KnowledgeCategory, KnowledgeVisibility)
 
 DEFAULT_KNOWLEDGE = [
     {
@@ -198,9 +199,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         created_kb = 0
         for item in DEFAULT_KNOWLEDGE:
+            defaults = {**item, "visibility": item.get("visibility", KnowledgeVisibility.PUBLIC)}
             _, created = ClubKnowledge.objects.get_or_create(
                 title=item["title"],
-                defaults=item,
+                defaults=defaults,
             )
             if created:
                 created_kb += 1

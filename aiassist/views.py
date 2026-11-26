@@ -20,7 +20,8 @@ from .chatbot import PRIVATE_INTENTS, SUGGESTIONS, answer, stream_answer
 from .eval_data import to_jsonl
 from .management.commands.export_finetune_dataset import build_finetune_records
 from .models import (AIInteractionLog, AIPromptProfile, AITaskKey,
-                     ClubKnowledge, FeedbackRating, KnowledgeCategory)
+                     ClubKnowledge, FeedbackRating, KnowledgeCategory,
+                     KnowledgeVisibility)
 from .privacy import known_names, redact
 
 logger = logging.getLogger(__name__)
@@ -273,6 +274,7 @@ def ai_studio(request):
             title = request.POST.get("title", "").strip()[:160]
             content = request.POST.get("content", "").strip()
             category = request.POST.get("category", KnowledgeCategory.GENERAL)
+            visibility = request.POST.get("visibility", KnowledgeVisibility.INTERNAL)
             keywords = request.POST.get("keywords", "").strip()[:255]
             try:
                 priority = max(1, min(int(request.POST.get("priority", 10)), 999))
@@ -280,10 +282,12 @@ def ai_studio(request):
                 priority = 10
             if category not in KnowledgeCategory.values:
                 category = KnowledgeCategory.GENERAL
+            if visibility not in KnowledgeVisibility.values:
+                visibility = KnowledgeVisibility.INTERNAL
             if title and content:
                 ClubKnowledge.objects.create(
-                    title=title, category=category, keywords=keywords,
-                    content=content, priority=priority,
+                    title=title, category=category, visibility=visibility,
+                    keywords=keywords, content=content, priority=priority,
                 )
                 messages.success(request, f"Đã thêm tri thức RAG: '{title}'.")
             else:

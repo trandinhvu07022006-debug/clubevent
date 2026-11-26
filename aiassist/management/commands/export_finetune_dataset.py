@@ -17,7 +17,7 @@ from django.core.management.base import BaseCommand
 
 from aiassist.chatbot import PRIVATE_INTENTS
 from aiassist.models import (AIInteractionLog, AIPromptProfile, ClubKnowledge,
-                             FeedbackRating)
+                             FeedbackRating, KnowledgeVisibility)
 from aiassist.privacy import redact
 
 
@@ -41,8 +41,10 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                     a_clean,
                 ))
 
-        # Kho tri thức CLB (RAG -> Q&A training pairs)
-        for kb in ClubKnowledge.objects.filter(is_active=True).order_by("priority", "id"):
+        # Kho tri thức CLB (chỉ lấy mục PUBLIC -> Q&A training pairs)
+        for kb in ClubKnowledge.objects.filter(
+            is_active=True, visibility=KnowledgeVisibility.PUBLIC
+        ).order_by("priority", "id"):
             pairs.append((
                 "Bạn là trợ lý hỏi đáp thân thiện của KMG Club. Chỉ trả lời dựa trên thông tin chính thức của CLB.",
                 f"Cho mình hỏi về {kb.title.lower()}?",

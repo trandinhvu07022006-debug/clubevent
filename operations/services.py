@@ -524,12 +524,16 @@ def submit_task_deliverable(
 
     is_late = task.is_overdue
     safe_url = clean_evidence_url(evidence_url)
+    safe_attachment = None
+    if attachment is not None:
+        from programs.services import validate_and_prepare_vault_file
+        safe_attachment = validate_and_prepare_vault_file(attachment)["content_file"]
     submission = TaskSubmission.objects.create(
         task=task,
         submitted_by=actor,
         submission_note=clean_note,
         evidence_url=safe_url,
-        attachment=attachment,
+        attachment=safe_attachment,
         is_late=is_late,
     )
 

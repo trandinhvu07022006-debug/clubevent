@@ -23,7 +23,7 @@ from django.utils import timezone
 
 from aiassist.chatbot import detect_intent
 from aiassist.management.commands.seed_ai_knowledge import DEFAULT_KNOWLEDGE
-from aiassist.models import ClubKnowledge
+from aiassist.models import ClubKnowledge, KnowledgeVisibility
 from aiassist.privacy import redact
 from aiassist.services import (_ask_ai, build_assistant_context,
                                generate_event_content, retrieve_knowledge,
@@ -116,7 +116,9 @@ class Command(BaseCommand):
         with transaction.atomic():
             ClubKnowledge.objects.update(is_active=False)
             for item in DEFAULT_KNOWLEDGE:
-                ClubKnowledge.objects.create(**item)
+                ClubKnowledge.objects.create(
+                    **{**item, "visibility": item.get("visibility", KnowledgeVisibility.PUBLIC)}
+                )
             for case in _load("golden_retrieval.json"):
                 found = retrieve_knowledge(case["q"])
                 top = found.split("\n")[0]

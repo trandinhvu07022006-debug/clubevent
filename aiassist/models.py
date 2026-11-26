@@ -19,6 +19,12 @@ class KnowledgeCategory(models.TextChoices):
     RULE = "RULE", "Nội quy & Quy định"
 
 
+class KnowledgeVisibility(models.TextChoices):
+    PUBLIC = "PUBLIC", "Công khai"
+    INTERNAL = "INTERNAL", "Nội bộ CLB"
+    CONFIDENTIAL = "CONFIDENTIAL", "Mật / Quản trị"
+
+
 class ClubKnowledge(models.Model):
     """Một mục tri thức/FAQ của CLB dùng làm dữ liệu nền (RAG) cho trợ lý AI."""
 
@@ -26,6 +32,13 @@ class ClubKnowledge(models.Model):
     category = models.CharField(
         "Danh mục", max_length=16, choices=KnowledgeCategory.choices,
         default=KnowledgeCategory.GENERAL,
+    )
+    visibility = models.CharField(
+        "Phân loại truy cập",
+        max_length=16,
+        choices=KnowledgeVisibility.choices,
+        default=KnowledgeVisibility.INTERNAL,
+        db_index=True,
     )
     keywords = models.CharField(
         "Từ khoá gợi nhớ", max_length=255, blank=True,

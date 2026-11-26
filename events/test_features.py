@@ -106,12 +106,17 @@ class IcsTests(Base):
         self.assertIn("SUMMARY:Đêm nhạc\\, acoustic\\; số 5", event_ics(ev).replace("\r\n ", ""))
 
     def test_t7_4_3_lines_max_75_bytes_and_utf8(self):
-        ev = self.make_event(name="Sự kiện có tên rất dài tiếng Việt " * 6,
-                             description="Mô tả dài có dấu tiếng Việt. " * 40)
+        long_name = ("Sự kiện có tên rất dài tiếng Việt " * 5).strip()  # 169 ký tự <= 200, >200 byte UTF-8
+        long_desc = ("Mô tả dài có dấu tiếng Việt. " * 40).strip()
+        ev = self.make_event(name=long_name, description=long_desc)
         raw = event_ics(ev).encode("utf-8")
-        for line in raw.split(b"\r\n"):
+        lines = raw.split(b"\r\n")
+        for line in lines:
             self.assertLessEqual(len(line), 75)
-        raw.decode("utf-8")   # không cắt giữa ký tự nhiều byte
+            line.decode("utf-8")   # từng dòng sau gập vẫn giải mã UTF-8 hợp lệ, không cắt giữa ký tự
+        unfolded = raw.decode("utf-8").replace("\r\n ", "")
+        self.assertIn(f"SUMMARY:{long_name}", unfolded)
+        self.assertIn(long_desc[:500], unfolded)
 
     def test_t7_4_4_draft_hidden_from_guest(self):
         ev = self.make_event(status=EventStatus.DRAFT)

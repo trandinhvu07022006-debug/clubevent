@@ -340,6 +340,14 @@ def social_post_detail(request, pk: int):
     )
 
 
+_SAFE_INLINE_IMAGE_TYPES = frozenset({
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+})
+
+
 @club_member_required
 def social_attachment_download(request, pk: int):
     """Tải / xem tệp đính kèm MXH từ PrivateVaultStorage — kiểm tra `can_view_post` (`SEC-01`, `PA-05`)."""
@@ -349,7 +357,11 @@ def social_attachment_download(request, pk: int):
     if not att.file:
         raise Http404("Tệp đính kèm không tồn tại.")
 
-    as_attach = att.attachment_type != SocialAttachmentType.IMAGE
+    safe_inline = (
+        att.attachment_type == SocialAttachmentType.IMAGE
+        and (att.content_type or "").lower() in _SAFE_INLINE_IMAGE_TYPES
+    )
+    as_attach = not safe_inline
     resp = FileResponse(
         att.file.open("rb"),
         as_attachment=as_attach,
@@ -587,7 +599,7 @@ def chat_attachment_download(request, pk: int):
     if att.message.is_recalled or not att.file:
         raise Http404("Tệp không còn khả dụng.")
 
-    as_attach = not (att.content_type or "").startswith("image/")
+    as_attach = (att.content_type or "").lower() not in _SAFE_INLINE_IMAGE_TYPES
     resp = FileResponse(
         att.file.open("rb"),
         as_attachment=as_attach,

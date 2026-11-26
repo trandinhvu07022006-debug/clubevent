@@ -123,6 +123,8 @@ def finance_hub(request):
         "can_approve": can_approve and not is_advisor,
         "can_export": can_view_club or PermissionEngine.authorize(actor, "club.report.export"),
         "proposable_depts": proposable_depts,
+        "dept_txs": [],
+        "club_events": [],
         "my_contributions": my_contributions,
         "categories": list(FundCategory.objects.filter(is_active=True).exclude(tx_type="ADJUSTMENT")),
         "tx_types": [(TransactionType.INCOME, "Phiếu thu"), (TransactionType.EXPENSE, "Phiếu chi")],
