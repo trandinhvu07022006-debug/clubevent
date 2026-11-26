@@ -5,6 +5,8 @@ server {
     client_max_body_size 12m;
     add_header Referrer-Policy "same-origin" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://img.vietqr.io; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+    # Chính sách audit không unsafe-inline để thu thập telemetry chuẩn bị tách inline script ở bản kế tiếp.
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://img.vietqr.io; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
 
     # Chỉ media công khai được phục vụ ở đây, vault không được mount vào Nginx.
     location /media/ {

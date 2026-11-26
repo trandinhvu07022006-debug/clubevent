@@ -55,7 +55,7 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 
 | File / Thư mục | Chủ sở hữu | Nhánh | Mục đích | Thời điểm khóa |
 |---|---|---|---|---|
-| *(Trống — đã giải phóng toàn bộ khóa sau kiểm thử)* | — | — | — | — |
+| *(Trống — đã giải phóng khóa sau Sprint A; tiếp tục khóa Sprint B)* | — | — | — | — |
 
 - **Hàng đợi bàn giao:**
   - `[T-010]` Push nhánh `feature/kmg-system-stabilization` lên `origin` và theo dõi kết quả GitHub Actions (`test-mysql-redis`, `docker-build-check`) — `READY`.

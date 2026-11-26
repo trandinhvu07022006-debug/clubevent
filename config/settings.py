@@ -48,19 +48,33 @@ CERT_SIGNING_KEY = env("CERT_SIGNING_KEY", "dev-only-cert-signing-key-32chars!!"
 CHAT_MASTER_KEK = env("CHAT_MASTER_KEK", "dev-only-chat-master-kek-32chars!!")
 DEBUG = env_bool("DEBUG", True)
 ALLOW_DEMO_SEED = env_bool("ALLOW_DEMO_SEED", DEBUG)
-ALLOWED_HOSTS = [h for h in env("ALLOWED_HOSTS", "*").split(",") if h]
+ALLOWED_HOSTS = [h.strip() for h in env("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+ALLOW_WILDCARD_ALLOWED_HOSTS = env_bool("ALLOW_WILDCARD_ALLOWED_HOSTS", False)
 # Bắt buộc khi truy cập qua HTTPS của tên miền khác (ngrok, host thật), nếu
 # không mọi form POST bị chặn CSRF 403. Ví dụ: https://abc.ngrok-free.app
 CSRF_TRUSTED_ORIGINS = [o for o in env("CSRF_TRUSTED_ORIGINS", "").split(",") if o]
 TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS", False)
 TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", False)
 TRUST_X_FORWARDED_HOST = env_bool("TRUST_X_FORWARDED_HOST", False)
+ALLOW_TRUSTED_FORWARDED_HOST = env_bool("ALLOW_TRUSTED_FORWARDED_HOST", False)
 if TRUST_PROXY_HEADERS:
     USE_X_FORWARDED_HOST = TRUST_X_FORWARDED_HOST
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # DEBUG=False mà khoá còn để trống hoặc còn giá trị mặc định (repo công khai nên
 # ai cũng đọc được) thì dừng ngay, không khởi động
+def _is_weak_secret(value: str) -> bool:
+    cleaned = (value or "").strip()
+    lowered = cleaned.lower()
+    if not cleaned or len(cleaned) < 32:
+        return True
+    if lowered.startswith(("dev-only", "test-only", "changeme", "default", "replace-me")):
+        return True
+    if len(set(cleaned)) < 8:
+        return True
+    return False
+
+
 if not DEBUG:
     _weak_keys = [
         name for name, value in (
@@ -68,11 +82,33 @@ if not DEBUG:
             ("CERT_SIGNING_KEY", CERT_SIGNING_KEY),
             ("CHAT_MASTER_KEK", CHAT_MASTER_KEK),
         )
-        if not value.strip() or value.startswith("dev-only")
+        if _is_weak_secret(value)
     ]
     if _weak_keys:
         raise ImproperlyConfigured(
-            f"Phải đặt {', '.join(_weak_keys)} trong .env trước khi chạy với DEBUG=False!"
+            f"Phải đặt {', '.join(_weak_keys)} đủ mạnh (>= 32 ký tự, không mặc định) trong .env trước khi chạy với DEBUG=False!"
+        )
+    if len({SECRET_KEY.strip(), CERT_SIGNING_KEY.strip(), CHAT_MASTER_KEK.strip()}) < 3:
+        raise ImproperlyConfigured(
+            "SECRET_KEY, CERT_SIGNING_KEY và CHAT_MASTER_KEK phải là 3 khóa độc lập khác nhau khi DEBUG=False."
+        )
+    if not ALLOWED_HOSTS:
+        raise ImproperlyConfigured("ALLOWED_HOSTS không được để trống khi chạy với DEBUG=False.")
+    if not ALLOW_WILDCARD_ALLOWED_HOSTS and any(
+        host == "*" or host.startswith("*.") for host in ALLOWED_HOSTS
+    ):
+        raise ImproperlyConfigured(
+            "ALLOWED_HOSTS không được chứa wildcard '*' khi DEBUG=False trừ khi bật ALLOW_WILDCARD_ALLOWED_HOSTS=True."
+        )
+    if ALLOW_DEMO_SEED:
+        raise ImproperlyConfigured("ALLOW_DEMO_SEED phải tắt (False) khi chạy với DEBUG=False.")
+    if (TRUST_X_FORWARDED_FOR or TRUST_X_FORWARDED_HOST) and not TRUST_PROXY_HEADERS:
+        raise ImproperlyConfigured(
+            "Không được bật TRUST_X_FORWARDED_FOR hoặc TRUST_X_FORWARDED_HOST khi TRUST_PROXY_HEADERS=False."
+        )
+    if TRUST_X_FORWARDED_HOST and not ALLOW_TRUSTED_FORWARDED_HOST:
+        raise ImproperlyConfigured(
+            "TRUST_X_FORWARDED_HOST bị từ chối mặc định khi DEBUG=False trừ khi bật ALLOW_TRUSTED_FORWARDED_HOST=True."
         )
 
 INSTALLED_APPS = [
@@ -460,15 +496,29 @@ if not DEBUG:
     SECURE_REFERRER_POLICY = env("SECURE_REFERRER_POLICY", "same-origin")
     SESSION_COOKIE_HTTPONLY = True       # JavaScript không đọc được cookie session
     CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = env("SESSION_COOKIE_SAMESITE", "Lax")
+    CSRF_COOKIE_SAMESITE = env("CSRF_COOKIE_SAMESITE", "Lax")
     X_FRAME_OPTIONS = "DENY"             # chống clickjacking (nhúng site vào iframe)
 
     # Các thiết lập dưới đây CHỈ bật khi site đã có HTTPS thật.
     # Bật khi chưa có SSL sẽ làm site không truy cập được, nên để qua .env.
     # Khi deploy có HTTPS thì thêm vào .env: USE_HTTPS=True
-    if env_bool("USE_HTTPS", False):
+    USE_HTTPS = env_bool("USE_HTTPS", False)
+    if USE_HTTPS:
+        if not env_bool("SESSION_COOKIE_SECURE", True) or not env_bool("CSRF_COOKIE_SECURE", True):
+            raise ImproperlyConfigured(
+                "SESSION_COOKIE_SECURE và CSRF_COOKIE_SECURE phải là True khi bật USE_HTTPS=True."
+            )
         SECURE_SSL_REDIRECT = True       # tự chuyển http -> https
         SESSION_COOKIE_SECURE = True     # cookie chỉ gửi qua https
         CSRF_COOKIE_SECURE = True
         SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "31536000"))
+        if SECURE_HSTS_SECONDS < 300:
+            raise ImproperlyConfigured("SECURE_HSTS_SECONDS phải >= 300 khi bật USE_HTTPS=True.")
         SECURE_HSTS_INCLUDE_SUBDOMAINS = True
         SECURE_HSTS_PRELOAD = True
+    else:
+        if str(SESSION_COOKIE_SAMESITE).lower() == "none" or str(CSRF_COOKIE_SAMESITE).lower() == "none":
+            raise ImproperlyConfigured("Cookie SameSite=None yêu cầu bật USE_HTTPS=True.")
+        SESSION_COOKIE_SECURE = False
+        CSRF_COOKIE_SECURE = False

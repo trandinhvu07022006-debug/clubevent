@@ -26,7 +26,12 @@ class SecretGuardTests(SimpleTestCase):
         env.update({k: v for k, v in values.items() if v is not None})
         with tempfile.TemporaryDirectory() as logs:
             env.update({"DEBUG": debug, "DB_ENGINE": "sqlite", "DATABASE_URL": "",
-                        "CACHE_URL": "", "LOG_ROOT": logs, "PYTHONIOENCODING": "utf-8"})
+                        "CACHE_URL": "", "ALLOWED_HOSTS": "localhost,127.0.0.1",
+                        "LOG_ROOT": logs, "PYTHONIOENCODING": "utf-8"})
+            env.update({k: v for k, v in overrides.items() if v is not None})
+            for k, v in overrides.items():
+                if v is None:
+                    env.pop(k, None)
             return subprocess.run(
                 [sys.executable, "-c", BOOT], cwd=settings.BASE_DIR, env=env,
                 capture_output=True, encoding="utf-8", timeout=60)
@@ -74,6 +79,7 @@ print(json.dumps({
                 "DEBUG": "False",
                 "DB_ENGINE": "sqlite",
                 "DATABASE_URL": "",
+                "ALLOWED_HOSTS": "localhost,127.0.0.1",
                 "CACHE_URL": "redis://127.0.0.1:6379/1",
                 "TRUST_PROXY_HEADERS": "True",
                 "TRUST_X_FORWARDED_FOR": "True",
@@ -110,6 +116,7 @@ print(json.dumps({
                 "DEBUG": "False",
                 "DB_ENGINE": "sqlite",
                 "DATABASE_URL": "",
+                "ALLOWED_HOSTS": "localhost,127.0.0.1",
                 "CACHE_URL": "",
                 "TRUST_PROXY_HEADERS": "True",
                 "LOG_ROOT": logs,
@@ -124,3 +131,40 @@ print(json.dumps({
         self.assertFalse(data["allow_demo_seed"])
         self.assertFalse(data["use_x_forwarded_host"])
         self.assertEqual(data["referrer"], "same-origin")
+
+    def test_production_refuses_short_low_entropy_or_duplicate_keys(self):
+        self.assertRefused(self._boot("False", SECRET_KEY="short-key"), "SECRET_KEY")
+        self.assertRefused(self._boot("False", CERT_SIGNING_KEY="a" * 40), "CERT_SIGNING_KEY")
+        self.assertRefused(self._boot("False", CHAT_MASTER_KEK="test-only-" + "z" * 30), "CHAT_MASTER_KEK")
+        dup = "shared-production-key-0123456789abcdef"
+        res = self._boot("False", SECRET_KEY=dup, CERT_SIGNING_KEY=dup)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("ImproperlyConfigured", res.stderr)
+
+    def test_production_refuses_empty_or_wildcard_allowed_hosts_and_demo_seed(self):
+        self.assertRefused(self._boot("False", ALLOWED_HOSTS=None), "ALLOWED_HOSTS")
+        self.assertRefused(self._boot("False", ALLOWED_HOSTS=""), "ALLOWED_HOSTS")
+        self.assertRefused(self._boot("False", ALLOWED_HOSTS="*"), "ALLOWED_HOSTS")
+        self.assertRefused(self._boot("False", ALLOWED_HOSTS="*.kmg.local"), "ALLOWED_HOSTS")
+        res = self._boot("False", ALLOWED_HOSTS="*", ALLOW_WILDCARD_ALLOWED_HOSTS="True")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertRefused(self._boot("False", ALLOW_DEMO_SEED="True"), "ALLOW_DEMO_SEED")
+
+    def test_production_refuses_unsafe_proxy_and_insecure_https_cookie_configs(self):
+        self.assertRefused(self._boot("False", TRUST_X_FORWARDED_FOR="True"), "TRUST_PROXY_HEADERS")
+        self.assertRefused(
+            self._boot("False", TRUST_PROXY_HEADERS="True", TRUST_X_FORWARDED_HOST="True"),
+            "TRUST_X_FORWARDED_HOST",
+        )
+        self.assertRefused(
+            self._boot("False", USE_HTTPS="True", SESSION_COOKIE_SECURE="False"),
+            "SESSION_COOKIE_SECURE",
+        )
+        self.assertRefused(
+            self._boot("False", USE_HTTPS="True", SECURE_HSTS_SECONDS="60"),
+            "SECURE_HSTS_SECONDS",
+        )
+        self.assertRefused(
+            self._boot("False", USE_HTTPS="False", SESSION_COOKIE_SAMESITE="None"),
+            "SameSite=None",
+        )

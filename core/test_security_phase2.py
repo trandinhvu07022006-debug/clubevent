@@ -90,4 +90,5 @@ class NginxConfigSecurityTests(SimpleTestCase):
         self.assertIn("proxy_set_header X-Forwarded-Host $http_host;", nginx_conf)
         self.assertIn("location /private_vault/ { return 404; }", nginx_conf)
         self.assertIn("Content-Security-Policy", nginx_conf)
+        self.assertIn("Content-Security-Policy-Report-Only", nginx_conf)
         self.assertIn("frame-ancestors 'none'", nginx_conf)
