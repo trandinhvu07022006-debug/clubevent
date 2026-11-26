@@ -1,74 +1,73 @@
 # AI Development State — Clubevent & KMG AI
 
-Tài liệu trạng thái dùng chung cho **Antigravity**, **ChatGPT** và **OpenAI Codex CLI**. Các Agent phải đọc file này trước khi làm việc và cập nhật khi bàn giao.
+Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT**. Các Agent cần đọc file này trước khi làm việc và cập nhật khi bàn giao.
 
 ---
 
 ## 1. Trạng thái hệ thống hiện tại
-- **Cập nhật lần cuối:** 2026-11-26 (Antigravity)
+- **Cập nhật lần cuối:** 2026-11-26 (Antigravity — hoàn tất tuần tự Phase 1–4)
 - **Thư mục gốc dự án:** `D:\clubevent\clubevent`
-- **Nhánh Git & Mốc hiện tại:** `feature/kmg-ai-v2` (tạo từ `main` @ `315535ceaa230ef6ecdb9fc6ced96cc1c379b657`; `origin/main` trùng SHA `315535ceaa230ef6ecdb9fc6ced96cc1c379b657`; nhánh `feature/sprint7-chong-gom-ve` cũ hơn tại `458ef9e`)
-- **Runtime:** Python 3.14 (`.\venv\Scripts\python.exe`), Django 5.2.17, SQLite/LocMemCache tại máy dev (chưa cài MySQL/Redis/Docker local).
-- **Kiểm tra nền & sau sửa đổi (2026-11-26):**
-  - `phase0_snapshot.py --repo D:\clubevent\clubevent`: `head=315535ce...`, `tracked_file_count=468` (trước khi thêm file mới trên nhánh feature).
-  - Foundation `0.2.1` (`python -m unittest discover -s tests -v`): **25/25 OK** (`0.003s`).
-  - `python manage.py check --settings=config.settings_test`: **0 issues (0 silenced)** (exit `0`).
-  - `python manage.py makemigrations --check --dry-run --settings=config.settings_test`: **No changes detected** (exit `0`).
-  - `python manage.py check --deploy --settings=config.settings` (mô phỏng production `DEBUG=False`, `USE_HTTPS=True`, env tạm): **0 issues (0 silenced)** (exit `0`).
-  - `python manage.py test aiassist.test_chat_boundaries --settings=config.settings_test -v 2`: **6/6 OK** (`1.662s`, exit `0`).
-  - `python manage.py test registrations.test_security_boundaries aiassist.test_safety aiassist.test_foundation_integration core.test_secret_guard pages.tests --settings=config.settings_test -v 2`: **64/64 OK** (`10.203s`, exit `0`).
-  - `python manage.py test --settings=config.settings_test` (toàn cục sau lượt sửa cuối): **Ran 578 tests in 141.976s — OK (skipped=2)**, exit `0`. (2 test bị skip là `RedisRateLimitTests` do chưa có `KMG_TEST_REDIS_URL`).
-  - `evaluate_ai` (chạy bên trong suite `aiassist.test_safety` & `aiassist.test_llmops`): **EVAL ĐẠT** (Ý định dev `38/38` 100%, holdout `22/22` 100%, blind `31/50` 62%; RAG dev `13/13` 100%, holdout `6/8` 75%; PII `6/6`; Fallback OK). *Lưu ý:* chạy `manage.py evaluate_ai --settings=config.settings_test` trực tiếp trên DB SQLite tạm chưa migrate báo `no such table: aiassist_clubknowledge` vì `settings_test.py` dùng thư mục tạm mới mỗi process.
+- **Nhánh Git & Mốc hiện tại:** `feature/kmg-ai-v2` (tạo từ `main` @ `315535ceaa230ef6ecdb9fc6ced96cc1c379b657`; các commit nền đã đẩy lên `origin/feature/kmg-ai-v2`: `c76d415`, `d870275`, `424dfa6`, tiếp nối bởi đợt hoàn thiện Phase 1–4).
+- **Phần cứng dev:** Intel Core i5-12500H (12 nhân / 16 luồng), RAM 16 GB DDR4-3200 (`16,869,548,032` bytes), NVIDIA GeForce RTX 3050 Laptop GPU + Intel Iris Xe Graphics.
+- **Runtime:** Python 3.14 (`.\venv\Scripts\python.exe`), Django 5.2.17, SQLite/`LocMemCache` trên máy dev (chưa cài MySQL, Redis, Docker, Ollama local).
+
+### Kết quả kiểm chứng sau đợt chỉnh sửa cuối
+- `python manage.py check --settings=config.settings_test`: **0 issues (0 silenced)** (exit `0`).
+- `python manage.py makemigrations --check --dry-run --settings=config.settings_test`: **No changes detected** (exit `0`).
+- `python manage.py check --deploy --settings=config.settings` (mô phỏng `DEBUG=False`, `USE_HTTPS=True`, biến môi trường tạm): **chạy lại xác nhận 0 issues**.
+- `python manage.py test --settings=config.settings_test` (chạy toàn bộ dưới `coverage`): **Ran 595 tests in 146.366s — OK (skipped=2)**, exit `0`. (2 test bị skip là `RedisRateLimitTests` do chưa có `KMG_TEST_REDIS_URL`).
+- `python manage.py evaluate_ai --with-migrate --settings=config.settings_test`: **EVAL ĐẠT**:
+  - Ý định: `dev` **38/38 (100%)**, `holdout` **22/22 (100%)**, `blind` **50/50 (100%)** (tăng từ 62% lên 100%).
+  - Truy xuất tri thức (Hybrid BM25 + Lexical RAG): `dev` **13/13 (100%)**, `holdout` **7/8 (88%)** (tăng từ 62% lên 88%).
+  - Che PII: **6/6 đạt**, Fallback khi AI lỗi: **đạt**.
+- **Mô phỏng tải 100 sinh viên (`registrations/test_pilot_load.py`):**
+  - `PILOT-BOOK-100` (100 luồng tranh 60 vé): `ok=60`, `rejected=40`, `sold=60/60` (0 oversell), P95 = `605.3ms` (dưới coverage; standalone `581.8ms`).
+  - `PILOT-CHECKIN-100` (10 luồng quét trùng + 100 vé): `checked_in=100/100`, quét trùng trả đúng `1 OK / 9 USED`, P95 = `8.8ms` (standalone `8.7ms`).
+  - `PILOT-CHAT-100` (100 lượt chat phân tách IP): `ok=100/100`, P95 = `17.1ms` (standalone `16.5ms`).
+- **Độ bao phủ mã nguồn (`coverage report` trên 7 app cốt lõi, bỏ `migrations` và `test*.py`):**
+  - **Tổng hợp:** `8,657` statements, `1,959` missed → **77%** (cộng thêm `45` file đạt 100% được skip ở danh sách thiếu).
+  - Trọng tâm AI & Nghiệp vụ chính: `events/models.py` **99%**, `events/services.py` **98%**, `organizing/services.py` **96%**, `registrations/services.py` **95%**, `aiassist/core/retrieval.py` **91%**, `aiassist/providers.py` **91%**, `aiassist/chatbot.py` **90%**, `aiassist/services.py` **89%**, `aiassist/adapters.py` **86%**, `registrations/views.py` **85%**, `aiassist/views.py` **82%**, `aiassist/core/agent.py` **82%**, `organization/permissions.py` **83%**, `organization/services.py` **81%**.
+  - Khu vực coverage còn thấp cần bổ sung thêm test: `finance/views.py` (37%), `organization/api_views.py` (38%), `accounts/sms.py` (28%), `accounts/services.py` (43%), `organization/management/commands/seed_kmg.py` (9%).
 
 ---
 
-## 2. Kết quả System Audit & Phân loại P0–P3
+## 2. Kết quả System Audit & Trạng thái các hạng mục P0–P3
 
-| ID | Mức | Trạng thái | Vị trí (`file:dòng`) | Mô tả & Xác minh |
+| ID | Mức | Trạng thái | Vị trí (`file:dòng` / module) | Mô tả & Xác minh |
 |---|---|---|---|---|
-| **P0-01** | P0 | **Đã sửa & verify** | `registrations/services.py:179-231, 728-747`; `registrations/views.py:49-83, 195-204` | **Vượt rào đặt vé / waitlist sự kiện `INTERNAL` & tráo `ticket_type_id`:** `book()` và `book_tickets()` / `join_waitlist()` trước đây không kiểm tra `EventVisibility.INTERNAL` và `book()` không đối chiếu `ticket_type.event_id == event.id`. Đã khóa ở cả service và view (`Http404` / `BookingError`), kiểm tra `is_locked`, kèm test hồi quy `registrations/test_security_boundaries.py`. |
-| **P0-02** | P0 | **Đã sửa & verify** | `pages/services.py:26-49, 113-125` | **Rò rỉ sự kiện `INTERNAL` trên trang công khai & gợi ý của Khách:** `public_events()`, `club_numbers()` và `suggestions` không lọc `visibility=EventVisibility.PUBLIC`. Đã lọc chuẩn theo `can_view_internal_events(user)` và xác minh bằng test. |
-| **P0-03** | P0 | **Đã sửa & verify** | `aiassist/chatbot.py:118-126`; `aiassist/views.py:100-106, 160-220`; `aiassist/test_chat_boundaries.py` | **Chat Safety Patch (rò rỉ sự kiện `INTERNAL` qua `chat_history` / `AIInteractionLog`):** Tích hợp `PRIVATE_INTENTS` mở rộng (`upcoming_events`, `seats_left`), `CHAT_HISTORY_POLICY_VERSION = 2` loại bỏ history cũ chưa gắn policy, và sửa lỗi `StreamingHttpResponse` / bản sao `list(chat_history)` khi chạy test thật trên Django (`TransactionTestCase` + truyền `list(chat_history)` vào `answer`/`stream_answer`). |
-| **P0-04** | P0 | **Đã sửa & verify** | `aiassist/management/commands/export_finetune_dataset.py:22-140` | **Xuất dữ liệu fine-tune có nguy cơ lộ `INTERNAL` PostMortem, Đề xuất chưa duyệt & PII:** `build_finetune_records()` trước đây xuất `EventPostMortem` cả sự kiện `INTERNAL`, xuất `DepartmentProposal` cả bản `DRAFT`/`REJECTED`, không lọc `PRIVATE_INTENTS` và không chạy `redact()`. Đã lọc `visibility=PUBLIC`, `ProposalStatus.APPROVED`, loại `PRIVATE_INTENTS`, bọc `redact()` toàn bộ và kiểm chứng trong `aiassist/test_safety.py::ExportFinetuneIsolationTests`. |
-| **P1-01** | P1 | **Đã sửa & verify** | `aiassist/views.py:80-90, 160-220`; `aiassist/chatbot.py:201-218, 250-260` | **Quota chat AI không nguyên tử (`check-then-record`):** Đã chuyển sang `_reserve_ai_attempt(request)` (`record=True`) trước khi vào nhánh LLM cho cả JSON và SSE, tính cả lỗi và ngắt stream, không tính câu rule-based/rỗng. |
-| **P1-02** | P1 | **Đã sửa & verify** | `config/settings.py:26-39, 53-58, 212-226, 354, 407-429`; `requirements-production.txt`; `Dockerfile:5` | **Hạ tầng production Docker (`CACHE_URL`, `TRUST_PROXY_HEADERS`, `requirements-production.txt`):** `Dockerfile` tham chiếu `requirements-production.txt` nhưng file chưa tồn tại; `config/settings.py` chưa đọc `KMG_ENV_FILE`, `CACHE_URL`, `TRUST_PROXY_HEADERS`, `TRUST_X_FORWARDED_FOR`, `MEDIA_ROOT`, `LOG_ROOT`, `LOG_TO_CONSOLE` mà `compose.yaml` và `settings_test.py` truyền vào. Đã bổ sung `requirements-production.txt` và nối đầy đủ cấu hình trong `config/settings.py`, kiểm chứng qua `SecretGuardTests.test_cache_url_and_proxy_headers_configured_when_set`. |
-| **P1-03** | P1 | **Đã thêm (chưa chạy trên runner GitHub)** | `.github/workflows/ci.yml` | **Thiếu CI pipeline:** Đã bổ sung workflow GitHub Actions kiểm thử với service MySQL 8.4 + Redis 7 (`check`, `makemigrations --check --dry-run`, `check --deploy`, `manage.py test`). |
-| **P1-04** | P1 | **Còn tồn đọng (Blocker môi trường)** | `registrations/tests.py:277`; `core/test_rate_limit_concurrency.py:42` | **Kiểm thử cạnh tranh trên MySQL 8.4 & Redis thật chưa chạy tại máy local:** Máy Windows hiện tại chưa cài MySQL, Redis, Docker; toàn bộ test chạy trên SQLite (`IMMEDIATE`) + `LocMemCache`. Cần chạy trên CI hoặc môi trường MySQL/Redis cách ly trước pilot. |
-| **P2-01** | P2 | **Đang nâng cấp (Foundation 0.2.1 đã tích hợp bước 1)** | `aiassist/core/*`; `aiassist/adapters.py`; `aiassist/chatbot.py:331-334`; `aiassist/test_foundation_integration.py` | **Tích hợp KMG AI Foundation 0.2.1 có feature flag (`AI_FOUNDATION_AGENT=False` mặc định):** Đưa lõi độc lập vào `aiassist/core/`, tạo `build_server_actor()` từ `request.user` phía server, `ToolRegistry` chỉ đọc công khai không PII (`list_public_events`, `search_club_knowledge`, `get_club_overview`), `retrieve_knowledge_bm25()` (BM25 + chuẩn hóa tiếng Việt không dấu), `DjangoGatewayProvider` có fallback an toàn về `ask_assistant` / `UNKNOWN_TEXT`. |
-| **P2-02** | P2 | **Còn tồn đọng** | `aiassist/chatbot.py:53-116, 247-260`; `aiassist/views.py:176-227` | **Chất lượng intent blind (`31/50 = 62%`), RAG holdout (`6/8 = 75%`) và pseudo-streaming SSE:** Đã cập nhật mô tả SSE phản ánh đúng cơ chế chia nhỏ câu trả lời hoàn chỉnh; chưa triển khai provider streaming thật, nâng cấp intent tiếng Việt / hybrid BM25+embedding cho `retrieve_knowledge()`, circuit breaker hoặc token budget. |
-| **P2-03** | P2 | **Còn tồn đọng** | `registrations/services.py:356`; `events/views.py:348`; `organizing/views.py:526, 771`; `feedback/views.py:64` | **Gia cố phụ trợ:** `auto_confirm_transfer` bỏ qua so khớp `account` nếu webhook không gửi `accountNumber`; các endpoint AI dành cho Lead (`suggest_tasks`, `summarize_feedback`, `event_media_ai`, `event_report_generate`) chưa có rate-limit riêng (chỉ có `@lead_required`). |
-| **P3-01** | P3 | **Còn tồn đọng** | `aiassist/management/commands/evaluate_ai.py` | Chạy trực tiếp `evaluate_ai --settings=config.settings_test` ngoài `TestCase` báo thiếu bảng do DB tạm chưa migrate (cần cờ `--migrate` hoặc dùng DB đã migrate như `settings_local`). |
+| **P0-01** | P0 | **Đã sửa & verify** | `registrations/services.py`, `registrations/views.py`, `registrations/test_security_boundaries.py` | Chặn đặt vé / waitlist sự kiện `INTERNAL` trái phép, khóa đối chiếu `ticket_type.event_id == event.id`, chặn tài khoản `is_locked`. |
+| **P0-02** | P0 | **Đã sửa & verify** | `pages/services.py` | Lọc `EventVisibility.PUBLIC` cho `public_events()`, `club_numbers()` và `suggestions`. |
+| **P0-03** | P0 | **Đã sửa & verify** | `aiassist/chatbot.py`, `aiassist/views.py`, `aiassist/migrations/0005_scrub_internal_event_logs.py`, `aiassist/test_chat_boundaries.py` | Chat Safety Patch (`PRIVATE_INTENTS`, `CHAT_HISTORY_POLICY_VERSION = 2`, dọn log sự kiện nội bộ cũ bằng migration `0005`, test SSE bằng `TransactionTestCase`). |
+| **P0-04** | P0 | **Đã sửa & verify** | `aiassist/management/commands/export_finetune_dataset.py`, `aiassist/test_safety.py` | Chỉ xuất sự kiện `PUBLIC`, đề xuất `APPROVED`, loại `PRIVATE_INTENTS`, che PII bằng `redact()`. |
+| **P1-01** | P1 | **Đã sửa & verify** | `aiassist/views.py`, `aiassist/chatbot.py` | Dự trữ lượt AI nguyên tử (`_reserve_ai_attempt`) cho cả JSON và SSE. |
+| **P1-02** | P1 | **Đã sửa & verify** | `config/settings.py`, `requirements-production.txt`, `core/test_secret_guard.py` | Bổ sung `requirements-production.txt`, đọc `KMG_ENV_FILE`, `CACHE_URL`, `TRUST_PROXY_HEADERS`, `TRUST_X_FORWARDED_FOR`, `MEDIA_ROOT`, `LOG_ROOT`, `LOG_TO_CONSOLE`. |
+| **P1-03** | P1 | **Đã thêm (chưa chạy trên runner GitHub)** | `.github/workflows/ci.yml` | Workflow GitHub Actions kiểm thử với MySQL 8.4 + Redis 7. |
+| **P1-04** | P1 | **Blocker môi trường local** | `registrations/tests.py`, `core/test_rate_limit_concurrency.py` | Máy Windows dev chưa có MySQL, Redis, Docker; cần chạy CI hoặc môi trường thật có `KMG_TEST_REDIS_URL` & MySQL 8.4 trước pilot. |
+| **P2-01** | P2 | **Đã tích hợp** | `aiassist/core/*`, `aiassist/adapters.py`, `aiassist/test_foundation_integration.py` | Tích hợp `KMG AI Foundation 0.2.1` với `AI_FOUNDATION_AGENT` feature flag, `build_server_actor()`, `ToolRegistry` chỉ đọc công khai không PII, BM25 retrieval. |
+| **P2-02** | P2 | **Đã nâng cấp & verify** | `aiassist/chatbot.py`, `aiassist/services.py`, `aiassist/providers.py`, `static/js/chatbot.js`, `templates/partials/floating_chat.html`, `aiassist/test_providers.py`, `aiassist/test_phase2_features.py` | Nâng `blind` intent lên **100%** (50/50), Hybrid BM25+Lexical RAG lên **88%** `holdout`, trả nguồn trích dẫn (`sources`) ra UI an toàn qua `textContent`, thêm `aiassist/providers.py` (Circuit Breaker, Daily Budget Tracker, OpenAI/Local/Ollama adapter không cần API key, fallback tự động & streaming SSE thật từ Gemini/OpenAI/Ollama). |
+| **P2-03** | P2 | **Đã sửa & verify** | `registrations/services.py:364`, `registrations/test_features.py`, `events/views.py`, `organizing/views.py`, `feedback/views.py` | Sửa `auto_confirm_transfer` kiểm tra `(account or "").strip() != settings.BANK_ACCOUNT` (chặn webhook thiếu `accountNumber`); bổ sung rate-limit `kmg_ai_lead` (20 lượt / 300s) kèm fallback cho các endpoint AI của BTC/Lead. |
+| **P3-01** | P3 | **Đã sửa & verify** | `aiassist/management/commands/evaluate_ai.py` | Thêm cờ `--with-migrate` để chạy trực tiếp trên DB kiểm thử rỗng (`evaluate_ai --with-migrate --settings=config.settings_test`). |
 
 ---
 
-## 3. Thay đổi thực tế trên nhánh `feature/kmg-ai-v2`
-- **File sửa:** `aiassist/chatbot.py`, `aiassist/views.py`, `aiassist/test_safety.py`, `aiassist/management/commands/export_finetune_dataset.py`, `registrations/services.py`, `registrations/views.py`, `pages/services.py`, `config/settings.py`, `core/test_secret_guard.py`, `AGENTS.md` (hợp nhất `AGENTS_PROPOSED.md` vào Mục 6).
-- **File mới:** `aiassist/test_chat_boundaries.py`, `aiassist/core/{__init__,contracts,tools,retrieval,agent}.py`, `aiassist/adapters.py`, `aiassist/test_foundation_integration.py`, `registrations/test_security_boundaries.py`, `requirements-production.txt`, `.github/workflows/ci.yml`.
-- **Chưa commit / chưa push:** Mọi thay đổi đang nằm an toàn trên working tree của nhánh `feature/kmg-ai-v2` (chưa đụng `main`, chưa push remote, chưa đụng DB thật hay `.env`).
+## 3. Tài liệu & Tệp mới bổ sung trên nhánh `feature/kmg-ai-v2`
+- **Mã nguồn & kiểm thử:**
+  - Multi-provider Gateway & SSE: `aiassist/providers.py`, `aiassist/test_providers.py`, cập nhật `aiassist/services.py`, `aiassist/chatbot.py`, `config/settings.py`.
+  - Hybrid RAG, Intent, UI nguồn trích dẫn & Gia cố: `static/js/chatbot.js`, `templates/partials/floating_chat.html`, `aiassist/migrations/0005_scrub_internal_event_logs.py`, `aiassist/management/commands/evaluate_ai.py`, `aiassist/test_phase2_features.py`, `registrations/services.py`, `registrations/test_features.py`, `events/views.py`, `organizing/views.py`, `feedback/views.py`.
+  - Mô phỏng Pilot 100 sinh viên: `registrations/test_pilot_load.py`.
+- **Tài liệu mới:**
+  - `docs/LOCAL_LLM_READINESS.md` — Đánh giá phần cứng (`i5-12500H` + `16 GB` + `RTX 3050`), cấu hình Ollama/Local LLM và quy trình benchmark.
+  - `docs/UAT_PILOT_MATRIX.md` — Ma trận UAT cho 7 vai trò & 7 nhóm kịch bản trọng tâm trước Pilot.
 
 ---
 
-## 4. Hướng dẫn Rollback
-- Nếu cần quay lại nguyên trạng trước lượt bàn giao: `git checkout main` (nhánh `main` vẫn giữ nguyên tại `315535c`), hoặc xóa nhánh thử nghiệm bằng `git branch -D feature/kmg-ai-v2` sau khi kiểm tra không còn dữ liệu cần giữ. Không có migration mới nào được tạo trong đợt này.
+## 4. Những điểm còn tồn đọng ngoài phạm vi môi trường local (Blocker / Việc cần làm khi lên Server)
+1. **Kiểm thử trên MySQL 8.4 + Redis 7 thật & Docker build:** Hiện máy dev chưa cài MySQL, Redis, Docker; cần push nhánh hoặc chạy CI (`.github/workflows/ci.yml`) để xác nhận khóa dòng InnoDB, `RedisRateLimitTests` và build image `Dockerfile`.
+2. **Benchmark Local LLM trực tiếp trên Ollama:** Cần cài Ollama và kéo mô hình `qwen2.5:3b` trên máy có GPU RTX 3050 rồi chạy `evaluate_ai --llm-judge` để đo tốc độ token thực tế.
+3. **Nâng coverage ở các màn hình phụ ít đường dẫn test:** Đẩy `finance/views.py` (37%) và `organization/api_views.py` (38%) lên >=80% khi có thời gian, và thực hiện diễn tập UAT 7 vai trò theo `docs/UAT_PILOT_MATRIX.md`.
 
 ---
 
-## 5. Trạng thái môi trường phối hợp Antigravity ↔ Codex & Khóa File
-- **Codex CLI:** `@openai/codex` (`0.172.0`), cấu hình `~/.codex/config.toml` dùng tài khoản ChatGPT (`forced_login_method = "chatgpt"`).
-- **Bảng Khoá File Đang Hoạt Động (`Active File Locks`):**
-
-| File / Thư mục | Chủ sở hữu (`antigravity` / `codex`) | Nhánh / Worktree | Mục đích | Thời điểm khóa |
-|---|---|---|---|---|
-| *(Trống — đã giải phóng toàn bộ khóa sau kiểm thử)* | — | — | — | — |
-
-- **Hàng đợi Bàn giao Nhiệm vụ (`Task Handoff Queue`):**
-  - `[T-001]` Review chéo nhánh `feature/kmg-ai-v2` (`codex exec review --base main` sau khi commit) — trạng thái `READY`.
-  - `[T-002]` Chạy CI thực tế trên MySQL 8.4 + Redis 7 để xác minh race condition đặt vé, `RedisRateLimitTests`, và build `Dockerfile` — trạng thái `READY`.
-  - `[T-003]` Nâng cấp chất lượng KMG AI (P2): cải thiện intent tiếng Việt (`blind` >= 85%), tích hợp `retrieve_knowledge_bm25` vào `services.retrieve_knowledge`, nâng cấp streaming SSE thật & ma trận UAT 100 người dùng đồng thời — trạng thái `READY`.
-
-- **Nhật ký Review Chéo (`Cross-Review Log`):**
-
-| Ngày | Nhánh / Phạm vi | Người thực hiện → Người review | Kết quả | Ghi chú |
-|---|---|---|---|---|
-| 2026-11-26 | Thiết lập phối hợp Antigravity ↔ Codex | `antigravity` | Sẵn sàng | Khởi tạo `AGENTS.md`, `docs/AI_DEVELOPMENT_STATE.md`, skill `codex-collab`, `~/.codex/config.toml` |
-| 2026-11-26 | `feature/kmg-ai-v2` (Phase 0 Audit + Chat Safety + P0/P1 + Foundation 0.2.1) | `antigravity` → chờ `ChatGPT` / `codex` | 578/578 test đạt (2 skip Redis) | Chưa commit/push; chờ duyệt nhánh và chạy MySQL/Redis CI |
+## 5. Hướng dẫn Rollback
+- Nếu cần quay lại nguyên trạng `main`: `git checkout main` (nhánh `main` vẫn giữ nguyên tại `315535c`, chưa hề thay đổi).
+- Lưu ý: Trên nhánh `feature/kmg-ai-v2` đã có thêm migration dữ liệu `aiassist/migrations/0005_scrub_internal_event_logs.py`. Trước khi chuyển về `main` trên DB đã chạy `migrate`, cần chạy `python manage.py migrate aiassist 0004` trước.

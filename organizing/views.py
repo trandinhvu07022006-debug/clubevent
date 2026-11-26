@@ -578,7 +578,15 @@ def ai_suggest(request, event_id):
         return redirect("organizing:board", event_id=event.pk)
 
     # Bước 1: gọi AI lấy gợi ý
-    tasks, used_ai, error = suggest_tasks(event)
+    from core.security import is_rate_limited
+    if is_rate_limited(request, scope="kmg_ai_lead", limit=20, window_seconds=300):
+        from aiassist.services import FALLBACK_TASKS, _clean_tasks
+        days_left = max((event.starts_at - timezone.now()).days, 0)
+        dept_map = {d.name: d.pk for d in Department.objects.all()}
+        tasks = _clean_tasks(FALLBACK_TASKS[:8], days_left, valid_departments=dept_map)
+        used_ai, error = False, "Bạn gọi AI quá nhanh, vui lòng chờ ít phút."
+    else:
+        tasks, used_ai, error = suggest_tasks(event)
     if not used_ai:
         # FALLBACK: vẫn có danh sách mặc định để dùng, chỉ báo cho user biết
         messages.warning(
@@ -770,7 +778,11 @@ def event_report(request, event_id):
 @lead_required
 def event_report_generate(request, event_id):
     """F3.6 - Kích hoạt AI tổng hợp báo cáo tổng kết sự kiện từ 4 nguồn dữ liệu."""
+    from core.security import is_rate_limited
     event = get_object_or_404(Event, pk=event_id)
+    if is_rate_limited(request, scope="kmg_ai_lead", limit=20, window_seconds=300):
+        messages.warning(request, "Bạn yêu cầu tạo báo cáo AI quá nhanh, vui lòng chờ ít phút.")
+        return redirect("organizing:report", event_id=event.pk)
     data, stats, md, used_ai, err = generate_event_postmortem(event)
 
     EventPostMortem.objects.update_or_create(

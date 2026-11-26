@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 
-from . import schemas
+from . import providers, schemas
 from .privacy import redact
 
 if TYPE_CHECKING:
@@ -113,26 +113,35 @@ def _call_gemini(prompt: str, model: str, response_schema: dict | None = None) -
 
 def _call_openai(prompt: str, model: str) -> str:
     """Gọi OpenAI API. Dùng nếu nhóm chọn OpenAI thay vì Gemini."""
-    body = json.dumps({
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.4,
-        "response_format": {"type": "json_object"},
-    }).encode("utf-8")
-
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions", data=body,
-        headers={"Content-Type": "application/json",
-                 "Authorization": f"Bearer {settings.AI_API_KEY}"})
-    with urllib.request.urlopen(req, timeout=settings.AI_TIMEOUT_SECONDS) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    return data["choices"][0]["message"]["content"]
+    return providers.call_openai_compatible(
+        prompt,
+        model,
+        base_url="https://api.openai.com/v1",
+        api_key=settings.AI_API_KEY,
+        urlopen_fn=urllib.request.urlopen,
+    )
 
 
-def _generate(prompt: str, model: str, response_schema: dict | None) -> str:
+def _call_local(prompt: str, model: str, json_mode: bool = True) -> str:
+    """Gọi Local LLM (Ollama / vLLM / LM Studio chuẩn OpenAI API)."""
+    return providers.call_openai_compatible(
+        prompt,
+        model,
+        base_url=settings.AI_LOCAL_BASE_URL,
+        api_key=settings.AI_API_KEY,
+        json_mode=json_mode,
+        urlopen_fn=urllib.request.urlopen,
+    )
+
+
+def _generate(prompt: str, model: str, response_schema: dict | None,
+              provider: str | None = None) -> str:
     """Một lần gọi nhà cung cấp AI đang cấu hình."""
-    if settings.AI_PROVIDER == "openai":
+    active_provider = (provider or settings.AI_PROVIDER or "gemini").strip().lower()
+    if active_provider == "openai":
         return _call_openai(prompt, model)    # chỉ dùng JSON mode, không kèm schema
+    if providers.is_local_provider(active_provider):
+        return _call_local(prompt, model)
     if response_schema:
         try:
             return _call_gemini(prompt, model, response_schema=response_schema)
@@ -145,29 +154,14 @@ def _generate(prompt: str, model: str, response_schema: dict | None) -> str:
     return _call_gemini(prompt, model)
 
 
-def _ask_ai(prompt: str, model: str | None = None,
-            response_schema: dict | None = None) -> dict | list:
-    """
-    Gửi prompt tới AI, trả về dict đã parse từ JSON.
-
-    `model` bỏ trống thì dùng settings.AI_MODEL. Trợ lý chat truyền model
-    riêng (AI_ASSISTANT_MODEL) - xem ask_assistant().
-
-    Mọi lỗi (mạng, quota, JSON sai định dạng) đều gom về AIError để view chỉ
-    cần bắt một loại lỗi.
-    """
-    if settings.AI_PROVIDER == "mock":
-        raise AIError("Đang ở chế độ mock, không gọi API thật.")
-    if not settings.AI_API_KEY:
-        raise AIError("Chưa cấu hình AI_API_KEY trong file .env.")
-
-    model = model or settings.AI_MODEL
+def _ask_single_provider(prompt: str, model: str,
+                         response_schema: dict | None, provider: str) -> dict | list:
     attempts = len(RETRY_DELAYS) + 1
     daily = False
     try:
         for attempt in range(attempts):
             try:
-                raw = _generate(prompt, model, response_schema)
+                raw = _generate(prompt, model, response_schema, provider=provider)
                 break
             except urllib.error.HTTPError as e:
                 if e.code == 429:
@@ -185,18 +179,73 @@ def _ask_ai(prompt: str, model: str | None = None,
                 raise
     except urllib.error.HTTPError as e:
         logger.warning("AI API HTTP error %d (%s): %s", e.code, model, e.reason)
+        if e.code >= 500 or (e.code == 429 and daily):
+            providers.circuit_breaker.record_failure(provider)
         raise AIError(_http_error_message(e.code, model, daily))
     except urllib.error.URLError as e:
         logger.warning("AI API connection error: %s", e.reason)
+        providers.circuit_breaker.record_failure(provider)
         raise AIError(f"Không kết nối được dịch vụ AI: {e.reason}")
     except (KeyError, IndexError):
         logger.warning("AI API returned unexpected response structure")
+        providers.circuit_breaker.record_failure(provider)
         raise AIError("Dịch vụ AI trả về dữ liệu không đúng định dạng mong đợi.")
     except Exception as e:  # timeout và các lỗi còn lại
         logger.warning("AI API unexpected error: %s", e, exc_info=True)
+        providers.circuit_breaker.record_failure(provider)
         raise AIError(f"Lỗi khi gọi AI: {e}")
 
+    providers.circuit_breaker.record_success(provider)
+    providers.budget_tracker.record_output(len(raw or ""))
     return _parse_json(raw)
+
+
+def _ask_ai(prompt: str, model: str | None = None,
+            response_schema: dict | None = None) -> dict | list:
+    """
+    Gửi prompt tới AI, trả về dict đã parse từ JSON.
+
+    Hỗ trợ đa nhà cung cấp (gemini / openai / local / ollama), Circuit Breaker,
+    ngân sách ký tự ngày (DailyBudgetTracker) và tự động fallback sang
+    AI_FALLBACK_PROVIDER nếu nhà cung cấp chính quá tải.
+    """
+    primary = (getattr(settings, "AI_PROVIDER", "mock") or "mock").strip().lower()
+    if primary == "mock":
+        raise AIError("Đang ở chế độ mock, không gọi API thật.")
+    if not providers.is_local_provider(primary) and not settings.AI_API_KEY:
+        raise AIError("Chưa cấu hình AI_API_KEY trong file .env.")
+
+    try:
+        providers.budget_tracker.check_and_reserve(len(prompt))
+    except providers.BudgetExceededError as exc:
+        raise AIError(str(exc))
+
+    fallback = (getattr(settings, "AI_FALLBACK_PROVIDER", "") or "").strip().lower()
+    resolved_model = providers.resolve_model_for_provider(primary, model)
+
+    if providers.circuit_breaker.allow_request(primary):
+        try:
+            return _ask_single_provider(prompt, resolved_model, response_schema, primary)
+        except AIError as primary_err:
+            if (fallback and fallback != primary
+                    and providers.provider_has_credentials(fallback)
+                    and providers.circuit_breaker.allow_request(fallback)):
+                logger.warning("AI primary %s lỗi (%s), chuyển sang fallback %s",
+                               primary, primary_err, fallback)
+                fb_model = providers.resolve_model_for_provider(fallback, model)
+                return _ask_single_provider(prompt, fb_model, response_schema, fallback)
+            raise
+
+    if (fallback and fallback != primary
+            and providers.provider_has_credentials(fallback)
+            and providers.circuit_breaker.allow_request(fallback)):
+        fb_model = providers.resolve_model_for_provider(fallback, model)
+        return _ask_single_provider(prompt, fb_model, response_schema, fallback)
+
+    raise AIError(f"Dịch vụ AI ({primary}) tạm thời ngắt mạch bảo vệ, vui lòng thử lại sau.")
+
+
+_ORIGINAL_ASK_AI = _ask_ai
 
 
 def _parse_json(raw: str) -> dict | list:
@@ -966,51 +1015,94 @@ def _knowledge_score(query: str, tokens: set, item) -> int:
     from .chatbot import _has_phrase, normalize
 
     score = 0
+    has_title_or_kw = False
     for phrase in (normalize(k) for k in item.keywords.split(",")):
         if phrase and phrase not in RETRIEVAL_STOPWORDS and _has_phrase(query, phrase):
             score += 3
+            has_title_or_kw = True
     strong = set(re.findall(r"\w+", normalize(f"{item.title} {item.keywords}")))
     weak = set(re.findall(r"\w+", normalize(item.content)))
+    weak_hits = 0
     for token in tokens:
         if token in strong:
             score += 2
+            has_title_or_kw = True
         elif token in weak:
-            score += 1
+            weak_hits += 1
+    # Chỉ nhận khớp thân bài không kèm tiêu đề/từ khoá khi có >= 4 từ trùng
+    score += weak_hits if (has_title_or_kw or weak_hits >= 4) else min(weak_hits, 2)
     return score
 
 
-def retrieve_knowledge(query: str = "", limit: int = 4) -> str:
+def retrieve_knowledge_with_sources(query: str = "", limit: int = 4) -> tuple[str, list[dict]]:
     """
-    RAG nhẹ không cần vector DB: chấm điểm khớp nguyên từ (đã bỏ dấu) giữa
-    câu hỏi và Kho tri thức CLB, lấy top-K trong số các mục đạt RETRIEVAL_MIN_SCORE.
-
-    Không mục nào đạt thì trả chuỗi rỗng: thà không đưa gì còn hơn đưa tài liệu
-    lạc đề cho model dựa vào.
+    Hybrid RAG nhẹ (BM25 + so khớp từ khoá tiếng Việt bỏ dấu) trên Kho tri thức CLB.
+    Trả về (văn_bản_gắn_ngữ_cảnh, danh_sách_trích_dẫn).
     """
     try:
         from .models import ClubKnowledge
         items = list(ClubKnowledge.objects.filter(is_active=True))
     except Exception:
         logger.warning("Không đọc được Kho tri thức CLB", exc_info=True)
-        return ""
+        return "", []
+    if not items:
+        return "", []
 
     from .chatbot import prepare_query
+    from .core.contracts import Actor
+    from .core.retrieval import Document, search as bm25_search
+
     query_norm = prepare_query(query)
+    query_norm = re.sub(r"\b(?:chuyen|nhuong)\s+ve\b", "chuyen nhuong ve", query_norm)
     tokens = {t for t in re.findall(r"\w+", query_norm)
               if len(t) >= 2 and t not in RETRIEVAL_STOPWORDS}
+    if not tokens:
+        return "", []
 
-    scored = [(_knowledge_score(query_norm, tokens, item), item) for item in items]
-    scored = [pair for pair in scored if pair[0] >= RETRIEVAL_MIN_SCORE]
-    # Điểm cao trước; bằng điểm thì mục có priority nhỏ trước
+    # Điểm BM25 chuẩn hoá (Foundation 0.2.1)
+    anon_actor = Actor(user_id="rag:public", club_id="kmg", permissions=frozenset({"public.read"}))
+    bm25_docs = [
+        Document(
+            source_id=str(item.pk),
+            club_id="kmg",
+            text=prepare_query(f"{item.title} {item.keywords} {item.content}"),
+            permission="public.read",
+        )
+        for item in items
+    ]
+    bm25_scores = {
+        int(hit.source_id): hit.score
+        for hit in bm25_search(anon_actor, bm25_docs, " ".join(sorted(tokens)), limit=len(items))
+    }
+
+    scored = []
+    for item in items:
+        lex = _knowledge_score(query_norm, tokens, item)
+        if lex >= RETRIEVAL_MIN_SCORE:
+            hybrid = lex + bm25_scores.get(item.pk, 0.0) * 1.5
+            scored.append((hybrid, item))
+
     scored.sort(key=lambda pair: (-pair[0], pair[1].priority))
     lines = []
+    sources = []
     for _, item in scored[:limit]:
         snippet = " ".join(item.content.split())[:350]
-        lines.append(f"- [{item.get_category_display()}] {item.title}: {snippet}")
-    return "\n".join(lines)
+        cat = item.get_category_display()
+        lines.append(f"- [{cat}] {item.title}: {snippet}")
+        sources.append({"title": item.title, "category": cat})
+    return "\n".join(lines), sources
 
 
-def build_assistant_context(question: str = "") -> tuple[str, set[int]]:
+def retrieve_knowledge(query: str = "", limit: int = 4) -> str:
+    """
+    RAG nhẹ (Hybrid BM25 + khớp từ khoá tiếng Việt bỏ dấu) lấy top-K mục tri thức liên quan.
+    Không mục nào đạt ngưỡng thì trả chuỗi rỗng.
+    """
+    text, _ = retrieve_knowledge_with_sources(query, limit=limit)
+    return text
+
+
+def build_assistant_context(question: str = "", *, return_sources: bool = False):
     """
     Dữ liệu nền gửi cho AI (Grounding + RAG nhẹ):
       1. Các sự kiện CÔNG KHAI (bỏ bản nháp DRAFT).
@@ -1078,11 +1170,13 @@ def build_assistant_context(question: str = "") -> tuple[str, set[int]]:
             f"- Ban nhận đơn: {dept_names}"
         )
 
-    # Nạp Kho tri thức CLB (RAG)
-    kb_text = retrieve_knowledge(question, limit=4)
+    # Nạp Kho tri thức CLB (Hybrid BM25 + Lexical RAG)
+    kb_text, kb_sources = retrieve_knowledge_with_sources(question, limit=4)
     if kb_text:
         sections.append("KHO TRI THỨC & FAQ CLB:\n" + kb_text)
 
+    if return_sources:
+        return "\n\n".join(sections), ids, kb_sources
     return "\n\n".join(sections), ids
 
 
@@ -1125,7 +1219,7 @@ def ask_assistant(question: str, history: list[dict] | None = None,
         if len(lines) > 1:
             history_block = "\n".join(lines) + "\n\n"
 
-    events_text, known_ids = build_assistant_context(question)
+    events_text, known_ids, kb_sources = build_assistant_context(question, return_sources=True)
     now = timezone.localtime()
     addendum = get_prompt_addendum("chatbot")
     model = settings.AI_ASSISTANT_MODEL or settings.AI_MODEL
@@ -1171,7 +1265,108 @@ def ask_assistant(question: str, history: list[dict] | None = None,
         if pk in known_ids and pk not in event_ids:
             event_ids.append(pk)
     return {"answer": answer, "event_ids": event_ids[:3],
+            "sources": kb_sources[:3],
             "model": model, "prompt_version": prompt_version}
+
+
+ASSISTANT_STREAM_PROMPT = """Bạn là Trợ lý thông minh của Câu lạc bộ KMG (ĐH KMA).
+Thời gian hiện tại: {now}.
+
+QUY TẮC BẮT BUỘC:
+- Chỉ trả lời dựa trên SỰ KIỆN CÔNG KHAI, KHO TRI THỨC và QUY ĐỊNH bên dưới; không bịa link hoặc con số không có trong ngữ cảnh.
+- Viết tiếng Việt tự nhiên, ngắn gọn tối đa 4 câu, không dùng Markdown tiêu đề hay URL trần.
+- Không hỏi lại thông tin nhạy cảm (MSSV, SĐT, email, CCCD, mã vé).
+
+SỰ KIỆN & TRI THỨC NỀN:
+{events}
+
+QUY ĐỊNH VÉ:
+{rules}
+
+{history_block}CÂU HỎI CỦA NGƯỜI DÙNG:
+{question}
+"""
+
+
+def stream_assistant_reply(question: str, history: list[dict] | None = None,
+                           names: tuple = ()):
+    """
+    Generator SSE stream từng delta văn bản trực tiếp từ provider (Gemini / OpenAI / Local LLM).
+    Yield: {"token": str} rồi kết thúc bằng {"done": True, "text", "event_ids", "sources", "model", "prompt_version"}.
+    """
+    from django.utils import timezone
+
+    clean_q = redact(question.strip(), names)[:500]
+    history_block = ""
+    if history:
+        lines = ["LỊCH SỬ TRAO ĐỔI GẦN ĐÂY:"]
+        for msg in history[-4:]:
+            role = "Người dùng" if msg.get("role") == "user" else "Trợ lý"
+            text_val = redact(msg.get("text", ""), names).strip()[:200]
+            if text_val:
+                lines.append(f"- {role}: {text_val}")
+        if len(lines) > 1:
+            history_block = "\n".join(lines) + "\n\n"
+
+    events_text, known_ids, kb_sources = build_assistant_context(clean_q, return_sources=True)
+    now = timezone.localtime()
+    addendum = get_prompt_addendum("chatbot")
+    active_provider = (getattr(settings, "AI_PROVIDER", "gemini") or "gemini").strip().lower()
+    raw_model = settings.AI_ASSISTANT_MODEL or settings.AI_MODEL
+    model = providers.resolve_model_for_provider(active_provider, raw_model)
+    prompt_version = hashlib.sha256(
+        (ASSISTANT_STREAM_PROMPT + addendum).encode("utf-8")
+    ).hexdigest()[:12]
+    prompt = ASSISTANT_STREAM_PROMPT.format(
+        now=f"{now:%H:%M} ngày {now:%d/%m/%Y}",
+        events=events_text,
+        rules=_assistant_rules(),
+        history_block=history_block,
+        question=clean_q,
+    ) + addendum
+
+    parts: list[str] = []
+    total_chars = 0
+    try:
+        for delta in providers.stream_provider_tokens(
+            prompt, model=model, provider=active_provider
+        ):
+            if total_chars >= ASSISTANT_MAX_ANSWER:
+                break
+            chunk = delta[: ASSISTANT_MAX_ANSWER - total_chars]
+            if chunk:
+                parts.append(chunk)
+                total_chars += len(chunk)
+                yield {"token": chunk}
+    except (providers.CircuitOpenError, providers.BudgetExceededError) as exc:
+        raise AIError(str(exc))
+    except urllib.error.URLError as exc:
+        raise AIError(f"Không kết nối được dịch vụ AI stream: {exc.reason}")
+    except Exception as exc:
+        raise AIError(f"Lỗi khi stream từ AI: {exc}")
+
+    answer = " ".join("".join(parts).split())
+    if not answer:
+        raise AIError("AI stream không trả về nội dung.")
+
+    from events.models import Event, EventVisibility
+    from .chatbot import normalize
+
+    norm_answer = normalize(answer)
+    matched_ids = [
+        pk for pk, name in Event.objects.filter(
+            pk__in=known_ids, visibility=EventVisibility.PUBLIC
+        ).values_list("pk", "name")
+        if normalize(name) and normalize(name) in norm_answer
+    ][:3]
+    yield {
+        "done": True,
+        "text": answer,
+        "event_ids": matched_ids,
+        "sources": kb_sources[:3],
+        "model": model,
+        "prompt_version": prompt_version,
+    }
 
 
 # ---------------------------------------------------------------------------

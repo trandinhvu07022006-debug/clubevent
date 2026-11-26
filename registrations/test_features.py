@@ -529,6 +529,7 @@ class SepayWebhookTests(Base):
         content = f"KMG {tickets[0].booking_ref}"
         self.post(content, 50000, transferType="out")
         self.post(content, 50000, accountNumber="999999")
+        self.post(content, 50000, accountNumber="")
         self.assertEqual(self.status_of(tickets), {TicketStatus.PENDING})
 
     @override_settings(SEPAY_API_KEY="")

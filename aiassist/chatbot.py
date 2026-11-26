@@ -53,64 +53,92 @@ def normalize(text):
 INTENTS = [
     {
         "code": "upcoming_events",
-        "keywords": ["su kien", "sap toi", "sap dien ra", "co gi", "lich",
-                     "chuong trinh", "hoat dong", "sap co"],
+        "keywords": [
+            "su kien", "sap toi", "sap dien ra", "co gi", "lich",
+            "chuong trinh", "hoat dong", "sap co", "event", "to chuc event",
+            "dem nhac tiep theo", "bao gio co dem nhac",
+        ],
         "login_required": False,
     },
     {
         "code": "seats_left",
-        "keywords": ["con ve", "con cho", "het ve", "het cho", "bao nhieu ve",
-                     "bao nhieu cho", "so luong ve", "con khong", "dat duoc"],
+        "keywords": [
+            "con ve", "con cho", "het ve", "het cho", "bao nhieu ve",
+            "bao nhieu cho", "so luong ve", "con khong", "dat duoc",
+            "sold out", "con slot", "het slot",
+        ],
         "login_required": False,
     },
     {
         "code": "my_tickets",
-        "keywords": ["ve cua toi", "ve toi", "ma ve", "qr", "check in cua toi",
-                     "toi dat", "toi dang ky", "ve da dat"],
+        "keywords": [
+            "ve cua toi", "ve toi", "ve cua minh", "ve cua em",
+            "xem lai ve", "ve minh da dat", "nhung ve nao",
+            "ma ve", "ma qr cua minh", "ma qr cua toi", "qr",
+            "check in cua toi", "toi dat", "toi dang ky", "ve da dat",
+        ],
         "login_required": True,
     },
     {
         "code": "my_tasks",
-        "keywords": ["viec cua toi", "cong viec", "task", "deadline",
-                     "han chot", "toi phai lam", "duoc giao",
-                     "viec gi cho toi", "viec gi cho minh"],
+        "keywords": [
+            "viec cua toi", "viec cua minh", "viec cua em", "cong viec",
+            "task", "task nao", "deadline", "han chot", "sap toi han",
+            "han bao gio", "toi phai lam", "phai lam gi", "duoc giao",
+            "duoc phan cong", "viec gi cho toi", "viec gi cho minh",
+        ],
         "login_required": True,
     },
     {
         "code": "how_to_register",
-        "keywords": ["dang ky the nao", "dang ky ve", "lam sao de dang ky", "cach dang ky",
-                     "huong dan", "dang ky nhu the nao", "mua ve the nao",
-                     "thanh toan"],
+        "keywords": [
+            "dang ky the nao", "dang ky ve", "lam sao de dang ky", "cach dang ky",
+            "huong dan", "dang ky nhu the nao", "mua ve", "mua ve the nao",
+            "dat ve online", "dat ve", "chuyen khoan", "momo", "tra tien mat",
+            "thanh toan",
+        ],
         "login_required": False,
     },
     {
         "code": "how_to_checkin",
-        "keywords": ["check in the nao", "cach check in", "vao cua",
-                     "quet ma", "diem danh"],
+        "keywords": [
+            "check in the nao", "check in nhu nao", "cach check in",
+            "quy trinh check in", "check in", "vao cua", "cua soat ve",
+            "soat ve", "quet ma", "diem danh", "in ve giay", "ma qr trong dt",
+        ],
         "login_required": False,
     },
     {
         "code": "cancel_ticket",
-        "keywords": ["huy ve", "tra ve", "khong di duoc", "bo ve", "huy dang ky"],
+        "keywords": [
+            "huy ve", "tra ve", "tra lai ve", "khong di duoc", "bo ve",
+            "huy dang ky", "dang ky nham", "nham su kien", "cancel",
+        ],
         "login_required": False,
     },
     {
         "code": "club_departments",
         # KHÔNG dùng "cac ban" / "ban nao" đứng riêng: trùng "các bạn", "bạn nào"
         # khi người dùng gõ không dấu.
-        "keywords": ["ban chuyen mon", "nhung ban nao", "clb co ban nao",
-                     "cac ban trong clb", "cac ban cua clb",
-                     "ban hau can", "ban truyen thong"],
+        "keywords": [
+            "ban chuyen mon", "nhung ban nao", "clb co ban nao",
+            "clb chia thanh may ban", "may ban", "cac ban trong clb",
+            "cac ban cua clb", "ban hau can", "ban truyen thong",
+            "khac nhau cho nao",
+        ],
         "login_required": False,
     },
     {
         "code": "recruitment_info",
-        "keywords": ["tuyen thanh vien", "tuyen quan", "ung tuyen", "tham gia clb", "vao clb", "casting"],
+        "keywords": [
+            "tuyen thanh vien", "tuyen quan", "tuyen ctv", "dot tuyen",
+            "ung tuyen", "tham gia clb", "vao clb", "casting", "phong van",
+        ],
         "login_required": False,
     },
     {
         "code": "greeting",
-        "keywords": ["xin chao", "chao", "hello", "hi ", "alo"],
+        "keywords": ["xin chao", "chao", "hello", "hi", "alo"],
         "login_required": False,
     },
 ]
@@ -139,12 +167,32 @@ def prepare_query(question):
     Bỏ dấu làm "bạn" và "ban" giống hệt nhau, nên:
       - "bạn" có dấu được đổi thành ký hiệu riêng TRƯỚC khi bỏ dấu.
       - Lời gọi "các bạn ơi", "ban oi" bị cắt vì không mang ý định.
+      - Chuẩn hoá biến thể thường gặp ("checkin" -> "check in", chữ kéo dài).
     """
     text = unicodedata.normalize("NFC", (question or "").lower())
     text = re.sub(r"\bbạn\b", " _nguoi_ ", text)
     text = " ".join(normalize(text).split())
+    text = re.sub(r"[^\w\s]", " ", text)
+    text = re.sub(r"([a-z])\1{2,}", r"\1", text)
+    text = re.sub(r"\bcheck[\s\-_]*in\b", "check in", text)
     text = re.sub(r"\b(?:(?:cac|moi) )?(?:_nguoi_|ban) oi\b", " ", text)
     return " ".join(text.split())
+
+
+_QUESTION_CUES = frozenset({
+    "hoi", "lien he", "bao nhieu", "bao gio", "khi nao", "o dau", "the nao",
+    "nhu nao", "kieu gi", "lam sao", "co nhan", "duoc khong", "duoc ko",
+    "tai tro", "gui xe", "mac gi", "giai giup",
+})
+
+
+def _is_pure_greeting(raw_question: str, norm_text: str) -> bool:
+    """Tránh để lời chào đầu câu ("chào ad, cho mình hỏi...") nuốt mất câu hỏi thật."""
+    if "?" in (raw_question or ""):
+        return False
+    if any(_has_phrase(norm_text, cue) for cue in _QUESTION_CUES):
+        return False
+    return len(norm_text.split()) <= 8
 
 
 def detect_intent(question):
@@ -153,13 +201,6 @@ def detect_intent(question):
 
     Cách chấm điểm: cộng ĐỘ DÀI của các từ khoá khớp được, chứ không đếm số
     từ khoá. Lý do là từ khoá dài thì cụ thể hơn nên đáng tin hơn.
-
-    Ví dụ câu "Việc của tôi có gì?" khớp cả hai:
-        - "co gi"        (5 ký tự)  -> ý định hỏi sự kiện sắp tới
-        - "viec cua toi" (12 ký tự) -> ý định hỏi công việc
-    Nếu chỉ đếm số từ khoá thì hai bên hoà 1-1 và máy chọn nhầm cái đứng
-    trước. Cộng độ dài thì "viec cua toi" thắng, đúng ý người hỏi.
-
     Không khớp gì thì trả về None.
     """
     text = prepare_query(question)
@@ -168,6 +209,8 @@ def detect_intent(question):
 
     best, best_score = None, 0
     for intent in INTENTS:
+        if intent["code"] == "greeting" and not _is_pure_greeting(question, text):
+            continue
         score = sum(len(kw.strip()) for kw in intent["keywords"]
                     if _has_phrase(text, kw))
         if score > best_score:
@@ -246,15 +289,74 @@ def answer(question, user=None, allow_ai=True, history=None):
 
 def stream_answer(question, user=None, allow_ai=True, history=None):
     """
-    Generator SSE chia nhỏ câu trả lời đã sinh; chưa stream token từ provider.
-    Yield các dict:
-      - {"token": str, "done": False}
-      - {"done": True, "text": str, "links": list, "intent": str, "source": str}
+    Generator SSE: ưu tiên stream token thật từ AI provider (Gemini/OpenAI/Local LLM)
+    khi cấu hình chạy trực tiếp; tự động fallback về câu trả lời quy tắc hoặc
+    chia đoạn an toàn khi chạy test/mock hoặc Foundation Agent.
     """
+    from django.conf import settings
+    from events.models import Event, EventVisibility
+    from . import providers, services
+    from .privacy import known_names
+
     intent = detect_intent(question)
 
     if intent is None:
         if _can_use_ai(question, allow_ai):
+            use_live_stream = (
+                _answer_with_ai is _ORIGINAL_ANSWER_WITH_AI
+                and services._ask_ai is services._ORIGINAL_ASK_AI
+                and providers.is_live_streaming_ready()
+                and not getattr(settings, "AI_FOUNDATION_AGENT", False)
+            )
+            if use_live_stream:
+                emitted_any = False
+                try:
+                    final_evt = None
+                    for item in services.stream_assistant_reply(
+                        question, history=history, names=known_names(user)
+                    ):
+                        if item.get("done"):
+                            final_evt = item
+                        else:
+                            emitted_any = True
+                            yield {"token": item["token"], "done": False}
+                    if final_evt:
+                        ev_names = dict(
+                            Event.objects.filter(
+                                pk__in=final_evt["event_ids"],
+                                visibility=EventVisibility.PUBLIC,
+                            ).values_list("pk", "name")
+                        )
+                        links = [
+                            {"label": ev_names[pk], "url": reverse("events:detail", args=[pk])}
+                            for pk in final_evt["event_ids"] if pk in ev_names
+                        ]
+                        yield {
+                            "done": True,
+                            "text": final_evt["text"],
+                            "links": links,
+                            "sources": final_evt.get("sources", []),
+                            "intent": "ai",
+                            "source": "ai",
+                            "meta": {
+                                "model_name": final_evt["model"],
+                                "prompt_version": final_evt["prompt_version"],
+                            },
+                        }
+                        return
+                except services.AIError:
+                    if emitted_any or not getattr(settings, "AI_FALLBACK_PROVIDER", ""):
+                        if not emitted_any:
+                            yield {"token": UNKNOWN_TEXT, "done": False}
+                        yield {
+                            "done": True,
+                            "text": UNKNOWN_TEXT,
+                            "links": [],
+                            "intent": "unknown",
+                            "source": "rules",
+                        }
+                        return
+
             ai_result = _answer_with_ai(question, history=history, user=user)
             if ai_result is not None:
                 text = ai_result["text"]
@@ -271,9 +373,10 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
                     "done": True,
                     "text": text,
                     "links": ai_result.get("links", []),
+                    "sources": ai_result.get("sources", []),
                     "intent": "ai",
                     "source": "ai",
-                    "meta": ai_result["meta"],
+                    "meta": ai_result.get("meta", {}),
                 }
                 return
 
@@ -357,9 +460,13 @@ def _answer_with_ai(question, history=None, user=None):
     links = [{"label": names[pk], "url": reverse("events:detail", args=[pk])}
              for pk in data["event_ids"] if pk in names]
     return {"intent": "ai", "source": "ai", "text": data["answer"], "links": links,
+            "sources": data.get("sources", []),
             # Chỉ dùng để ghi log; view gỡ ra trước khi trả cho trình duyệt
             "meta": {"model_name": data["model"],
                      "prompt_version": data["prompt_version"]}}
+
+
+_ORIGINAL_ANSWER_WITH_AI = _answer_with_ai
 
 
 # --------------------------------------------------------------------------

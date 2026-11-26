@@ -198,7 +198,7 @@
     if (e.key === "Escape" && isOpen) toggleBox(false);
   });
 
-  function addMsg(text, who, links, source) {
+  function addMsg(text, who, links, source, sources) {
     const div = document.createElement("div");
     div.className = "fchat-msg fchat-" + who;
     div.textContent = text;
@@ -207,6 +207,13 @@
       tag.className = "fchat-ai-tag";
       tag.textContent = "✨ Trả lời bởi AI";
       div.appendChild(tag);
+    }
+    if (sources && sources.length) {
+      const cite = document.createElement("div");
+      cite.className = "small text-muted mt-1";
+      cite.style.fontSize = "0.7rem";
+      cite.textContent = "Nguồn: " + sources.slice(0, 3).map((s) => s.title).join(" · ");
+      div.appendChild(cite);
     }
     if (links && links.length) {
       const linkBox = document.createElement("div");
@@ -261,7 +268,7 @@
       if (!ctype.includes("text/event-stream") || !resp.body || !window.ReadableStream) {
         const data = await resp.json();
         waiting.remove();
-        addMsg(data.text || data.error || "Không có kết quả.", "bot", data.links, data.source);
+        addMsg(data.text || data.error || "Không có kết quả.", "bot", data.links, data.source, data.sources);
         return;
       }
 
@@ -310,6 +317,13 @@
           tag.className = "fchat-ai-tag";
           tag.textContent = "✨ Trả lời bởi AI";
           botMsg.appendChild(tag);
+        }
+        if (finalData.sources && finalData.sources.length) {
+          const cite = document.createElement("div");
+          cite.className = "small text-muted mt-1";
+          cite.style.fontSize = "0.7rem";
+          cite.textContent = "Nguồn: " + finalData.sources.slice(0, 3).map((s) => s.title).join(" · ");
+          botMsg.appendChild(cite);
         }
         if (finalData.links && finalData.links.length) {
           const linkBox = document.createElement("div");

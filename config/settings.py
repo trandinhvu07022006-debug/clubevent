@@ -385,7 +385,7 @@ TRANSFER_BEFORE_HOURS = 3            # chỉ chuyển được trước giờ di
 MAX_TRANSFERS_PER_TICKET = 1         # mỗi vé chỉ chuyển 1 lần, chặn phe vé xoay vòng
 
 # --- Tích hợp AI ---
-AI_PROVIDER = env("AI_PROVIDER", "gemini")   # gemini | openai | mock
+AI_PROVIDER = env("AI_PROVIDER", "gemini")   # gemini | openai | local | ollama | mock
 AI_API_KEY = env("AI_API_KEY", "")           # để trong .env, không commit
 AI_MODEL = env("AI_MODEL", "gemini-3.6-flash")
 # Model riêng cho trợ lý chat (hỏi nhiều, câu ngắn -> dùng bản lite nhanh hơn).
@@ -394,6 +394,14 @@ AI_MODEL = env("AI_MODEL", "gemini-3.6-flash")
 AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL", "")
 AI_TIMEOUT_SECONDS = int(env("AI_TIMEOUT_SECONDS", "40"))
 AI_FOUNDATION_AGENT = env_bool("AI_FOUNDATION_AGENT", False)
+# Local LLM (Ollama / vLLM / LM Studio chuẩn OpenAI API) và cơ chế dự phòng
+AI_LOCAL_BASE_URL = env("AI_LOCAL_BASE_URL", "http://127.0.0.1:11434/v1")
+AI_LOCAL_MODEL = env("AI_LOCAL_MODEL", "qwen2.5:3b")
+AI_FALLBACK_PROVIDER = env("AI_FALLBACK_PROVIDER", "")
+AI_CIRCUIT_BREAKER_THRESHOLD = int(env("AI_CIRCUIT_BREAKER_THRESHOLD", "5"))
+AI_CIRCUIT_BREAKER_COOLDOWN = int(env("AI_CIRCUIT_BREAKER_COOLDOWN", "60"))
+AI_DAILY_CHAR_BUDGET = int(env("AI_DAILY_CHAR_BUDGET", "500000"))
+AI_MAX_PROMPT_CHARS = int(env("AI_MAX_PROMPT_CHARS", "32000"))
 
 # Chạy test thì KHÔNG BAO GIỜ gọi AI thật: test phải cho cùng một kết quả mỗi
 # lần, chạy được khi mất mạng và không tốn quota. Thiếu dòng này thì khi .env

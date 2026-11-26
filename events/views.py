@@ -358,7 +358,12 @@ def event_media_ai(request, pk):
             messages.success(request, "Đã cập nhật mô tả mới vào sự kiện thành công!")
             return redirect("events:detail", pk=event.pk)
 
-    content, used_ai, error = generate_event_content(event)
+    from core.security import is_rate_limited
+    if is_rate_limited(request, scope="kmg_ai_lead", limit=20, window_seconds=300):
+        from aiassist.services import _fallback_marketing
+        content, used_ai, error = _fallback_marketing(event), False, "Bạn gọi AI quá nhanh, vui lòng chờ ít phút."
+    else:
+        content, used_ai, error = generate_event_content(event)
     if not used_ai and error:
         messages.warning(
             request,

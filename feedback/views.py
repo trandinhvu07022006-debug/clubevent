@@ -67,7 +67,11 @@ def ai_summarize(request, event_id):
 
     Kết quả lưu vào DB nên chỉ cần gọi API 1 lần, mở lại trang không gọi nữa.
     """
+    from core.security import is_rate_limited
     event = get_object_or_404(Event, pk=event_id)
+    if is_rate_limited(request, scope="kmg_ai_lead", limit=20, window_seconds=300):
+        messages.warning(request, "Bạn gọi AI quá nhanh, vui lòng chờ ít phút.")
+        return redirect("feedback:list", event_id=event_id)
     summary, error = summarize_feedback(event)
 
     if summary:

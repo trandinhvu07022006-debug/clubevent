@@ -15,6 +15,7 @@ Lệnh thoát với mã khác 0 khi trượt (`CommandError`), nên dùng đư�
 import json
 from pathlib import Path
 
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.test import override_settings
@@ -56,8 +57,12 @@ class Command(BaseCommand):
                             help="Tỷ lệ đúng tối thiểu của truy xuất tri thức (split dev).")
         parser.add_argument("--llm-judge", action="store_true",
                             help="Gọi AI làm giám khảo chấm điểm chất lượng Grounding Context.")
+        parser.add_argument("--with-migrate", action="store_true",
+                            help="Chạy migrate trên DB kiểm thử trước khi eval (hữu ích với SQLite tạm).")
 
     def handle(self, *args, **options):
+        if options["with_migrate"]:
+            call_command("migrate", verbosity=0, interactive=False)
         failures = []
         self._report("Ý định", self._eval_intents(), options["min_intent"], failures)
         self._report("Truy xuất tri thức", self._eval_retrieval(),

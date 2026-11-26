@@ -24,7 +24,7 @@
     let busy = false;
 
     /** Thêm một bong bóng chat vào khung hội thoại. */
-    function addMessage(text, who, links, source) {
+    function addMessage(text, who, links, source, sources) {
         const div = document.createElement("div");
         div.className = "chat-msg chat-" + who;
         // Dùng textContent chứ KHÔNG dùng innerHTML: nếu người dùng gõ thẻ
@@ -39,6 +39,13 @@
             tag.className = "chat-ai-tag";
             tag.textContent = "✨ Trả lời bởi AI · có thể chưa chính xác";
             div.appendChild(tag);
+        }
+
+        if (sources && sources.length) {
+            const cite = document.createElement("div");
+            cite.className = "small text-muted mt-1";
+            cite.textContent = "Nguồn: " + sources.slice(0, 3).map(function (s) { return s.title; }).join(" · ");
+            div.appendChild(cite);
         }
 
         if (links && links.length) {
@@ -111,7 +118,7 @@
                 const data = await resp.json();
                 waiting.remove();
                 addMessage(data.text || data.error || "Không có kết quả.", "bot",
-                           data.links, data.source);
+                           data.links, data.source, data.sources);
                 return;
             }
 
@@ -162,6 +169,12 @@
                     tag.className = "chat-ai-tag";
                     tag.textContent = "✨ Trả lời bởi AI · có thể chưa chính xác";
                     botBubble.appendChild(tag);
+                }
+                if (finalData.sources && finalData.sources.length) {
+                    const cite = document.createElement("div");
+                    cite.className = "small text-muted mt-1";
+                    cite.textContent = "Nguồn: " + finalData.sources.slice(0, 3).map(function (s) { return s.title; }).join(" · ");
+                    botBubble.appendChild(cite);
                 }
                 if (finalData.links && finalData.links.length) {
                     const box = document.createElement("div");

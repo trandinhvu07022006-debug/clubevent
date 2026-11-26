@@ -361,7 +361,7 @@ def auto_confirm_transfer(content: str, amount: int,
     nhật ký để BTC xử lý tay; webhook gọi lại nhiều lần cũng an toàn vì
     confirm_booking chỉ đụng vé còn Chờ thanh toán.
     """
-    if settings.BANK_ACCOUNT and account and account != settings.BANK_ACCOUNT:
+    if settings.BANK_ACCOUNT and (account or "").strip() != settings.BANK_ACCOUNT:
         return False, "Không phải tài khoản nhận tiền của CLB."
     match = TRANSFER_REF_RE.search((content or "").upper())
     if not match:
