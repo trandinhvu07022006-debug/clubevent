@@ -35,13 +35,16 @@
 
 ---
 
-## Tóm tắt kiểm chứng sau chỉnh sửa mã nguồn cuối cùng
+## Tóm tắt kiểm chứng sau chỉnh sửa mã nguồn cuối cùng (RC1 Final)
 
 | Lệnh kiểm tra | Kết quả thực tế |
 |---|---|
 | `.\venv\Scripts\python.exe manage.py check --settings=config.settings_test` | **0 issues (0 silenced)** |
 | `.\venv\Scripts\python.exe manage.py makemigrations --check --dry-run --settings=config.settings_test` | **No changes detected** |
 | `.\venv\Scripts\python.exe manage.py check --deploy --settings=config.settings` *(env prod HTTPS mô phỏng)* | **0 issues (0 silenced)** |
-| `.\venv\Scripts\python.exe -m coverage run ... manage.py test --settings=config.settings_test` | **Ran 633 tests in 164.387s — OK (skipped=2 `RedisRateLimitTests`)** |
-| `.\venv\Scripts\python.exe manage.py evaluate_ai --with-migrate --settings=config.settings_test` | **EVAL ĐẠT** (`dev` 38/38, `holdout` 22/22, `blind` 50/50; RAG `dev` 13/13, `holdout` 7/8; PII 6/6) |
-| `.\venv\Scripts\python.exe -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v` | **Ran 17 tests — OK (skipped=1 symlink Windows)** |
+| `.\venv\Scripts\python.exe -m coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test` | **Ran 657 tests in 197.655s — OK (skipped=2 `RedisRateLimitTests`)** |
+| `.\venv\Scripts\python.exe -m coverage report --skip-covered` | **TOTAL 16,712 stmts, 3,630 miss — 78%** (`93` files 100%) |
+| `.\venv\Scripts\python.exe manage.py evaluate_ai --with-migrate --settings=config.settings_test` | **EVAL ĐẠT** (`dev` 38/38, `holdout` 22/22, `blind` 50/50; RAG `dev` 13/13, `holdout` 7/8; Che PII 6/6; Fallback OK) |
+| `.\venv\Scripts\python.exe -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v` | **Ran 17 tests in 0.247s — OK (skipped=1 symlink Windows)** |
+
+> **Cập nhật RC1 Remediation (`AUD-001` – `AUD-014`):** Xem bảng khắc phục chi tiết tại `docs/audit/08_INDEPENDENT_REVIEW_REMEDIATION.md` và đánh giá sẵn sàng phát hành tại `docs/audit/09_RELEASE_CANDIDATE_READINESS.md`. Các hạng mục ngoài phạm vi phần mềm trên máy dev Windows (`Docker Compose` live, `Playwright` pixel screenshot, `Ollama` local benchmark, `Backup/Restore` volume drill live và `Human UAT 7 vai trò`) được giữ nguyên trạng thái `BLOCKED` hoặc `REVIEW_REQUIRED` để xác nhận trên CI GitHub Actions và Staging.

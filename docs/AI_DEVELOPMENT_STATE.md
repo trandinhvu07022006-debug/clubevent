@@ -5,20 +5,20 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 ---
 
 ## 1. Trạng thái hệ thống hiện tại
-- **Cập nhật lần cuối:** 2026-11-26 (Antigravity — hoàn tất Master Task Phase 0 → Phase 7 trên nhánh ổn định hóa)
+- **Cập nhật lần cuối:** 2026-11-26 (Antigravity — hoàn tất toàn bộ 5 Sprint khắc phục RC1 `AUD-001`–`AUD-014` trên `feature/kmg-system-stabilization`)
 - **Thư mục gốc dự án:** `D:\clubevent\clubevent`
 - **Nhánh Git hiện hành:** `feature/kmg-system-stabilization` (tách từ `feature/kmg-ai-v2` @ `57ad934`; `main` vẫn giữ nguyên tại `315535c`, `feature/sprint7-chong-gom-ve` tại `458ef9e`).
 - **Phần cứng dev:** Intel Core i5-12500H (12 nhân / 16 luồng), RAM 16 GB DDR4-3200 (`16,869,548,032` bytes), NVIDIA GeForce RTX 3050 Laptop GPU (**4 GB VRAM**, `4,293,918,720` bytes) + Intel Iris Xe Graphics.
-- **Môi trường kiểm thử:** Python 3.14 (`.\venv\Scripts\python.exe`), Django 5.2.17, SQLite/`LocMemCache` (chưa cài Docker Desktop, Redis Server và Ollama tại máy dev Windows; MySQL 8.4 đã cài cho DB phát triển `clubevent`, không dùng DB dev làm test).
+- **Môi trường kiểm thử:** Python 3.14 (`.\venv\Scripts\python.exe`), Django 5.2.17, SQLite/`LocMemCache` (chưa cài Docker Desktop, Redis Server, Playwright và Ollama tại máy dev Windows; MySQL 8.4 đã cài cho DB phát triển `clubevent`, không dùng DB dev làm test).
 
-### Kết quả kiểm chứng sau lượt chỉnh sửa mã nguồn cuối cùng
+### Kết quả kiểm chứng sau lượt chỉnh sửa mã nguồn cuối cùng (RC1 Final)
 - `.\venv\Scripts\python.exe manage.py check --settings=config.settings_test`: **0 issues (0 silenced)** (exit `0`).
 - `.\venv\Scripts\python.exe manage.py makemigrations --check --dry-run --settings=config.settings_test`: **No changes detected** (exit `0`).
 - `.\venv\Scripts\python.exe manage.py check --deploy --settings=config.settings` *(mô phỏng `DEBUG=False`, `USE_HTTPS=True`, `ALLOW_DEMO_SEED=False`, biến môi trường tạm)*: **0 issues (0 silenced)** (exit `0`).
-- `.\venv\Scripts\python.exe -m coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test`: **Ran 633 tests in 164.387s — OK (skipped=2)** (`RedisRateLimitTests` skip do thiếu `KMG_TEST_REDIS_URL`).
-- `.\venv\Scripts\python.exe manage.py evaluate_ai --with-migrate --settings=config.settings_test`: **EVAL ĐẠT** (`dev` **38/38** 100%, `holdout` **22/22** 100%, `blind` **50/50** 100%; RAG `dev` **13/13** 100%, `holdout` **7/8** 88%; PII **6/6**; Fallback OK).
-- `.\venv\Scripts\python.exe -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v`: **Ran 17 tests — OK (skipped=1 symlink Windows)**.
-- **Coverage (`14,532` stmts trên 11 app + `63` file 100%):** Tổng hợp **77%**. Các vùng đã nâng rõ rệt trong Phase 6: `accounts/sms.py` **98%** (từ 28%), `finance/views.py` **88%** (từ 37%), `finance/api_views.py` **89%** (từ 58%), `accounts/services.py` **79%** (từ 43%), `organization/api_views.py` **54%** (từ 38%).
+- `.\venv\Scripts\python.exe -m coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test`: **Ran 657 tests in 197.655s — OK (skipped=2)** (`RedisRateLimitTests` skip do thiếu `KMG_TEST_REDIS_URL`).
+- `.\venv\Scripts\python.exe manage.py evaluate_ai --with-migrate --settings=config.settings_test`: **EVAL ĐẠT** (`dev` **38/38** 100%, `holdout` **22/22** 100%, `blind` **50/50** 100%; RAG `dev` **13/13** 100%, `holdout` **7/8** 88%; Che PII **6/6**; Fallback OK).
+- `.\venv\Scripts\python.exe -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v`: **Ran 17 tests in 0.247s — OK (skipped=1 symlink Windows)**.
+- **Coverage (`16,712` stmts, `3,630` miss + `93` file 100%):** Tổng hợp **78%** (`organization/api_views.py` **78%**, `aiassist/services.py` **91%**, `aiassist/egress.py` **85%**, `registrations/services.py` **94%**). Cổng `--fail-under=78` đã cấu hình trong `.github/workflows/ci.yml`.
 
 ---
 
@@ -55,7 +55,7 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 
 | File / Thư mục | Chủ sở hữu | Nhánh | Mục đích | Thời điểm khóa |
 |---|---|---|---|---|
-| *(Trống — đã giải phóng khóa sau Sprint D; chuẩn bị Sprint E)* | — | — | — | — |
+| *(Trống — đã giải phóng toàn bộ khóa sau RC1 Sprint A–E)* | — | — | — | — |
 
 - **Hàng đợi bàn giao:**
   - `[T-010]` Push nhánh `feature/kmg-system-stabilization` lên `origin` và theo dõi kết quả GitHub Actions (`test-mysql-redis`, `docker-build-check`) — `READY`.
@@ -64,6 +64,7 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 
 ---
 
-## 5. Hướng dẫn Rollback
+## 5. Hướng dẫn Rollback & Khắc phục RC1
+- Chi tiết khắc phục `AUD-001`–`AUD-014`: xem `docs/audit/08_INDEPENDENT_REVIEW_REMEDIATION.md` và `docs/audit/09_RELEASE_CANDIDATE_READINESS.md`.
 - Nhánh `main` không bị thay đổi (`315535c`).
-- Trên nhánh `feature/kmg-system-stabilization` có thêm migration `aiassist/migrations/0006_clubknowledge_visibility.py` (sau `0005`). Nếu DB đã chạy `migrate` trên nhánh mới và cần quay về `main`, chạy `python manage.py migrate aiassist 0004` trước khi `git checkout main`.
+- Trên nhánh `feature/kmg-system-stabilization` có thêm migration `aiassist/migrations/0006_clubknowledge_visibility.py` và `aiassist/migrations/0007_rc1_security_hardening.py` (sau `0005`). Nếu DB đã chạy `migrate` trên nhánh mới và cần quay về `main`, chạy `python manage.py migrate aiassist 0004` trước khi `git checkout main`.

@@ -80,7 +80,7 @@ jobs:
           KMG_TEST_REDIS_URL: redis://127.0.0.1:6379/1
         run: |
           coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test
-          coverage report --skip-covered
+          coverage report --skip-covered --fail-under=78
       - name: AI quality gate on isolated SQLite
         run: |
           python manage.py evaluate_ai --with-migrate --settings=config.settings_test

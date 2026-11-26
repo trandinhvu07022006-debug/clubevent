@@ -93,7 +93,8 @@ Nạp lại từ đầu: `python manage.py seed_demo --reset`
 | BTC | Xác nhận thanh toán **theo nhóm** (tìm theo nội dung CK), check-in bằng **camera QR** + bảng điểm danh cập nhật 5 giây, công việc Kanban + AI gợi ý, **ngân sách thu–chi** + CSV |
 | Thông báo | **Chuông trong app** + email: đặt vé, xác nhận, hết hạn, huỷ sự kiện, cấp vé từ danh sách chờ, **nhắc lịch 24h**, giao việc |
 | Thành viên | Hồ sơ + **lịch sử tham gia**, **giấy chứng nhận** in A4 có QR xác thực công khai, gửi đánh giá |
-| Quản trị | Phân quyền 4 vai trò, khoá tài khoản, nhật ký thao tác, thống kê tổng hợp |
+| Quyền & Bảo mật | Phân quyền đa chiều `PermissionEngine` (Ban Chủ nhiệm / Cố vấn `INV-04` / Trưởng ban / Phó ban / Thành viên), Maker-Checker tài chính & kho chứng từ `PRIVATE_VAULT_ROOT`, Argon2id + fail-closed `DEBUG=False`, headers Nginx/CSP |
+| KMG AI Platform | Egress Policy tập trung (`PUBLIC` lên Cloud, `INTERNAL`/`CONFIDENTIAL`/`PRIVATE_PII` chỉ Local LLM, cấm fallback từ Local sang Cloud), RAG phân cấp quyền, session re-authorization, tách biệt Eval & Fine-tune JSONL |
 
 ---
 
@@ -157,16 +158,26 @@ dựng HTTP request.
 
 ---
 
-## 4. Kiểm thử
+## 4. Kiểm thử & Đánh giá RC1
 
 ```bash
-python manage.py test                 # chạy toàn bộ 200 test
-python manage.py test registrations   # chỉ test đặt vé và check-in
-python manage.py test aiassist        # chỉ test AI và trợ lý tra cứu
+python manage.py check --settings=config.settings_test
+python manage.py makemigrations --check --dry-run --settings=config.settings_test
+python manage.py test --settings=config.settings_test                 # toàn bộ test tự động (cô lập)
+python manage.py test registrations finance --settings=config.settings_test
+python manage.py test aiassist --settings=config.settings_test
+python manage.py evaluate_ai --with-migrate --settings=config.settings_test
+python -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v
 ```
 
-Test chạy hơi lâu (khoảng 30 giây) vì bcrypt băm mật khẩu chậm có chủ đích -
-đó là tính năng bảo mật, không phải lỗi.
+Tài liệu kiểm định chi tiết và quy trình phát hành xem tại:
+
+- `docs/audit/08_INDEPENDENT_REVIEW_REMEDIATION.md`
+- `docs/audit/09_RELEASE_CANDIDATE_READINESS.md`
+- `docs/UAT_PILOT_MATRIX.md`
+- `docs/huong-dan-deploy.md` & `compose.yaml` (cùng `requirements.lock.txt`)
+
+Test chạy hơi lâu (khoảng 2–3 phút cho toàn bộ suite) vì băm mật khẩu Argon2id/bcrypt và kiểm thử concurrency đa luồng — đây là hành vi bảo mật có chủ đích.
 
 Mã test khớp với bảng test case trong báo cáo (`TC07-x`, `TC10-x`) để điền
 RTM. Test đáng chú ý:

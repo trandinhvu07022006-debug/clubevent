@@ -1,0 +1,15 @@
+# Lockfile tham chiếu các phiên bản đã kiểm chứng tại môi trường dev Python 3.14 / CI Python 3.12 (AUD-014).
+# Kiểm tra lỗ hổng trước phát hành bằng `pip-audit` và `pip check`.
+argon2-cffi==25.1.0
+argon2-cffi-bindings==26.2.0
+bcrypt==5.0.0
+cryptography==50.0.2
+Django==5.2.17
+pillow==12.3.0
+PyMySQL==1.2.3
+qrcode==8.2
+whitenoise==6.12.0
+# Production-only drivers / servers (cài trong Docker via requirements-production.txt):
+# gunicorn>=21.2
+# redis>=5.0
+# psycopg[binary]>=3.1
