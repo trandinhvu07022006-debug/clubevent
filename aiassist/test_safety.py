@@ -216,10 +216,11 @@ class EvalCommandTests(TestCase):
 @override_settings(AI_PROVIDER="gemini", AI_API_KEY="test-key")
 class StructuredOutputTests(TestCase):
     def sent_config(self, **kwargs):
+        from .egress import DataClassification
         reply = {"candidates": [{"content": {"parts": [{"text": '{"ok": true}'}]}}]}
         with patch("aiassist.services.urllib.request.urlopen",
                    return_value=io.BytesIO(json.dumps(reply).encode())) as mock_open:
-            _ask_ai("x", **kwargs)
+            _ask_ai("x", classification=DataClassification.PUBLIC, **kwargs)
         return json.loads(mock_open.call_args.args[0].data)["generationConfig"]
 
     def test_schema_is_sent_in_response_format(self):
@@ -233,10 +234,14 @@ class StructuredOutputTests(TestCase):
         self.assertNotIn("responseFormat", config)
 
     def test_rejected_schema_falls_back_once(self):
+        from .egress import DataClassification
         bad = urllib.error.HTTPError("https://ai.test", 400, "bad", {}, None)
         with patch("aiassist.services._call_gemini",
                    side_effect=[bad, '{"ok": true}']) as mock_call:
-            self.assertEqual(_ask_ai("x", response_schema=schemas.ASSISTANT), {"ok": True})
+            self.assertEqual(
+                _ask_ai("x", response_schema=schemas.ASSISTANT, classification=DataClassification.PUBLIC),
+                {"ok": True},
+            )
         self.assertEqual(mock_call.call_count, 2)
         self.assertNotIn("response_schema", mock_call.call_args.kwargs)
 
@@ -375,7 +380,15 @@ class ExportFinetuneIsolationTests(TestCase):
             feedback=FeedbackRating.UP,
         )
 
-        records = build_finetune_records(fmt="openai", module="all", include_unrated=False)
+        # Mặc định (include_internal=False): cô lập toàn bộ log cũ, postmortem, proposal, task nội bộ
+        default_records = build_finetune_records(fmt="openai", module="all", include_unrated=False)
+        default_blob = json.dumps(default_records, ensure_ascii=False)
+        self.assertNotIn("INTERNAL-EVENT-SECRET", default_blob)
+        self.assertNotIn("Workshop công khai", default_blob)
+        self.assertNotIn("Tổng kết thành công", default_blob)
+
+        # Ngay cả khi bật include_internal=True tại local: vẫn phải loại sự kiện nội bộ, draft & PII
+        records = build_finetune_records(fmt="openai", module="all", include_unrated=False, include_internal=True)
         blob = json.dumps(records, ensure_ascii=False)
         self.assertNotIn("Họp nội bộ mật", blob)
         self.assertNotIn("Báo cáo nội bộ tuyệt mật", blob)

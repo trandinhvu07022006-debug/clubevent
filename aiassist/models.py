@@ -7,6 +7,8 @@ Mô hình dữ liệu cho quy trình Đánh giá & Cải tiến AI (LLMOps):
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from .egress import CLASSIFICATION_CHOICES, DataClassification
+
 # Số ví dụ few-shot tối đa được đưa vào prompt
 MAX_FEW_SHOT = 3
 
@@ -145,6 +147,13 @@ class AIInteractionLog(models.Model):
         default=FeedbackRating.NONE,
     )
     feedback_note = models.CharField("Góp ý ngắn", max_length=255, blank=True)
+    classification = models.CharField(
+        "Phân loại dữ liệu",
+        max_length=16,
+        choices=CLASSIFICATION_CHOICES,
+        default=DataClassification.INTERNAL.value,
+        db_index=True,
+    )
     latency_ms = models.PositiveIntegerField("Thời gian xử lý (ms)", null=True, blank=True)
     model_name = models.CharField("Model AI", max_length=64, blank=True)
     prompt_version = models.CharField("Phiên bản prompt", max_length=12, blank=True)

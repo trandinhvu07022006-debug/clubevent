@@ -13,11 +13,15 @@ from aiassist.models import ClubKnowledge, KnowledgeCategory, KnowledgeVisibilit
 from aiassist.privacy import has_prompt_injection_signal, sanitize_untrusted_input
 from aiassist.services import ask_assistant, retrieve_knowledge
 from organization.models import (
+    Appointment,
     ClubMembership,
     ClubMembershipStatus,
     Department,
     DepartmentMembership,
     DeptMembershipStatus,
+    Position,
+    PositionCode,
+    ScopeType,
 )
 
 User = get_user_model()
@@ -51,6 +55,21 @@ class ClubKnowledgeVisibilityTests(TestCase):
         )
         self.lead = User.objects.create_user(
             "ai_lead", password="x", role=Role.LEAD, account_status=AccountStatus.ACTIVE
+        )
+        chair_pos, _ = Position.objects.get_or_create(
+            code=PositionCode.CHAIRMAN,
+            defaults={
+                "name": "Chủ nhiệm CLB",
+                "scope_type": ScopeType.CLUB,
+                "is_officer": True,
+                "is_singleton": True,
+            },
+        )
+        Appointment.objects.create(
+            user=self.lead,
+            position=chair_pos,
+            scope_type=ScopeType.CLUB,
+            is_active=True,
         )
 
         self.pub_kb = ClubKnowledge.objects.create(

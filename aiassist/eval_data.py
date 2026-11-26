@@ -5,10 +5,12 @@ from .privacy import redact
 
 
 def to_jsonl(logs) -> str:
-    """Mỗi dòng một lượt hỏi đáp. Che PII thêm lần nữa trước khi ra khỏi hệ thống."""
+    """Mỗi dòng một lượt đánh giá (tách biệt với fine-tuning). Che PII thêm lần nữa."""
     lines = []
     for log in logs:
         lines.append(json.dumps({
+            "record_type": "eval",
+            "classification": getattr(log, "classification", "INTERNAL"),
             "question": redact(log.question),
             "answer": redact(log.answer_preview),
             "intent": log.intent,

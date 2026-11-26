@@ -248,6 +248,14 @@ def _can_use_ai(question, allow_ai):
     return bool(allow_ai() if callable(allow_ai) else allow_ai)
 
 
+def _rule_classification(intent_code: str) -> str:
+    if intent_code in PRIVATE_INTENTS:
+        return "PRIVATE_PII"
+    if intent_code in ("how_to_register", "club_departments", "recruitment_info"):
+        return "PUBLIC"
+    return "INTERNAL"
+
+
 def answer(question, user=None, allow_ai=True, history=None):
     """
     Trả lời một câu hỏi.
@@ -269,7 +277,8 @@ def answer(question, user=None, allow_ai=True, history=None):
             if ai_result is not None:
                 return ai_result
         return {"intent": "unknown", "source": "rules",
-                "text": UNKNOWN_TEXT, "links": []}
+                "text": UNKNOWN_TEXT, "links": [],
+                "meta": {"classification": "PUBLIC" if not (user and user.is_authenticated) else "INTERNAL"}}
 
     is_logged_in = bool(user and user.is_authenticated)
     if intent["login_required"] and not is_logged_in:
@@ -278,12 +287,14 @@ def answer(question, user=None, allow_ai=True, history=None):
             "source": "rules",
             "text": "Bạn cần đăng nhập thì mình mới tra được thông tin cá nhân.",
             "links": [{"label": "Đăng nhập", "url": reverse("accounts:login")}],
+            "meta": {"classification": "PUBLIC"},
         }
 
     handler = HANDLERS[intent["code"]]
     result = handler(user)
     result["intent"] = intent["code"]
     result["source"] = "rules"
+    result.setdefault("meta", {})["classification"] = _rule_classification(intent["code"])
     return result
 
 
@@ -341,6 +352,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
                             "meta": {
                                 "model_name": final_evt["model"],
                                 "prompt_version": final_evt["prompt_version"],
+                                "classification": final_evt.get("classification", "INTERNAL"),
                             },
                         }
                         return
@@ -354,6 +366,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
                             "links": [],
                             "intent": "unknown",
                             "source": "rules",
+                            "meta": {"classification": "PUBLIC" if not (user and user.is_authenticated) else "INTERNAL"},
                         }
                         return
 
@@ -390,6 +403,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
             "links": [],
             "intent": "unknown",
             "source": "rules",
+            "meta": {"classification": "PUBLIC" if not (user and user.is_authenticated) else "INTERNAL"},
         }
         return
 
@@ -404,6 +418,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
             "links": links,
             "intent": intent["code"],
             "source": "rules",
+            "meta": {"classification": "PUBLIC"},
         }
         return
 
@@ -425,6 +440,7 @@ def stream_answer(question, user=None, allow_ai=True, history=None):
         "links": result.get("links", []),
         "intent": intent["code"],
         "source": "rules",
+        "meta": {"classification": _rule_classification(intent["code"])},
     }
 
 
@@ -463,7 +479,8 @@ def _answer_with_ai(question, history=None, user=None):
             "sources": data.get("sources", []),
             # Chỉ dùng để ghi log; view gỡ ra trước khi trả cho trình duyệt
             "meta": {"model_name": data["model"],
-                     "prompt_version": data["prompt_version"]}}
+                     "prompt_version": data["prompt_version"],
+                     "classification": data.get("classification", "INTERNAL")}}
 
 
 _ORIGINAL_ANSWER_WITH_AI = _answer_with_ai

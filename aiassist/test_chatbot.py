@@ -327,8 +327,8 @@ class HybridAITests(TestCase):
         """Kiểm tra ngữ cảnh đa lượt: lịch sử trao đổi được đưa vào prompt cho AI."""
         mock_ai.return_value = {"answer": "Có bãi gửi xe máy ngay cạnh sảnh bạn nhé.", "event_ids": [self.event.pk]}
         history = [
-            {"role": "user", "text": "Đêm nhạc tổ chức ở đâu?"},
-            {"role": "assistant", "text": "Đêm nhạc tổ chức ở Hội trường A2."},
+            {"role": "user", "text": "Đêm nhạc tổ chức ở đâu?", "classification": "PUBLIC"},
+            {"role": "assistant", "text": "Đêm nhạc tổ chức ở Hội trường A2.", "classification": "PUBLIC"},
         ]
         result = answer("Hội trường A2 có chỗ gửi xe máy không bạn?", user=self.user, history=history)
         self.assertEqual(result["source"], "ai")

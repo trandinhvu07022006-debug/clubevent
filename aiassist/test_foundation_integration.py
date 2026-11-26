@@ -29,6 +29,19 @@ class FoundationIntegrationTests(TestCase):
         self.lead = User.objects.create_user(
             username="f_lead", password="x", full_name="Trưởng C", role=Role.LEAD
         )
+        from organization.models import Appointment, Position, PositionCode, ScopeType
+        chair_pos, _ = Position.objects.get_or_create(
+            code=PositionCode.CHAIRMAN,
+            defaults={
+                "name": "Chủ nhiệm CLB",
+                "scope_type": ScopeType.CLUB,
+                "is_officer": True,
+                "is_singleton": True,
+            },
+        )
+        Appointment.objects.create(
+            user=self.lead, position=chair_pos, scope_type=ScopeType.CLUB, is_active=True
+        )
         self.pub_event = Event.objects.create(
             name="Acoustic Ngoài Trời",
             location="Sân trường",
@@ -74,7 +87,7 @@ class FoundationIntegrationTests(TestCase):
 
         lead_actor = build_server_actor(self.lead)
         self.assertEqual(lead_actor.user_id, f"user:{self.lead.pk}")
-        self.assertIn("organizing.lead", lead_actor.permissions)
+        self.assertIn("club.document.manage_confidential", lead_actor.permissions)
         self.assertIn("club.event.view_internal", lead_actor.permissions)
 
     def test_public_tools_never_expose_internal_or_draft_events(self):

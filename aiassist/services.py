@@ -27,6 +27,10 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 
 from . import providers, schemas
+from .egress import (DataClassification, EgressPolicyError,
+                     assert_egress_safe, evaluate_egress,
+                     max_classification, normalize_classification,
+                     scrub_egress_secrets)
 from .privacy import redact, sanitize_untrusted_input
 
 if TYPE_CHECKING:
@@ -135,33 +139,42 @@ def _call_local(prompt: str, model: str, json_mode: bool = True) -> str:
 
 
 def _generate(prompt: str, model: str, response_schema: dict | None,
-              provider: str | None = None) -> str:
-    """Một lần gọi nhà cung cấp AI đang cấu hình."""
+              provider: str | None = None,
+              classification: str | DataClassification = DataClassification.INTERNAL) -> str:
+    """Một lần gọi nhà cung cấp AI đang cấu hình (bắt buộc qua Egress Policy)."""
     active_provider = (provider or settings.AI_PROVIDER or "gemini").strip().lower()
+    assert_egress_safe(
+        classification=classification,
+        provider=active_provider,
+        local_base_url=getattr(settings, "AI_LOCAL_BASE_URL", ""),
+    )
+    safe_prompt = scrub_egress_secrets(prompt)
     if active_provider == "openai":
-        return _call_openai(prompt, model)    # chỉ dùng JSON mode, không kèm schema
+        return _call_openai(safe_prompt, model)    # chỉ dùng JSON mode, không kèm schema
     if providers.is_local_provider(active_provider):
-        return _call_local(prompt, model)
+        return _call_local(safe_prompt, model)
     if response_schema:
         try:
-            return _call_gemini(prompt, model, response_schema=response_schema)
+            return _call_gemini(safe_prompt, model, response_schema=response_schema)
         except urllib.error.HTTPError as e:
             if e.code != 400:
                 raise
             # Model/API không nhận schema: gọi lại kiểu cũ. Prompt vẫn mô tả
             # định dạng và các hàm _clean vẫn kiểm tra dữ liệu.
             logger.warning("API từ chối schema (400) với model %s, bỏ schema", model)
-    return _call_gemini(prompt, model)
+    return _call_gemini(safe_prompt, model)
 
 
 def _ask_single_provider(prompt: str, model: str,
-                         response_schema: dict | None, provider: str) -> dict | list:
+                         response_schema: dict | None, provider: str,
+                         classification: str | DataClassification = DataClassification.INTERNAL) -> dict | list:
     attempts = len(RETRY_DELAYS) + 1
     daily = False
     try:
         for attempt in range(attempts):
             try:
-                raw = _generate(prompt, model, response_schema, provider=provider)
+                raw = _generate(prompt, model, response_schema,
+                                provider=provider, classification=classification)
                 break
             except urllib.error.HTTPError as e:
                 if e.code == 429:
@@ -190,6 +203,8 @@ def _ask_single_provider(prompt: str, model: str,
         logger.warning("AI API returned unexpected response structure")
         providers.circuit_breaker.record_failure(provider)
         raise AIError("Dịch vụ AI trả về dữ liệu không đúng định dạng mong đợi.")
+    except EgressPolicyError as e:
+        raise AIError(str(e))
     except Exception as e:  # timeout và các lỗi còn lại
         logger.warning("AI API unexpected error: %s", e, exc_info=True)
         providers.circuit_breaker.record_failure(provider)
@@ -201,17 +216,31 @@ def _ask_single_provider(prompt: str, model: str,
 
 
 def _ask_ai(prompt: str, model: str | None = None,
-            response_schema: dict | None = None) -> dict | list:
+            response_schema: dict | None = None,
+            *,
+            classification: str | DataClassification = DataClassification.INTERNAL) -> dict | list:
     """
     Gửi prompt tới AI, trả về dict đã parse từ JSON.
 
+    Mọi lời gọi đều phải đi qua Egress Policy theo mức `classification` (mặc định
+    fail-closed = INTERNAL để dữ liệu nội bộ không bao giờ lọt ra Cloud LLM).
     Hỗ trợ đa nhà cung cấp (gemini / openai / local / ollama), Circuit Breaker,
-    ngân sách ký tự ngày (DailyBudgetTracker) và tự động fallback sang
-    AI_FALLBACK_PROVIDER nếu nhà cung cấp chính quá tải.
+    ngân sách ký tự ngày (DailyBudgetTracker) và fallback an toàn cùng phân tầng.
     """
     primary = (getattr(settings, "AI_PROVIDER", "mock") or "mock").strip().lower()
     if primary == "mock":
         raise AIError("Đang ở chế độ mock, không gọi API thật.")
+
+    raw_fallback = (getattr(settings, "AI_FALLBACK_PROVIDER", "") or "").strip().lower()
+    decision = evaluate_egress(
+        classification=classification,
+        primary_provider=primary,
+        fallback_provider=raw_fallback,
+        local_base_url=getattr(settings, "AI_LOCAL_BASE_URL", ""),
+    )
+    if not decision.allowed:
+        raise AIError(decision.reason)
+
     if not providers.is_local_provider(primary) and not settings.AI_API_KEY:
         raise AIError("Chưa cấu hình AI_API_KEY trong file .env.")
 
@@ -220,12 +249,15 @@ def _ask_ai(prompt: str, model: str | None = None,
     except providers.BudgetExceededError as exc:
         raise AIError(str(exc))
 
-    fallback = (getattr(settings, "AI_FALLBACK_PROVIDER", "") or "").strip().lower()
+    fallback = decision.fallback_provider
     resolved_model = providers.resolve_model_for_provider(primary, model)
 
     if providers.circuit_breaker.allow_request(primary):
         try:
-            return _ask_single_provider(prompt, resolved_model, response_schema, primary)
+            return _ask_single_provider(
+                prompt, resolved_model, response_schema, primary,
+                classification=decision.classification,
+            )
         except AIError as primary_err:
             if (fallback and fallback != primary
                     and providers.provider_has_credentials(fallback)
@@ -233,14 +265,20 @@ def _ask_ai(prompt: str, model: str | None = None,
                 logger.warning("AI primary %s lỗi (%s), chuyển sang fallback %s",
                                primary, primary_err, fallback)
                 fb_model = providers.resolve_model_for_provider(fallback, model)
-                return _ask_single_provider(prompt, fb_model, response_schema, fallback)
+                return _ask_single_provider(
+                    prompt, fb_model, response_schema, fallback,
+                    classification=decision.classification,
+                )
             raise
 
     if (fallback and fallback != primary
             and providers.provider_has_credentials(fallback)
             and providers.circuit_breaker.allow_request(fallback)):
         fb_model = providers.resolve_model_for_provider(fallback, model)
-        return _ask_single_provider(prompt, fb_model, response_schema, fallback)
+        return _ask_single_provider(
+            prompt, fb_model, response_schema, fallback,
+            classification=decision.classification,
+        )
 
     raise AIError(f"Dịch vụ AI ({primary}) tạm thời ngắt mạch bảo vệ, vui lòng thử lại sau.")
 
@@ -338,6 +376,7 @@ def suggest_tasks(event: Event, count: int = 8) -> tuple[list[dict], bool, str]:
     View dùng cờ `đã_dùng_ai` để hiện nhãn "AI gợi ý" hay "danh sách mặc định".
     """
     from django.utils import timezone
+    from events.models import EventStatus, EventVisibility
     from organizing.models import Department
 
     depts = list(Department.objects.all())
@@ -347,15 +386,26 @@ def suggest_tasks(event: Event, count: int = 8) -> tuple[list[dict], bool, str]:
                         if dept_names else "")
 
     days_left = max((event.starts_at - timezone.now()).days, 0)
+    is_public = (
+        getattr(event, "visibility", EventVisibility.PUBLIC) == EventVisibility.PUBLIC
+        and getattr(event, "status", EventStatus.OPEN) != EventStatus.DRAFT
+    )
+    classification = DataClassification.PUBLIC if is_public else DataClassification.INTERNAL
     prompt = SUGGEST_PROMPT.format(
-        name=event.name, location=event.location, capacity=event.capacity,
-        description=(event.description or "Không có mô tả")[:500],
+        name=sanitize_untrusted_input(redact(event.name)),
+        location=sanitize_untrusted_input(redact(event.location or "")),
+        capacity=event.capacity,
+        description=sanitize_untrusted_input(redact((event.description or "Không có mô tả")[:500])),
         days_left=days_left or 30, count=count,
         departments_info=departments_info,
     ) + get_prompt_addendum("suggest_tasks")
 
     try:
-        data = _ask_ai(prompt, response_schema=schemas.SUGGEST_TASKS)
+        data = _ask_ai(
+            prompt,
+            response_schema=schemas.SUGGEST_TASKS,
+            classification=classification,
+        )
         tasks = data.get("tasks") if isinstance(data, dict) else data
         cleaned = _clean_tasks(tasks, days_left, valid_departments=dept_map)
         if not cleaned:
@@ -445,12 +495,15 @@ def summarize_feedback(event: Event) -> tuple[FeedbackSummary | None, str]:
 
     lines = "\n".join(
         f"- {f.rating}/5 - "
-        f"{redact(f.content or 'không ghi góp ý', (f.user.full_name,))[:300]}"
+        f"{sanitize_untrusted_input(redact(f.content or 'không ghi góp ý', (f.user.full_name,)))[:300]}"
         for f in items)
 
     try:
-        data = _ask_ai(SUMMARY_PROMPT.format(feedbacks=lines),
-                       response_schema=schemas.FEEDBACK_SUMMARY)
+        data = _ask_ai(
+            SUMMARY_PROMPT.format(feedbacks=lines),
+            response_schema=schemas.FEEDBACK_SUMMARY,
+            classification=DataClassification.INTERNAL,
+        )
     except AIError as e:
         return None, str(e)
 
@@ -508,14 +561,18 @@ def screen_application(application) -> tuple[dict, bool, str]:
     names = (application.user.full_name,)
     prompt = SCREEN_PROMPT.format(
         department=dept_name,
-        strengths=redact(application.strengths or "Không ghi", names)[:200],
+        strengths=sanitize_untrusted_input(redact(application.strengths or "Không ghi", names))[:200],
         level=application.get_level_display(),
-        motivation=redact(application.motivation or "Không ghi", names)[:500],
+        motivation=sanitize_untrusted_input(redact(application.motivation or "Không ghi", names))[:500],
         has_portfolio="Có" if application.portfolio_url else "Không",
     ) + get_prompt_addendum("screen_application")
 
     try:
-        data = _ask_ai(prompt, response_schema=schemas.SCREENING)
+        data = _ask_ai(
+            prompt,
+            response_schema=schemas.SCREENING,
+            classification=DataClassification.PRIVATE_PII,
+        )
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc.")
 
@@ -592,21 +649,31 @@ def generate_event_content(event: Event) -> tuple[dict, bool, str]:
     Trả về (dict_content, đã_dùng_ai, thông_báo_lỗi).
     """
     from django.utils import timezone
+    from events.models import EventStatus, EventVisibility
     start = timezone.localtime(event.starts_at)
     cat = event.get_category_display() if hasattr(event, "get_category_display") else "Chung"
+    is_public = (
+        getattr(event, "visibility", EventVisibility.PUBLIC) == EventVisibility.PUBLIC
+        and getattr(event, "status", EventStatus.OPEN) != EventStatus.DRAFT
+    )
+    classification = DataClassification.PUBLIC if is_public else DataClassification.INTERNAL
 
     prompt = MARKETING_PROMPT.format(
-        name=event.name,
+        name=sanitize_untrusted_input(redact(event.name)),
         category=cat,
         start_time=start.strftime("%H:%M ngày %d/%m/%Y"),
-        location=event.location or "Hội trường CLB",
+        location=sanitize_untrusted_input(redact(event.location or "Hội trường CLB")),
         capacity=event.capacity or 100,
-        description=(event.description or "Chưa có mô tả")[:400],
+        description=sanitize_untrusted_input(redact((event.description or "Chưa có mô tả")[:400])),
     ) + get_prompt_addendum("event_marketing")
     fallback = _fallback_marketing(event)
 
     try:
-        data = _ask_ai(prompt, response_schema=schemas.EVENT_CONTENT)
+        data = _ask_ai(
+            prompt,
+            response_schema=schemas.EVENT_CONTENT,
+            classification=classification,
+        )
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc.")
         desc = str(data.get("description", "")).strip()
@@ -856,15 +923,15 @@ def generate_event_postmortem(event: Event) -> tuple[dict, dict, str, bool, str]
 
     start = timezone.localtime(event.starts_at)
     cat = event.get_category_display() if hasattr(event, "get_category_display") else "CLB"
-    # Góp ý là chữ người tham gia tự gõ -> che PII trước khi gửi đi
+    # Góp ý là chữ người tham gia tự gõ -> che PII và chặn injection trước khi ghép prompt
     author_names = tuple(f.user.full_name for f in feedbacks.select_related("user"))
-    feedback_notes = redact(feedback_notes, author_names)
+    feedback_notes = sanitize_untrusted_input(redact(feedback_notes, author_names))
 
     prompt = POSTMORTEM_PROMPT.format(
-        name=event.name,
+        name=sanitize_untrusted_input(redact(event.name)),
         category=cat,
         start_time=start.strftime("%H:%M ngày %d/%m/%Y"),
-        location=event.location or "Hội trường CLB",
+        location=sanitize_untrusted_input(redact(event.location or "Hội trường CLB")),
         capacity=event.capacity or 100,
         total_registered=total_registered,
         checked_in_count=checked_in_count,
@@ -885,7 +952,11 @@ def generate_event_postmortem(event: Event) -> tuple[dict, dict, str, bool, str]
     fallback = _fallback_postmortem(event, stats)
 
     try:
-        data = _ask_ai(prompt, response_schema=schemas.POSTMORTEM)
+        data = _ask_ai(
+            prompt,
+            response_schema=schemas.POSTMORTEM,
+            classification=DataClassification.INTERNAL,
+        )
         if not isinstance(data, dict):
             raise AIError("AI trả về sai cấu trúc JSON.")
         
@@ -1035,21 +1106,28 @@ def _knowledge_score(query: str, tokens: set, item) -> int:
 
 
 def visible_knowledge_levels(user=None) -> tuple[str, ...]:
-    """Xác định các mức phân loại ClubKnowledge người dùng hiện tại được phép truy xuất."""
-    from events.models import can_view_internal_events
+    """
+    Xác định các mức phân loại ClubKnowledge người dùng hiện tại được phép truy xuất
+    dựa trên `PermissionEngine` chuẩn (loại bỏ `user.is_lead` thô; chặn Advisor/TV
+    thường đọc CONFIDENTIAL nếu không có quyền `club.document.manage_confidential`).
+    """
+    from organization.permissions import PermissionEngine
     from .models import KnowledgeVisibility
 
     if not user or not getattr(user, "is_authenticated", False) or getattr(user, "is_locked", False):
         return (KnowledgeVisibility.PUBLIC,)
+
     levels = [KnowledgeVisibility.PUBLIC]
-    if can_view_internal_events(user):
+    if PermissionEngine.authorize(user, "club.event.view_internal"):
         levels.append(KnowledgeVisibility.INTERNAL)
-        if getattr(user, "is_lead", False) or getattr(user, "is_admin_role", False):
-            levels.append(KnowledgeVisibility.CONFIDENTIAL)
+    if PermissionEngine.authorize(user, "club.document.manage_confidential"):
+        levels.append(KnowledgeVisibility.CONFIDENTIAL)
     return tuple(levels)
 
 
-def retrieve_knowledge_with_sources(query: str = "", limit: int = 4, user=None) -> tuple[str, list[dict]]:
+def retrieve_knowledge_with_sources(
+    query: str = "", limit: int = 4, user=None, *, return_classification: bool = False
+):
     """
     Hybrid RAG nhẹ (BM25 + so khớp từ khoá tiếng Việt bỏ dấu) trên Kho tri thức CLB.
     Chỉ truy xuất các mục nằm trong phạm vi quyền (`PUBLIC`, `INTERNAL`, `CONFIDENTIAL`).
@@ -1060,9 +1138,9 @@ def retrieve_knowledge_with_sources(query: str = "", limit: int = 4, user=None) 
         items = list(ClubKnowledge.objects.filter(is_active=True, visibility__in=allowed_levels))
     except Exception:
         logger.warning("Không đọc được Kho tri thức CLB", exc_info=True)
-        return "", []
+        return ("", [], DataClassification.PUBLIC.value) if return_classification else ("", [])
     if not items:
-        return "", []
+        return ("", [], DataClassification.PUBLIC.value) if return_classification else ("", [])
 
     from .chatbot import prepare_query
     from .core.contracts import Actor
@@ -1073,7 +1151,7 @@ def retrieve_knowledge_with_sources(query: str = "", limit: int = 4, user=None) 
     tokens = {t for t in re.findall(r"\w+", query_norm)
               if len(t) >= 2 and t not in RETRIEVAL_STOPWORDS}
     if not tokens:
-        return "", []
+        return ("", [], DataClassification.PUBLIC.value) if return_classification else ("", [])
 
     # Điểm BM25 chuẩn hoá (Foundation 0.2.1)
     anon_actor = Actor(user_id="rag:scoped", club_id="kmg", permissions=frozenset({"public.read"}))
@@ -1101,12 +1179,18 @@ def retrieve_knowledge_with_sources(query: str = "", limit: int = 4, user=None) 
     scored.sort(key=lambda pair: (-pair[0], pair[1].priority))
     lines = []
     sources = []
+    highest_cls = DataClassification.PUBLIC.value
     for _, item in scored[:limit]:
-        snippet = " ".join(item.content.split())[:350]
+        title_clean = sanitize_untrusted_input(redact(item.title))
+        snippet = sanitize_untrusted_input(redact(" ".join(item.content.split())[:350]))
         cat = item.get_category_display()
-        lines.append(f"- [{cat}] {item.title}: {snippet}")
-        sources.append({"title": item.title, "category": cat})
-    return "\n".join(lines), sources
+        lines.append(f"- [{cat}] {title_clean}: {snippet}")
+        sources.append({"title": title_clean, "category": cat})
+        highest_cls = max_classification(highest_cls, item.visibility)
+    joined = "\n".join(lines)
+    if return_classification:
+        return joined, sources, highest_cls
+    return joined, sources
 
 
 def retrieve_knowledge(query: str = "", limit: int = 4, user=None) -> str:
@@ -1118,7 +1202,9 @@ def retrieve_knowledge(query: str = "", limit: int = 4, user=None) -> str:
     return text
 
 
-def build_assistant_context(question: str = "", *, user=None, return_sources: bool = False):
+def build_assistant_context(
+    question: str = "", *, user=None, return_sources: bool = False, return_classification: bool = False
+):
     """
     Dữ liệu nền gửi cho AI (Grounding + RAG nhẹ):
       1. Các sự kiện CÔNG KHAI (bỏ bản nháp DRAFT).
@@ -1150,12 +1236,14 @@ def build_assistant_context(question: str = "", *, user=None, return_sources: bo
         tickets = "; ".join(
             f"{t.name}: {_fmt_money(t.price)}, còn {t.remaining}/{t.quota} chỗ"
             for t in e.ticket_types.all()) or "chưa mở bán vé"
-        desc = " ".join((e.description or "").split())[:300] or "(không có mô tả)"
+        desc = sanitize_untrusted_input(
+            redact(" ".join((e.description or "").split())[:300])
+        ) or "(không có mô tả)"
         blocks.append(
-            f"- Mã {e.pk} | {e.name}\n"
+            f"- Mã {e.pk} | {sanitize_untrusted_input(redact(e.name))}\n"
             f"  Trạng thái: {e.get_status_display()}\n"
             f"  Thời gian: {start:%H:%M} ngày {start:%d/%m/%Y}\n"
-            f"  Địa điểm: {e.location}\n"
+            f"  Địa điểm: {sanitize_untrusted_input(redact(e.location))}\n"
             f"  Hạn đăng ký: {deadline:%H:%M} ngày {deadline:%d/%m/%Y}\n"
             f"  Vé: {tickets}\n"
             f"  Mô tả: {desc}")
@@ -1187,10 +1275,14 @@ def build_assistant_context(question: str = "", *, user=None, return_sources: bo
         )
 
     # Nạp Kho tri thức CLB (Hybrid BM25 + Lexical RAG, lọc theo phân quyền người dùng)
-    kb_text, kb_sources = retrieve_knowledge_with_sources(question, limit=4, user=user)
+    kb_text, kb_sources, ctx_cls = retrieve_knowledge_with_sources(
+        question, limit=4, user=user, return_classification=True
+    )
     if kb_text:
         sections.append("KHO TRI THỨC & FAQ CLB:\n" + kb_text)
 
+    if return_classification:
+        return "\n\n".join(sections), ids, kb_sources, ctx_cls
     if return_sources:
         return "\n\n".join(sections), ids, kb_sources
     return "\n\n".join(sections), ids
@@ -1208,35 +1300,50 @@ def _assistant_rules() -> str:
     )
 
 
+def _build_authorized_history_block(
+    history: list[dict] | None, names: tuple, user=None
+) -> tuple[str, str]:
+    """
+    Chỉ giữ lại các lượt lịch sử mà phân loại dữ liệu của chúng vẫn nằm trong quyền
+    hiện tại của `user` (re-check live authorization qua các lượt).
+    """
+    if not history:
+        return "", DataClassification.PUBLIC.value
+    allowed_levels = set(visible_knowledge_levels(user))
+    lines = ["LỊCH SỬ TRAO ĐỔI GẦN ĐÂY:"]
+    highest_cls = DataClassification.PUBLIC.value
+    for msg in history[-4:]:
+        if not isinstance(msg, dict):
+            continue
+        msg_cls = msg.get("classification")
+        # Fail-closed: bỏ qua các lượt lịch sử không gắn classification hoặc vượt quyền hiện tại
+        if not msg_cls or msg_cls not in allowed_levels:
+            continue
+        role = "Người dùng" if msg.get("role") == "user" else "Trợ lý"
+        text_val = sanitize_untrusted_input(redact(msg.get("text", ""), names)).strip()[:200]
+        if text_val:
+            lines.append(f"- {role}: {text_val}")
+            highest_cls = max_classification(highest_cls, msg_cls)
+    if len(lines) <= 1:
+        return "", DataClassification.PUBLIC.value
+    return "\n".join(lines) + "\n\n", highest_cls
+
+
 def ask_assistant(question: str, history: list[dict] | None = None,
                   names: tuple = (), user=None) -> dict:
     """
     Hỏi AI một câu KHÔNG thuộc các ý định có sẵn.
-    Có thể truyền kèm `history` ([{"role": "user"|"assistant", "text": "..."}])
-    để AI hiểu được ngữ cảnh các câu hỏi trước đó.
-
-    Trả về {"answer", "event_ids", "model", "prompt_version"} - event_ids đã được
-    lọc, chỉ giữ mã có thật trong dữ liệu nền. Lỗi thì ném AIError (nơi gọi tự
-    fallback).
     """
     from django.utils import timezone
 
     # Chốt chặn cuối: che PII + chặn injection delimiter ngay trước khi ghép prompt.
     question = sanitize_untrusted_input(redact(question.strip(), names))[:500]
-    history_block = ""
-    if history:
-        lines = ["LỊCH SỬ TRAO ĐỔI GẦN ĐÂY:"]
-        for msg in history[-4:]:
-            role = "Người dùng" if msg.get("role") == "user" else "Trợ lý"
-            text_val = sanitize_untrusted_input(redact(msg.get("text", ""), names)).strip()[:200]
-            if text_val:
-                lines.append(f"- {role}: {text_val}")
-        if len(lines) > 1:
-            history_block = "\n".join(lines) + "\n\n"
+    history_block, history_cls = _build_authorized_history_block(history, names, user=user)
 
-    events_text, known_ids, kb_sources = build_assistant_context(
-        question, user=user, return_sources=True
+    events_text, known_ids, kb_sources, ctx_cls = build_assistant_context(
+        question, user=user, return_sources=True, return_classification=True
     )
+    overall_cls = max_classification(ctx_cls, history_cls)
     now = timezone.localtime()
     addendum = get_prompt_addendum("chatbot")
     model = settings.AI_ASSISTANT_MODEL or settings.AI_MODEL
@@ -1251,13 +1358,11 @@ def ask_assistant(question: str, history: list[dict] | None = None,
         history_block=history_block,
         question=f"<USER_QUERY>\n{question}\n</USER_QUERY>",
     ) + addendum
-    # Trợ lý dùng model RIÊNG (thường là bản lite): hỏi đáp nhiều, câu ngắn,
-    # cần nhanh; và hạn mức miễn phí tính riêng từng model nên không ăn vào
-    # lượt của tóm tắt phản hồi / gợi ý công việc. Để trống thì dùng AI_MODEL.
     data = _ask_ai(
         prompt,
         model=model,
         response_schema=schemas.ASSISTANT,
+        classification=overall_cls,
     )
     if not isinstance(data, dict):
         raise AIError("AI trả về sai cấu trúc (không phải object).")
@@ -1283,6 +1388,7 @@ def ask_assistant(question: str, history: list[dict] | None = None,
             event_ids.append(pk)
     return {"answer": answer, "event_ids": event_ids[:3],
             "sources": kb_sources[:3],
+            "classification": overall_cls,
             "model": model, "prompt_version": prompt_version}
 
 
@@ -1314,20 +1420,12 @@ def stream_assistant_reply(question: str, history: list[dict] | None = None,
     from django.utils import timezone
 
     clean_q = sanitize_untrusted_input(redact(question.strip(), names))[:500]
-    history_block = ""
-    if history:
-        lines = ["LỊCH SỬ TRAO ĐỔI GẦN ĐÂY:"]
-        for msg in history[-4:]:
-            role = "Người dùng" if msg.get("role") == "user" else "Trợ lý"
-            text_val = sanitize_untrusted_input(redact(msg.get("text", ""), names)).strip()[:200]
-            if text_val:
-                lines.append(f"- {role}: {text_val}")
-        if len(lines) > 1:
-            history_block = "\n".join(lines) + "\n\n"
+    history_block, history_cls = _build_authorized_history_block(history, names, user=user)
 
-    events_text, known_ids, kb_sources = build_assistant_context(
-        clean_q, user=user, return_sources=True
+    events_text, known_ids, kb_sources, ctx_cls = build_assistant_context(
+        clean_q, user=user, return_sources=True, return_classification=True
     )
+    overall_cls = max_classification(ctx_cls, history_cls)
     now = timezone.localtime()
     addendum = get_prompt_addendum("chatbot")
     active_provider = (getattr(settings, "AI_PROVIDER", "gemini") or "gemini").strip().lower()
@@ -1348,7 +1446,7 @@ def stream_assistant_reply(question: str, history: list[dict] | None = None,
     total_chars = 0
     try:
         for delta in providers.stream_provider_tokens(
-            prompt, model=model, provider=active_provider
+            prompt, model=model, provider=active_provider, classification=overall_cls
         ):
             if total_chars >= ASSISTANT_MAX_ANSWER:
                 break
@@ -1383,6 +1481,7 @@ def stream_assistant_reply(question: str, history: list[dict] | None = None,
         "text": answer,
         "event_ids": matched_ids,
         "sources": kb_sources[:3],
+        "classification": overall_cls,
         "model": model,
         "prompt_version": prompt_version,
     }
@@ -1429,15 +1528,19 @@ def review_proposal_with_ai(proposal) -> tuple[dict, bool, str]:
     prompt = PROPOSAL_REVIEW_PROMPT.format(
         department=proposal.department.name,
         proposal_type=proposal.get_proposal_type_display(),
-        title=redact(proposal.title, names)[:160],
-        summary=summary_text or "Chưa ghi",
-        objectives=objectives_text or "Chưa ghi",
+        title=sanitize_untrusted_input(redact(proposal.title, names))[:160],
+        summary=sanitize_untrusted_input(summary_text) or "Chưa ghi",
+        objectives=sanitize_untrusted_input(objectives_text) or "Chưa ghi",
         budget=f"{budget:,}".replace(",", "."),
-        location=redact(proposal.proposed_location or "Chưa chốt", names)[:120],
+        location=sanitize_untrusted_input(redact(proposal.proposed_location or "Chưa chốt", names))[:120],
     ) + get_prompt_addendum("proposal_review")
 
     try:
-        data = _ask_ai(prompt, response_schema=schemas.PROPOSAL_REVIEW)
+        data = _ask_ai(
+            prompt,
+            response_schema=schemas.PROPOSAL_REVIEW,
+            classification=DataClassification.INTERNAL,
+        )
         if not isinstance(data, dict):
             raise AIError("Sai cấu trúc JSON.")
         score = max(1, min(int(data.get("score", 7)), 10))
@@ -1479,7 +1582,11 @@ def analyze_club_operations(metrics: dict, scope_label: str = "Toàn CLB") -> tu
     ) + get_prompt_addendum("operations_analytics")
 
     try:
-        data = _ask_ai(prompt, response_schema=schemas.OPERATIONS_ANALYTICS)
+        data = _ask_ai(
+            prompt,
+            response_schema=schemas.OPERATIONS_ANALYTICS,
+            classification=DataClassification.INTERNAL,
+        )
         if not isinstance(data, dict):
             raise AIError("Sai cấu trúc JSON.")
         summary = str(data.get("summary", "")).strip()[:500] or fallback["summary"]
@@ -1502,7 +1609,7 @@ def summarize_social_feed(post_snippets: list[str],
                           names: tuple = ()) -> tuple[dict, bool, str]:
     """AI tóm tắt bảng tin nội bộ mà người dùng đang xem (che PII theo mẫu, tôn trọng PA-05)."""
     # Che PII TRƯỚC khi cắt ngắn, để không cắt đôi email/SĐT làm mẫu không khớp
-    cleaned = [redact(" ".join(str(s).split()), names)[:220]
+    cleaned = [sanitize_untrusted_input(redact(" ".join(str(s).split()), names))[:220]
                for s in post_snippets if str(s).strip()][:12]
     if not cleaned:
         return {
@@ -1522,7 +1629,11 @@ def summarize_social_feed(post_snippets: list[str],
     ) + get_prompt_addendum("social_digest")
 
     try:
-        data = _ask_ai(prompt, response_schema=schemas.SOCIAL_DIGEST)
+        data = _ask_ai(
+            prompt,
+            response_schema=schemas.SOCIAL_DIGEST,
+            classification=DataClassification.INTERNAL,
+        )
         if not isinstance(data, dict):
             raise AIError("Sai cấu trúc JSON.")
         headline = str(data.get("headline", "")).strip()[:250] or fallback["headline"]

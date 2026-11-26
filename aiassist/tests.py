@@ -18,6 +18,7 @@ from accounts.models import Role, User
 from events.models import Event, EventStatus
 from feedback.models import Feedback, FeedbackSummary
 
+from .egress import DataClassification
 from .services import (AIError, _ask_ai, _clean_tasks, _parse_json, suggest_tasks,
                        summarize_feedback)
 
@@ -255,7 +256,7 @@ class RetryTests(TestCase):
     @patch("aiassist.services._call_gemini",
            side_effect=[_http_error(503), '{"ok": true}'])
     def test_503_then_success(self, mock_call, mock_sleep):
-        self.assertEqual(_ask_ai("x"), {"ok": True})
+        self.assertEqual(_ask_ai("x", classification=DataClassification.PUBLIC), {"ok": True})
         self.assertEqual(mock_call.call_count, 2)
         mock_sleep.assert_called_once()
 
@@ -263,14 +264,14 @@ class RetryTests(TestCase):
            side_effect=[_http_error(503), _http_error(503), _http_error(503)])
     def test_503_gives_up_after_3_attempts(self, mock_call, mock_sleep):
         with self.assertRaises(AIError) as ctx:
-            _ask_ai("x")
+            _ask_ai("x", classification=DataClassification.PUBLIC)
         self.assertEqual(mock_call.call_count, 3)
         self.assertIn("quá tải", str(ctx.exception))
 
     @patch("aiassist.services._call_gemini", side_effect=[_http_error(401)])
     def test_401_not_retried_and_blames_key(self, mock_call, mock_sleep):
         with self.assertRaises(AIError) as ctx:
-            _ask_ai("x")
+            _ask_ai("x", classification=DataClassification.PUBLIC)
         self.assertEqual(mock_call.call_count, 1)
         mock_sleep.assert_not_called()
         self.assertIn("AI_API_KEY", str(ctx.exception))
@@ -278,7 +279,7 @@ class RetryTests(TestCase):
     @patch("aiassist.services._call_gemini", side_effect=[_http_error(404)])
     def test_404_not_retried_and_names_the_model(self, mock_call, mock_sleep):
         with self.assertRaises(AIError) as ctx:
-            _ask_ai("x", model="model-da-bi-go")
+            _ask_ai("x", model="model-da-bi-go", classification=DataClassification.PUBLIC)
         self.assertEqual(mock_call.call_count, 1)
         self.assertIn("model-da-bi-go", str(ctx.exception))
 
@@ -286,7 +287,7 @@ class RetryTests(TestCase):
            side_effect=[_http_error(429), '{"ok": true}'])
     def test_429_is_retried(self, mock_call, mock_sleep):
         """429 THEO PHÚT: chờ chút rồi thử lại là được."""
-        self.assertEqual(_ask_ai("x"), {"ok": True})
+        self.assertEqual(_ask_ai("x", classification=DataClassification.PUBLIC), {"ok": True})
         self.assertEqual(mock_call.call_count, 2)
 
     def test_429_daily_quota_not_retried(self, mock_sleep):
@@ -301,7 +302,7 @@ class RetryTests(TestCase):
         err = urllib.error.HTTPError("https://ai.test", 429, "err", {}, io.BytesIO(body))
         with patch("aiassist.services._call_gemini", side_effect=[err]) as mock_call:
             with self.assertRaises(AIError) as ctx:
-                _ask_ai("x")
+                _ask_ai("x", classification=DataClassification.PUBLIC)
         self.assertEqual(mock_call.call_count, 1)
         mock_sleep.assert_not_called()
         self.assertIn("trong ngày", str(ctx.exception))
@@ -318,7 +319,7 @@ class RetryTests(TestCase):
     def test_other_features_use_main_model(self, mock_sleep):
         with patch("aiassist.services._call_gemini",
                    return_value='{"ok": true}') as mock_call:
-            _ask_ai("x")
+            _ask_ai("x", classification=DataClassification.PUBLIC)
         from django.conf import settings
         self.assertEqual(mock_call.call_args[0][1], settings.AI_MODEL)
 

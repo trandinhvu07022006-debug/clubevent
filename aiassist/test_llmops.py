@@ -112,6 +112,7 @@ class LLMOpsPipelineTests(TestCase):
             intent="club_departments",
             source="rules",
             answer_preview="CLB có Ban Truyền thông.",
+            classification="PUBLIC",
             feedback=FeedbackRating.UP,
         )
         call_command("seed_ai_knowledge")
@@ -141,8 +142,22 @@ class LLMOpsPipelineTests(TestCase):
         self.assertTrue(ClubKnowledge.objects.count() >= 5)
 
     def test_ai_studio_permissions_and_actions(self):
+        from organization.models import Appointment, Position, PositionCode, ScopeType
+
         guest = User.objects.create_user(username="g_studio", password="x", mssv="GS1", role=Role.GUEST)
         lead = User.objects.create_user(username="l_studio", password="x", mssv="LS1", role=Role.LEAD)
+        chair_pos, _ = Position.objects.get_or_create(
+            code=PositionCode.CHAIRMAN,
+            defaults={
+                "name": "Chủ nhiệm CLB",
+                "scope_type": ScopeType.CLUB,
+                "is_officer": True,
+                "is_singleton": True,
+            },
+        )
+        Appointment.objects.create(
+            user=lead, position=chair_pos, scope_type=ScopeType.CLUB, is_active=True
+        )
 
         studio_url = reverse("aiassist:studio")
         self.client.force_login(guest)

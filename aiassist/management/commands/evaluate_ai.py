@@ -22,6 +22,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 from aiassist.chatbot import detect_intent
+from aiassist.egress import DataClassification
 from aiassist.management.commands.seed_ai_knowledge import DEFAULT_KNOWLEDGE
 from aiassist.models import ClubKnowledge, KnowledgeVisibility
 from aiassist.privacy import redact
@@ -82,11 +83,15 @@ class Command(BaseCommand):
                 'Trả về JSON: {"score": 5, "reason": "ngắn gọn"}'
             )
             try:
-                res = _ask_ai(judge_prompt, response_schema={
-                    "type": "object",
-                    "properties": {"score": {"type": "integer"}, "reason": {"type": "string"}},
-                    "required": ["score", "reason"],
-                })
+                res = _ask_ai(
+                    judge_prompt,
+                    classification=DataClassification.PUBLIC,
+                    response_schema={
+                        "type": "object",
+                        "properties": {"score": {"type": "integer"}, "reason": {"type": "string"}},
+                        "required": ["score", "reason"],
+                    },
+                )
                 j_score = int(res.get("score", 0))
                 self._check("LLM Judge", j_score >= 4,
                             f"{j_score}/5 ({res.get('reason', '')[:80]})", failures)

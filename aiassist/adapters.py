@@ -8,9 +8,9 @@ from typing import Any, Mapping, Sequence
 from django.conf import settings
 from django.utils import timezone
 
-from events.models import (Event, EventStatus, EventVisibility,
-                           can_view_internal_events)
+from events.models import Event, EventStatus, EventVisibility
 from organizing.models import Department
+from organization.permissions import PermissionEngine
 from recruitment.models import RecruitmentRound
 
 from .chatbot import normalize, prepare_query
@@ -18,6 +18,7 @@ from .core.agent import Agent
 from .core.contracts import Actor, Message, ModelProvider, ModelReply, ToolCall
 from .core.retrieval import Document, search as bm25_search
 from .core.tools import Field, ReadTool, ToolRegistry
+from .egress import DataClassification, max_classification
 from .models import ClubKnowledge, KnowledgeVisibility
 from .privacy import known_names, redact, sanitize_untrusted_input
 from .services import RETRIEVAL_STOPWORDS, _ask_ai
@@ -25,8 +26,8 @@ from .services import RETRIEVAL_STOPWORDS, _ask_ai
 
 def build_server_actor(user) -> Actor:
     """
-    Construct an Actor strictly from authenticated server-side user state.
-    Never accept user_id, club_id, or permissions from client payloads or LLM output.
+    Construct an Actor strictly from authenticated server-side PermissionEngine state.
+    Never accept user_id, club_id, or permissions from client payloads or raw User.role.
     """
     if not user or not getattr(user, "is_authenticated", False) or getattr(user, "is_locked", False):
         return Actor(
@@ -34,13 +35,11 @@ def build_server_actor(user) -> Actor:
             club_id="kmg",
             permissions=frozenset({"public.read"}),
         )
-    perms = {"public.read", "member.authenticated"}
-    if can_view_internal_events(user):
-        perms.add("club.event.view_internal")
-    if getattr(user, "is_staff_btc", False):
-        perms.add("organizing.staff")
-    if getattr(user, "is_lead", False):
-        perms.add("organizing.lead")
+    perms = {"public.read"}
+    if PermissionEngine.authorize(user, "club.event.view_internal"):
+        perms.update({"member.authenticated", "club.event.view_internal"})
+    if PermissionEngine.authorize(user, "club.document.manage_confidential"):
+        perms.add("club.document.manage_confidential")
     return Actor(
         user_id=f"user:{user.pk}",
         club_id="kmg",
@@ -85,7 +84,7 @@ def _tool_list_public_events(actor: Actor, args: Mapping[str, Any]) -> list[dict
 _KB_PERMISSION_MAP = {
     KnowledgeVisibility.PUBLIC: "public.read",
     KnowledgeVisibility.INTERNAL: "club.event.view_internal",
-    KnowledgeVisibility.CONFIDENTIAL: "organizing.lead",
+    KnowledgeVisibility.CONFIDENTIAL: "club.document.manage_confidential",
 }
 
 
@@ -133,9 +132,10 @@ def retrieve_knowledge_bm25(query: str, actor: Actor | None = None, limit: int =
             continue
         out.append({
             "id": item.pk,
-            "title": redact(item.title),
+            "title": sanitize_untrusted_input(redact(item.title)),
             "category": item.get_category_display(),
-            "snippet": redact(" ".join(item.content.split())[:350]),
+            "visibility": item.visibility,
+            "snippet": sanitize_untrusted_input(redact(" ".join(item.content.split())[:350])),
             "score": round(hit.score, 4),
         })
     return out
@@ -204,12 +204,33 @@ class DjangoGatewayProvider(ModelProvider):
 
     def __init__(self, model: str | None = None):
         self.model = model or settings.AI_ASSISTANT_MODEL or settings.AI_MODEL
+        self.highest_classification = DataClassification.PUBLIC.value
+
+    @staticmethod
+    def _classify_messages(messages: Sequence[Message]) -> str:
+        highest = DataClassification.PUBLIC.value
+        for msg in messages:
+            if msg.role != "tool" or not msg.content:
+                continue
+            try:
+                payload = json.loads(msg.content)
+            except (TypeError, ValueError):
+                continue
+            if isinstance(payload, list):
+                for item in payload:
+                    if isinstance(item, dict) and item.get("visibility"):
+                        highest = max_classification(highest, item["visibility"])
+        return highest
 
     def complete(
         self,
         messages: Sequence[Message],
         tools: Sequence[Mapping[str, Any]],
     ) -> ModelReply:
+        self.highest_classification = max_classification(
+            self.highest_classification,
+            self._classify_messages(messages),
+        )
         serialized_msgs = [{"role": m.role, "content": m.content} for m in messages]
         prompt = (
             "Bạn là bộ điều phối công cụ chỉ đọc của KMG Club.\n"
@@ -219,7 +240,7 @@ class DjangoGatewayProvider(ModelProvider):
             f"CÔNG CỤ ĐƯỢC PHÉP:\n{json.dumps(list(tools), ensure_ascii=False)}\n\n"
             f"HỘI THOẠI:\n{json.dumps(serialized_msgs, ensure_ascii=False)}"
         )
-        data = _ask_ai(prompt, model=self.model)
+        data = _ask_ai(prompt, model=self.model, classification=self.highest_classification)
         if not isinstance(data, dict):
             raise ValueError("Malformed gateway JSON payload")
         raw_calls = data.get("calls")
@@ -248,8 +269,9 @@ def ask_with_foundation(question: str, user=None) -> dict | None:
     clean_question = sanitize_untrusted_input(redact((question or "").strip(), known_names(user)))[:500]
     if not clean_question:
         return None
+    provider = DjangoGatewayProvider()
     agent = Agent(
-        DjangoGatewayProvider(),
+        provider,
         build_public_tool_registry(),
         max_rounds=3,
         max_calls=5,
@@ -268,5 +290,6 @@ def ask_with_foundation(question: str, user=None) -> dict | None:
         "meta": {
             "model_name": model,
             "prompt_version": "foundation-0.2.1",
+            "classification": provider.highest_classification,
         },
     }

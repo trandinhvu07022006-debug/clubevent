@@ -15,6 +15,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 
+from .egress import DataClassification, assert_egress_safe, EgressPolicyError
+
 logger = logging.getLogger(__name__)
 
 LOCAL_PROVIDERS = frozenset({"local", "ollama"})
@@ -289,12 +291,21 @@ def stream_provider_tokens(
     *,
     model: str | None = None,
     provider: str | None = None,
+    classification: str | DataClassification = DataClassification.INTERNAL,
     urlopen_fn: Callable | None = None,
 ) -> Iterator[str]:
-    """Stream text deltas through circuit breaker and budget tracker."""
+    """Stream text deltas through Egress Policy, circuit breaker and budget tracker."""
     active_provider = (provider or settings.AI_PROVIDER or "mock").strip().lower()
     if active_provider == "mock":
         raise CircuitOpenError("Mock provider does not stream external tokens.")
+    try:
+        assert_egress_safe(
+            classification=classification,
+            provider=active_provider,
+            local_base_url=getattr(settings, "AI_LOCAL_BASE_URL", ""),
+        )
+    except EgressPolicyError as exc:
+        raise CircuitOpenError(str(exc))
     if not provider_has_credentials(active_provider):
         raise CircuitOpenError(f"Thiếu cấu hình kết nối cho provider {active_provider}.")
     if not circuit_breaker.allow_request(active_provider):

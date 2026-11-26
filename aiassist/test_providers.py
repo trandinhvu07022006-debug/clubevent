@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from aiassist import providers
+from aiassist.egress import DataClassification
 from aiassist.models import ClubKnowledge, KnowledgeCategory
 from aiassist.services import AIError, _ask_ai
 from events.models import Event, EventStatus, EventVisibility
@@ -45,9 +46,9 @@ class CircuitBreakerTests(SimpleTestCase):
         err = urllib.error.URLError("connection refused")
         with patch("aiassist.services.urllib.request.urlopen", side_effect=err):
             with self.assertRaises(AIError):
-                _ask_ai("test 1")
+                _ask_ai("test 1", classification=DataClassification.PUBLIC)
             with self.assertRaises(AIError):
-                _ask_ai("test 2")
+                _ask_ai("test 2", classification=DataClassification.PUBLIC)
 
         st = providers.circuit_breaker.state("gemini")
         self.assertEqual(st["state"], "open")
@@ -55,7 +56,7 @@ class CircuitBreakerTests(SimpleTestCase):
 
         with patch("aiassist.services.urllib.request.urlopen") as mock_open:
             with self.assertRaises(AIError):
-                _ask_ai("test 3")
+                _ask_ai("test 3", classification=DataClassification.PUBLIC)
         mock_open.assert_not_called()
 
         providers.circuit_breaker.record_success("gemini")
@@ -136,7 +137,7 @@ class LocalAndFallbackProviderTests(SimpleTestCase):
             }).encode("utf-8"))
 
         with patch("aiassist.services.urllib.request.urlopen", side_effect=fake_open):
-            out = _ask_ai("test fallback")
+            out = _ask_ai("test fallback", classification=DataClassification.PUBLIC)
 
         self.assertEqual(out["status"], "from_local")
         self.assertTrue(any("127.0.0.1:11434" in u for u in calls))
@@ -157,7 +158,12 @@ class RealSSEStreamingTests(TransactionTestCase):
             b'data: {"candidates":[{"content":{"parts":[{"text":"KMG!"}]}}]}\n\n'
         )
         with patch("aiassist.providers.urllib.request.urlopen", return_value=_FakeHTTPResponse(sse_bytes)):
-            chunks = list(providers.stream_provider_tokens("hello", model="gemini-3.6-flash", provider="gemini"))
+            chunks = list(providers.stream_provider_tokens(
+                "hello",
+                model="gemini-3.6-flash",
+                provider="gemini",
+                classification=DataClassification.PUBLIC,
+            ))
         self.assertEqual(chunks, ["Chào ", "KMG!"])
 
     @override_settings(

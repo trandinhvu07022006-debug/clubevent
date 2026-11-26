@@ -16,18 +16,26 @@ from pathlib import Path
 from django.core.management.base import BaseCommand
 
 from aiassist.chatbot import PRIVATE_INTENTS
-from aiassist.models import (AIInteractionLog, AIPromptProfile, ClubKnowledge,
-                             FeedbackRating, KnowledgeVisibility)
+from aiassist.egress import DataClassification
+from aiassist.models import (AIInteractionLog, AIPromptProfile, AITaskKey,
+                             ClubKnowledge, FeedbackRating, KnowledgeVisibility)
 from aiassist.privacy import redact
 
 
 def build_finetune_records(fmt: str = "gemini", module: str = "all",
-                           include_unrated: bool = False) -> list[dict]:
-    """Tạo danh sách bản ghi huấn luyện sạch (Zero PII & chỉ dữ liệu công khai) theo định dạng Gemini hoặc OpenAI."""
+                           include_unrated: bool = False,
+                           include_internal: bool = False) -> list[dict]:
+    """
+    Tạo bản ghi fine-tuning sạch (Zero PII).
+    Mặc định (`include_internal=False`): CHỈ xuất dữ liệu PUBLIC (log PUBLIC đã che PII,
+    ClubKnowledge PUBLIC, Department công khai, Event PUBLIC non-draft); cô lập hoàn toàn
+    log cũ chưa phân loại (`classification=INTERNAL`), tasks, postmortem tài chính và proposals.
+    """
     pairs: list[tuple[str, str, str]] = []
 
     if module in ("all", "chatbot"):
         qs = (AIInteractionLog.objects
+              .filter(classification=DataClassification.PUBLIC.value)
               .exclude(answer_preview="")
               .exclude(intent__in=PRIVATE_INTENTS))
         qs = qs.exclude(feedback=FeedbackRating.DOWN) if include_unrated else qs.filter(feedback=FeedbackRating.UP)
@@ -74,7 +82,7 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 redact(ev.description.strip()),
             ))
 
-    if module in ("all", "tasks"):
+    if include_internal and module in ("all", "tasks"):
         from events.models import Event, EventStatus, EventVisibility
         events_with_tasks = (Event.objects
                              .filter(visibility=EventVisibility.PUBLIC)
@@ -99,7 +107,7 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 json.dumps({"tasks": out_tasks}, ensure_ascii=False),
             ))
 
-    if module in ("all", "postmortem"):
+    if include_internal and module in ("all", "postmortem"):
         from events.models import EventVisibility
         from organizing.models import EventPostMortem
         for pm in (EventPostMortem.objects
@@ -110,13 +118,11 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
             inp = (
                 f"Lập báo cáo điều hành cho sự kiện '{pm.event.name}': "
                 f"check-in {stats.get('attendance_rate', 0)}%, "
-                f"cân đối {stats.get('balance', 0)}đ, "
                 f"đánh giá {stats.get('avg_rating', 0)}/5 sao."
             )
             out = json.dumps({
                 "executive_summary": redact(pm.executive_summary),
                 "highlights": [redact(str(x)) for x in (pm.highlights or [])],
-                "financial_analysis": redact(pm.financial_analysis),
                 "feedback_analysis": redact(pm.feedback_analysis),
                 "lessons_learned": [redact(str(x)) for x in (pm.lessons_learned or [])],
                 "action_items": [redact(str(x)) for x in (pm.action_items or [])],
@@ -127,7 +133,7 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
                 out,
             ))
 
-    if module in ("all", "proposals"):
+    if include_internal and module in ("all", "proposals"):
         from programs.models import DepartmentProposal, ProposalStatus
         for prop in (DepartmentProposal.objects
                      .select_related("department", "proposer")
@@ -148,7 +154,11 @@ def build_finetune_records(fmt: str = "gemini", module: str = "all",
             ))
 
     if module == "all":
-        for prof in AIPromptProfile.objects.filter(is_active=True):
+        public_task_keys = {AITaskKey.CHATBOT, AITaskKey.EVENT_MARKETING}
+        qs_prof = AIPromptProfile.objects.filter(is_active=True)
+        if not include_internal:
+            qs_prof = qs_prof.filter(task_key__in=public_task_keys)
+        for prof in qs_prof:
             for ex in (prof.few_shot_examples or []):
                 if not isinstance(ex, dict):
                     continue
