@@ -251,8 +251,84 @@ class SevenRoleAutomatedUATSuites(TestCase):
             self._assert_responsive_html(self.client.get(reverse("finance:hub")), 200)
             self._assert_responsive_html(self.client.get(reverse("aiassist:studio")), 200)
 
-        # Advisor accesses Advisor Overview & Finance Hub (read-only), blocked from AI Studio
+        # Advisor accesses Advisor Overview & Finance Hub (read-only), blocked from AI Studio & mutations (UT-10)
         self.client.force_login(self.advisor)
         self._assert_responsive_html(self.client.get(reverse("organization:advisor_overview")), 200)
         self._assert_responsive_html(self.client.get(reverse("finance:hub")), 200)
         self.assertEqual(self.client.get(reverse("aiassist:studio")).status_code, 403)
+        adv_post = self.client.post(
+            reverse("finance:hub"),
+            {"action": "create_transaction", "title": "Bypass", "amount": "1000"},
+        )
+        self.assertEqual(adv_post.status_code, 403)
+
+    def test_applicant_deputy_grant_revoke_a11y_error_pages_and_query_budget(self):
+        # UT-02: Applicant applies & sees application status
+        self.client.force_login(self.guest)
+        apply_url = reverse("organization:apply_membership")
+        self._assert_responsive_html(self.client.get(apply_url), 200)
+        app_res = self.client.post(
+            apply_url,
+            {
+                "primary_department": self.dept.pk,
+                "declared_skills_text": "Vocal",
+                "motivation": "Tham gia hát Acoustic cùng CLB",
+            },
+        )
+        self.assertIn(app_res.status_code, (200, 302))
+
+        # UT-08: Deputy grant & instant revoke on appointment end
+        deputy = User.objects.create_user(
+            "uat_deputy", password="UatTestPassword!1", role=Role.MEMBER, account_status=AccountStatus.ACTIVE
+        )
+        ClubMembership.objects.create(user=deputy, member_code="KMG-UAT-DEP", status=ClubMembershipStatus.ACTIVE)
+        DepartmentMembership.objects.create(user=deputy, department=self.dept, status=DeptMembershipStatus.ACTIVE)
+        pos_dep, _ = Position.objects.get_or_create(
+            code=PositionCode.DEPUTY_HEAD,
+            defaults={"name": "Phó ban", "scope_type": ScopeType.DEPARTMENT, "is_officer": True},
+        )
+        dep_appt = Appointment.objects.create(
+            user=deputy, position=pos_dep, scope_type=ScopeType.DEPARTMENT, department=self.dept, is_active=True
+        )
+        grant = PermissionGrant.objects.create(
+            grantee=deputy,
+            bound_appointment=dep_appt,
+            scope_type=ScopeType.DEPARTMENT,
+            department=self.dept,
+            bundle_code=GrantBundleCode.BUNDLE_TASK_OPS,
+            granted_by=self.chair,
+            reason="UAT Deputy",
+        )
+        from organization.permissions import PermissionEngine
+        self.assertTrue(PermissionEngine.authorize(deputy, "dept.task.assign", department=self.dept))
+        grant.revoked_at = timezone.now()
+        grant.is_active = False
+        grant.save(update_fields=["revoked_at", "is_active"])
+        self.assertFalse(PermissionEngine.authorize(deputy, "dept.task.assign", department=self.dept))
+
+        # UT-13 / UI-09: Accessibility markers & Dark mode CSS parity
+        self.client.force_login(self.member)
+        dash_resp = self.client.get(reverse("pages:dashboard"))
+        dash_html = dash_resp.content.decode("utf-8")
+        self.assertIn('<html lang="vi">', dash_html)
+        self.assertIn('class="skip-link"', dash_html)
+        self.assertIn("data-bs-theme", dash_html)
+
+        # UT-14: Clean 404 error state without Python traceback
+        err_404 = self.client.get("/duong-dan-khong-ton-tai-uat-404/")
+        self.assertEqual(err_404.status_code, 404)
+        err_html = err_404.content.decode("utf-8")
+        self.assertNotIn("Traceback", err_html)
+
+        # QA-06: Bounded query budget on dashboard & workspace_home
+        with self.subTest("query-budget"):
+            from django.db import connection
+            from django.test.utils import CaptureQueriesContext
+
+            with CaptureQueriesContext(connection) as q_dash:
+                self.assertEqual(self.client.get(reverse("pages:dashboard")).status_code, 200)
+            self.assertLessEqual(len(q_dash), 30, f"dashboard queries={len(q_dash)}")
+
+            with CaptureQueriesContext(connection) as q_ws:
+                self.assertEqual(self.client.get(reverse("organization:workspace_home")).status_code, 200)
+            self.assertLessEqual(len(q_ws), 45, f"workspace_home queries={len(q_ws)}")

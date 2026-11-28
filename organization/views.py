@@ -81,16 +81,42 @@ def workspace_home(request):
     if ctx["is_advisor"] and not ctx["departments"] and not ctx["can_access_club_governance"]:
         return redirect("organization:advisor_overview")
 
-    all_depts = list(Department.objects.filter(is_active=True))
-    my_dept_ids = {d["id"] for d in ctx["departments"]}
+    all_depts = list(
+        Department.objects.filter(is_active=True).annotate(
+            active_member_count=Count(
+                "memberships",
+                filter=Q(memberships__status=DeptMembershipStatus.ACTIVE),
+            )
+        )
+    )
+    my_dept_mode_map = {d["id"]: d["access_mode"] for d in ctx["departments"]}
+    my_dept_ids = set(my_dept_mode_map.keys())
+    dept_appt_ids = {
+        a["department_id"]
+        for a in ctx["appointments"]
+        if a["scope_type"] == "DEPARTMENT" and a["department_id"]
+    }
     my_depts = []
     other_depts = []
     for dept in all_depts:
-        mode = PermissionEngine.get_department_access_mode(actor, dept)
+        if dept.id in my_dept_mode_map:
+            mode = my_dept_mode_map[dept.id]
+        elif ctx["club_status"] == ClubMembershipStatus.SUSPENDED:
+            mode = "DENIED"
+        elif ctx["is_server_admin"] or ctx["is_chairman"]:
+            mode = "MANAGE"
+        elif ctx["is_vice_chairman"] or dept.id in dept_appt_ids:
+            mode = PermissionEngine.get_department_access_mode(actor, dept)
+        elif (
+            ctx["club_status"] == ClubMembershipStatus.ACTIVE and my_dept_ids
+        ) or ctx["appointments"]:
+            mode = "READ_ONLY"
+        else:
+            mode = "DENIED"
         item = {
             "dept": dept,
             "access_mode": mode,
-            "member_count": dept.memberships.filter(status=DeptMembershipStatus.ACTIVE).count(),
+            "member_count": dept.active_member_count,
         }
         if dept.id in my_dept_ids or mode == "MANAGE":
             my_depts.append(item)

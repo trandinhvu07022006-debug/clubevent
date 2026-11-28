@@ -352,7 +352,9 @@ class PermissionEngine:
         return perms - UNIVERSAL_NEVER_GRANTED
 
     @classmethod
-    def get_department_access_mode(cls, user, department: Department) -> str:
+    def get_department_access_mode(
+        cls, user, department: Department, *, _preloaded: dict | None = None
+    ) -> str:
         """
         Xác định chế độ truy cập của `user` đối với một `department` cụ thể:
         - `DENIED`: Khách, chưa đăng nhập, tài khoản bị khoá hoặc thành viên bị `SUSPENDED`.
@@ -368,11 +370,15 @@ class PermissionEngine:
             return "DENIED"
         if getattr(user, "is_server_admin", False):
             return "MANAGE"
-        cm = user.club_membership_record
+        cm = _preloaded["cm"] if _preloaded is not None else user.club_membership_record
         if cm and cm.status == ClubMembershipStatus.SUSPENDED:
             return "DENIED"
 
-        appointments = cls.get_active_appointments(user)
+        appointments = (
+            _preloaded["appointments"]
+            if _preloaded is not None
+            else cls.get_active_appointments(user)
+        )
         pos_codes_club = {
             a.position.code for a in appointments if a.scope_type == ScopeType.CLUB
         }
@@ -387,7 +393,11 @@ class PermissionEngine:
         if PositionCode.DEPT_HEAD in pos_codes_this_dept:
             return "MANAGE"
 
-        grants = cls.get_active_grants(user)
+        grants = (
+            _preloaded["grants"]
+            if _preloaded is not None
+            else cls.get_active_grants(user)
+        )
         if PositionCode.VICE_CHAIRMAN in pos_codes_club:
             for g in grants:
                 if g.bound_appointment.position.code == PositionCode.VICE_CHAIRMAN and (
@@ -409,7 +419,11 @@ class PermissionEngine:
                     return "MANAGE"
             return "MEMBER"
 
-        active_dept_ids = cls.get_active_department_ids(user)
+        active_dept_ids = (
+            _preloaded["active_dept_ids"]
+            if _preloaded is not None
+            else cls.get_active_department_ids(user)
+        )
         if department.id in active_dept_ids and cm and cm.status == ClubMembershipStatus.ACTIVE:
             return "MEMBER"
 
@@ -426,6 +440,8 @@ class PermissionEngine:
         department: Department | None = None,
         target_user=None,
         resource: ResourceAccessRule | None = None,
+        *,
+        _preloaded: dict | None = None,
     ) -> bool:
         """
         Kiểm tra quyền đa chiều thực tế ở Backend.
@@ -464,15 +480,23 @@ class PermissionEngine:
             return permission_code in PERMISSION_META
 
         # Thành viên đang bị tạm khoá tư cách CLB không có quyền nghiệp vụ nội bộ
-        cm = actor.club_membership_record
+        cm = _preloaded["cm"] if _preloaded is not None else actor.club_membership_record
         if cm and cm.status == ClubMembershipStatus.SUSPENDED:
             return False
 
-        appointments = cls.get_active_appointments(actor)
+        appointments = (
+            _preloaded["appointments"]
+            if _preloaded is not None
+            else cls.get_active_appointments(actor)
+        )
         club_positions = {
             a.position.code for a in appointments if a.scope_type == ScopeType.CLUB
         }
-        active_dept_ids = cls.get_active_department_ids(actor)
+        active_dept_ids = (
+            _preloaded["active_dept_ids"]
+            if _preloaded is not None
+            else cls.get_active_department_ids(actor)
+        )
         # Chỉ mở chức năng Thành viên sau khi đã được nâng role VÀ phân vào ít nhất 1 Ban đang hoạt động
         is_active_club_member = bool(
             cm and cm.status == ClubMembershipStatus.ACTIVE and bool(active_dept_ids)
@@ -504,7 +528,11 @@ class PermissionEngine:
                 and permission_code not in SERVER_ADMIN_EXCLUSIVE_PERMISSIONS
             )
 
-        grants = cls.get_active_grants(actor)
+        grants = (
+            _preloaded["grants"]
+            if _preloaded is not None
+            else cls.get_active_grants(actor)
+        )
 
         # 2. Phó chủ nhiệm CLB (`VICE_CHAIRMAN`) — Baseline + Mảng phụ trách được Chủ nhiệm giao - Trần cứng
         if PositionCode.VICE_CHAIRMAN in club_positions:
@@ -693,6 +721,12 @@ class PermissionEngine:
             if getattr(user, "is_authenticated", False) and user.pk
             else []
         )
+        preloaded = {
+            "cm": cm,
+            "appointments": appointments,
+            "grants": grants,
+            "active_dept_ids": {dm.department_id for dm in dept_memberships},
+        }
         return {
             "club_status": cm.status if cm else "GUEST",
             "member_code": cm.member_code if cm else None,
@@ -719,7 +753,9 @@ class PermissionEngine:
                     "name": dm.department.name,
                     "slug": dm.department.slug,
                     "is_demo": dm.department.is_demo,
-                    "access_mode": cls.get_department_access_mode(user, dm.department),
+                    "access_mode": cls.get_department_access_mode(
+                        user, dm.department, _preloaded=preloaded
+                    ),
                 }
                 for dm in dept_memberships
             ],
@@ -736,7 +772,7 @@ class PermissionEngine:
                 for g in grants
             ],
             "can_access_club_governance": any(
-                cls.authorize(user, code)
+                cls.authorize(user, code, _preloaded=preloaded)
                 for code in (
                     "server.leadership.manage",
                     "club.member.approve",
@@ -747,15 +783,19 @@ class PermissionEngine:
                 )
             ),
             "can_access_club_finance": any(
-                cls.authorize(user, code)
+                cls.authorize(user, code, _preloaded=preloaded)
                 for code in (
                     "club.finance.view_summary",
                     "club.finance.create_transaction",
                     "club.finance.approve_transaction",
                 )
             ),
-            "can_export_club_reports": cls.authorize(user, "club.report.export"),
-            "can_manage_server_leadership": cls.authorize(user, "server.leadership.manage"),
+            "can_export_club_reports": cls.authorize(
+                user, "club.report.export", _preloaded=preloaded
+            ),
+            "can_manage_server_leadership": cls.authorize(
+                user, "server.leadership.manage", _preloaded=preloaded
+            ),
             "is_advisor": any(a.position.code == PositionCode.ADVISOR for a in appointments),
             "is_chairman": any(a.position.code == PositionCode.CHAIRMAN for a in appointments),
             "is_vice_chairman": any(

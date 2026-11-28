@@ -27,7 +27,7 @@
   {% if tx.description %}<p class="small mt-3 mb-0">{{ tx.description|linebreaksbr }}</p>{% endif %}
   {% if tx.rejection_reason %}<div class="alert alert-danger small mt-3 mb-0">Lý do từ chối: {{ tx.rejection_reason }}</div>{% endif %}
   {% if tx.adjusted_from %}<div class="small mt-3">Điều chỉnh cho phiếu gốc: <a href="{% url 'finance:transaction_detail' tx.adjusted_from.pk %}"><code>{{ tx.adjusted_from.tx_code }}</code></a> ({{ tx.get_adjustment_direction_display }})</div>{% endif %}
-  {% if tx.legacy_expense %}<div class="small mt-2"><i class="bi bi-link-45deg"></i>Liên kết khoản chi sự kiện cũ (CM-03): {{ tx.legacy_expense.title }}</div>{% endif %}
+  {% if tx.legacy_expense %}<div class="small mt-2"><i class="bi bi-link-45deg"></i>Liên kết khoản chi sự kiện cũ: {{ tx.legacy_expense.title }}</div>{% endif %}
   {% if tx.receipt %}<a href="{% url 'finance:transaction_receipt' tx.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary mt-3"><i class="bi bi-receipt me-1"></i>Xem chứng từ bảo mật</a>{% endif %}
 </div>
 

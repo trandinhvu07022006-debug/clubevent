@@ -321,7 +321,7 @@ class Phase5FinanceTests(TestCase):
         # Xem tổng quan -> 200 OK
         resp_hub = c.get(reverse("finance:hub"))
         self.assertEqual(resp_hub.status_code, 200)
-        self.assertContains(resp_hub, "INV-04")
+        self.assertContains(resp_hub, "Chế độ Cố vấn — chỉ xem báo cáo tổng hợp.")
 
         # Cố lập phiếu qua Web POST -> 403
         resp_create = c.post(

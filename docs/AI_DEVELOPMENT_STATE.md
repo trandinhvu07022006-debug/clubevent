@@ -5,42 +5,36 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 ---
 
 ## 1. Trạng thái hệ thống hiện tại
-- **Cập nhật lần cuối:** 2026-11-28 (Antigravity — hoàn tất **KMG Independent Re-Audit Remediation (Sprint A–E)** trên nhánh `feature/mysql-production-readiness`; báo cáo `docs/audit/15_INDEPENDENT_REAUDIT_REMEDIATION.md`)
+- **Cập nhật lần cuối:** 2026-11-28 (Antigravity — hoàn tất **KMG Product Refinement 4.0 / Re-Audit Remediation / Roadmap 5.0 phần tự động hóa** trên nhánh `feature/mysql-production-readiness`; xem `docs/audit/15_INDEPENDENT_REAUDIT_REMEDIATION.md` và `docs/audit/16_MASTER_ROADMAP_CONSOLIDATION_HANDOFF.md`)
 - **Thư mục gốc dự án:** `D:\clubevent\clubevent`
 - **Nhánh Git hiện hành:** `feature/mysql-production-readiness` (baseline `52f45db`).
 - **Phần cứng dev:** Intel Core i5-12500H (12 nhân / 16 luồng), RAM 16 GB DDR4-3200 (`16,869,548,032` bytes), NVIDIA GeForce RTX 3050 Laptop GPU (**4 GB VRAM**, `4,293,918,720` bytes) + Intel Iris Xe Graphics.
-- **Môi trường kiểm thử:** Python 3.14 (`.\venv\Scripts\python.exe`), Django 5.2.17, SQLite/`LocMemCache` (chưa cài Docker Desktop, Redis Server, Playwright và Ollama tại máy dev Windows; MySQL 8.4 đã cài cho DB phát triển `clubevent`, không dùng DB dev làm test).
+- **Môi trường kiểm thử:** Python 3.14 (`.\venv\Scripts\python.exe`), Django 5.2.17, SQLite/`LocMemCache` (chưa cài Docker Desktop, Redis Server, Playwright và Ollama tại máy dev Windows; MySQL 8.4 chỉ dành cho dev, không dùng làm test DB).
 
-### Kết quả kiểm chứng sau lượt chỉnh sửa mã nguồn cuối cùng (RC1 Final)
+### Kết quả kiểm chứng sau lượt chỉnh sửa mã nguồn cuối cùng
+- `.\venv\Scripts\python.exe -m compileall -q .`: exit `0`.
 - `.\venv\Scripts\python.exe manage.py check --settings=config.settings_test`: **0 issues (0 silenced)** (exit `0`).
 - `.\venv\Scripts\python.exe manage.py makemigrations --check --dry-run --settings=config.settings_test`: **No changes detected** (exit `0`).
-- `.\venv\Scripts\python.exe manage.py check --deploy --settings=config.settings` *(mô phỏng `DEBUG=False`, `USE_HTTPS=True`, `ALLOW_DEMO_SEED=False`, biến môi trường tạm)*: **0 issues (0 silenced)** (exit `0`).
-- `.\venv\Scripts\python.exe -m coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test`: **OK (exit `0`, SQLite cách ly)**; tổng coverage **79%** (`18,597` stmts, `3,889` miss, `95` file 100%) — đạt cổng `--fail-under=78`.
-- `.\venv\Scripts\python.exe manage.py evaluate_ai --with-migrate --settings=config.settings_test`: **EVAL ĐẠT** (`dev` **38/38**, `holdout` **22/22**, `blind` **50/50**, RAG `dev` **13/13**, `holdout` **8/8**, Che PII **6/6**, Music/Companion **7/7**).
-- `.\venv\Scripts\python.exe -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v`: **Ran 17 tests — OK (`skipped=1` symlink Windows)**.
-- Coverage mục tiêu Roadmap 5.0 (G1–G4): `aiassist/business_queries.py` **99%**, `organization/importers.py` **93%**, `deployment/sqlite_to_mysql.py` **85%** (các nhánh MySQL thật sẽ chạy tiếp ở CI `test-mysql-redis` qua `RealMySqlMigrationIntegrationTests`), `deployment/mysql_backup.py` **78%**.
-- **Codex CLI (`codex login status`):** `Not logged in` — cần người dùng tự chạy `codex login` trước khi chạy `codex exec review --uncommitted`.
+- `.\venv\Scripts\python.exe manage.py check --deploy --settings=config.settings` *(mô phỏng `DEBUG=False`, `KMG_ENV=prod`, `DB_ENGINE=mysql`, `USE_HTTPS=True`, `ALLOW_DEMO_SEED=False`, biến môi trường tạm)*: **0 issues (0 silenced)** (exit `0`).
+- `.\venv\Scripts\python.exe -m coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test`: **Ran 706 tests in 203.978s — OK (`skipped=3` test tích hợp MySQL thật)**; tổng coverage **79%** (`18,724` stmts, `3,883` miss, `96` file đạt 100%) — đạt ngưỡng `--fail-under=78`.
+- `.\venv\Scripts\python.exe manage.py evaluate_ai --with-migrate --settings=config.settings_test`: **EVAL ĐẠT** (`dev` **38/38**, `holdout` **22/22**, `blind` **50/50**, RAG `dev` **13/13**, `holdout` **8/8**, Che PII **6/6**, Fallback đạt, Bảo mật & Music/Companion **7/7**, p50=`0.10ms`, p95=`0.19ms`).
+- `.\venv\Scripts\python.exe -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v`: **Ran 17 tests in 0.203s — OK (`skipped=1` symlink Windows)**.
+- Coverage các mô-đun trọng yếu: `aiassist/business_queries.py` **99%**, `organization/business_consolidation.py` **94%**, `organization/importers.py` **93%**, `organization/permissions.py` **85%**, `deployment/sqlite_to_mysql.py` **85%**, `deployment/mysql_backup.py` **78%**.
+- **Codex CLI:** Bỏ qua theo chỉ đạo trực tiếp của người dùng (`"bỏ qua codex và bạn hoàn thiện nốt công việc còn lại đi"`).
 
 ---
 
-## 2. Các thay đổi chính trên nhánh `feature/kmg-system-stabilization`
+## 2. Các thay đổi chính trên nhánh `feature/mysql-production-readiness`
 
-1. **Sửa lỗi CI MySQL & Đồng bộ Production/CI (Phase 1):**
-   - `events/test_features.py`: sửa `test_t7_4_3_lines_max_75_bytes_and_utf8` đưa `Event.name` về `169` ký tự (`<=200`) mà vẫn >200 byte UTF-8 để test line-folding không gây `DataError 1406`.
-   - `config/settings.py` & `deployment/nginx.conf.template`: `ALLOW_DEMO_SEED` mặc định theo `DEBUG` (fail-closed `False` ở prod), tách `TRUST_X_FORWARDED_HOST` + ghi đè `proxy_set_header X-Forwarded-Host $http_host;`, đọc `SECURE_HSTS_SECONDS` từ env, thêm `SECURE_REFERRER_POLICY` và CSP + `Referrer-Policy` trên Nginx.
-   - `.github/workflows/ci.yml`: bổ sung `test-mysql-redis`, `test-sqlite`, `docker-build-check`, `ruff`, `pip-audit`, `coverage` và `deployment` tests.
-2. **Gia cố Bảo mật & Nghiệp vụ (Phase 2 & Phase 3):**
-   - `operations/services.py` & `operations/views.py`: kiểm tra tệp bài nộp `submit_task_deliverable` qua `validate_and_prepare_vault_file` và gắn `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store` khi tải xuống.
-   - `social/views.py`: siết whitelist MIME ảnh raster khi phục vụ inline trên MXH và tin nhắn.
-   - `registrations/services.py`: khóa hàng `User` trước `TicketType` trong `book_tickets` và `join_waitlist` để chặn race condition vượt trần 4 vé/người khi đặt song song nhiều hạng vé khác nhau trên cùng sự kiện.
-   - `pages/services.py`: `club_numbers()` chỉ đếm thành viên chính thức và check-in của sự kiện `PUBLIC`.
-   - `finance/views.py` & `organization/api_views.py`: sửa lỗi thiếu `dept_txs`/`club_events` cho Cố vấn tại `finance_hub` và bổ sung mặc định `affiliation="KMA"` tại `/api/v1/auth/register/`.
-3. **An toàn AI & Phân loại tri thức (Phase 5):**
-   - `aiassist/models.py` + `aiassist/migrations/0006_clubknowledge_visibility.py` + `services.py` + `adapters.py` + `export_finetune_dataset.py` + `seed_ai_knowledge.py`: thêm `KnowledgeVisibility` (`PUBLIC` / `INTERNAL` mặc định / `CONFIDENTIAL`), lọc theo quyền truy cập (`can_view_internal_events` & lãnh đạo) trên cả Hybrid RAG lẫn Foundation BM25.
-   - `aiassist/privacy.py`: thêm `sanitize_untrusted_input()` và bọc `<USER_QUERY>...</USER_QUERY>` chống prompt injection.
-4. **Báo cáo & Kiểm thử mới (Phase 0–7):**
-   - Báo cáo từng phase trong `docs/audit/00_BASELINE_REPORT.md` → `07_PRODUCTION_READINESS_REPORT.md` và báo cáo tổng hợp `docs/KMG_MASTER_UPGRADE_REPORT.md`.
-   - Test mới: `core/test_security_phase2.py`, `registrations/test_phase3_business_logic.py`, `aiassist/test_phase5_ai_safety.py`, `accounts/test_phase6_coverage.py`, `finance/test_phase6_coverage.py`, `organization/test_phase6_api_coverage.py`, `registrations/test_phase6_perf.py`.
+1. **Sprint A & B — An toàn chuyển đổi MySQL & Backup/Restore (`33f0082`):**
+   - `deployment/sqlite_to_mysql.py`, `deployment/mysql_backup.py`, `core/test_importers_and_migration.py`.
+2. **Sprint C — KMG AI & Quyền nghiệp vụ (`67cf549`):**
+   - `aiassist/business_queries.py`, `aiassist/views.py`, `aiassist/test_business_queries.py`, `aiassist/test_ai_consolidation.py`.
+3. **Sprint E — Frontend Refinement & KMG Soft Icons (`fa91ea0`, đợt vá CI & Dark-mode sau `afe00d6`):**
+   - `templates/**`, `static/css/tokens.css`, `pages/tests.py`, `pages/test_sprint_e_ui.py`, `finance/test_phase5_finance.py`.
+4. **Kiến trúc sản phẩm, Hiệu năng truy vấn & Diễn tập hợp nhất nghiệp vụ (`afe00d6`, đợt hoàn thiện Roadmap 5.0):**
+   - `organization/permissions.py` (`_preloaded` trong `summarize_actor_context()`), `organization/views.py` (tối ưu N+1 `workspace_home`), `organization/business_consolidation.py`, `core/management/commands/audit_unified_business.py`, `core/test_unified_business_rehearsal.py`, `core/test_uat_e2e.py` (query budget `dashboard <= 30`, `workspace_home <= 45`).
+   - Báo cáo kiến trúc & kiểm toán: `docs/PRODUCT_ARCHITECTURE.md`, `docs/UNIFIED_BUSINESS_SYSTEM_PLAN.md`, `docs/audit/14_KMG_PRODUCT_REFINEMENT_REPORT.md`, `docs/audit/15_INDEPENDENT_REAUDIT_REMEDIATION.md`, `docs/audit/16_MASTER_ROADMAP_CONSOLIDATION_HANDOFF.md`.
 
 ---
 
@@ -56,12 +50,15 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 
 | File / Thư mục | Chủ sở hữu | Nhánh | Mục đích | Thời điểm khóa |
 |---|---|---|---|---|
-| *(Trống — đã giải phóng khóa sau khi hoàn tất Việt hóa UI & `UI-08` trên `feature/mysql-production-readiness`)* | — | — | — | — |
+| *(Trống — đã giải phóng toàn bộ khóa file sau kiểm thử)* | — | `feature/mysql-production-readiness` | — | 2026-11-28 |
 
-- **Hàng đợi bàn giao:**
-  - `[T-010]` Push nhánh `feature/kmg-system-stabilization` lên `origin` và theo dõi kết quả GitHub Actions (`test-mysql-redis`, `docker-build-check`) — `READY`.
-  - `[T-011]` Review chéo nhánh `feature/kmg-system-stabilization` qua ChatGPT / `codex exec review --base main` — `READY`.
-  - `[T-012]` Thực hiện UAT 7 vai trò theo `docs/UAT_PILOT_MATRIX.md` và chụp ảnh responsive `360px–1920px` trước khi tạo PR merge vào `main` — `READY`.
+- **Hàng đợi bàn giao còn lại (Chủ dự án / BCN / Môi trường ngoài):**
+  - `[D-01]` Chủ dự án duyệt ADR `docs/UNIFIED_BUSINESS_SYSTEM_PLAN.md` (`BUS-02`).
+  - `[D-02]` Chủ dự án duyệt gallery KMG Soft Icons & điều hướng vai trò (`UI-01`, `UI-04`).
+  - `[D-03]` Chủ dự án duyệt cài đặt Playwright trên staging cách ly để chụp ảnh responsive `320px–1920px` 2 theme (`UAT-01`, `UAT-03`, `UAT-04`).
+  - `[AI-10]` BCN & Ban Chuyên môn duyệt **46 mục tri thức pending** (24 âm nhạc, 22 nghiệp vụ).
+  - `[UAT-05]` Chủ dự án và đại diện vai trò CLB nghiệm thu người dùng thật trên staging.
+  - `[D-04 / REL-04]` Kiểm tra CI xanh cùng SHA mới nhất trên `feature/mysql-production-readiness`, diễn tập Docker/MySQL restore (`BK-04`) và Chủ dự án quyết định Go/No-Go trước khi tạo PR hoặc merge `main`.
 
 ---
 
