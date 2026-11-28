@@ -555,7 +555,7 @@ def ai_studio(request):
                     try:
                         prof.full_clean()
                         prof.save()
-                        messages.success(request, f"Đã cập nhật cấu hình cho modun '{dict(AITaskKey.choices).get(task_key)}'.")
+                        messages.success(request, f"Đã cập nhật cấu hình cho mô-đun '{dict(AITaskKey.choices).get(task_key)}'.")
                     except ValidationError as exc:
                         messages.error(request, "; ".join(exc.messages))
 
