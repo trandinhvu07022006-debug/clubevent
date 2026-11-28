@@ -5,9 +5,9 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 ---
 
 ## 1. Trạng thái hệ thống hiện tại
-- **Cập nhật lần cuối:** 2026-11-26 (Antigravity — hoàn tất nâng cấp **KMG AI: Intelligent Music Companion** và **Frontend Stabilization & Simplification** trên nhánh `feature/mysql-production-readiness`; đã ghi nhận báo cáo `docs/audit/13_FRONTEND_STABILIZATION_AND_SIMPLIFICATION.md`)
+- **Cập nhật lần cuối:** 2026-11-28 (Antigravity — hoàn tất **KMG Independent Re-Audit Remediation (Sprint A–E)** trên nhánh `feature/mysql-production-readiness`; báo cáo `docs/audit/15_INDEPENDENT_REAUDIT_REMEDIATION.md`)
 - **Thư mục gốc dự án:** `D:\clubevent\clubevent`
-- **Nhánh Git hiện hành:** `feature/kmg-system-stabilization` (tách từ `feature/kmg-ai-v2` @ `57ad934`; `main` vẫn giữ nguyên tại `315535c`, `feature/sprint7-chong-gom-ve` tại `458ef9e`).
+- **Nhánh Git hiện hành:** `feature/mysql-production-readiness` (baseline `52f45db`).
 - **Phần cứng dev:** Intel Core i5-12500H (12 nhân / 16 luồng), RAM 16 GB DDR4-3200 (`16,869,548,032` bytes), NVIDIA GeForce RTX 3050 Laptop GPU (**4 GB VRAM**, `4,293,918,720` bytes) + Intel Iris Xe Graphics.
 - **Môi trường kiểm thử:** Python 3.14 (`.\venv\Scripts\python.exe`), Django 5.2.17, SQLite/`LocMemCache` (chưa cài Docker Desktop, Redis Server, Playwright và Ollama tại máy dev Windows; MySQL 8.4 đã cài cho DB phát triển `clubevent`, không dùng DB dev làm test).
 
@@ -15,10 +15,11 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 - `.\venv\Scripts\python.exe manage.py check --settings=config.settings_test`: **0 issues (0 silenced)** (exit `0`).
 - `.\venv\Scripts\python.exe manage.py makemigrations --check --dry-run --settings=config.settings_test`: **No changes detected** (exit `0`).
 - `.\venv\Scripts\python.exe manage.py check --deploy --settings=config.settings` *(mô phỏng `DEBUG=False`, `USE_HTTPS=True`, `ALLOW_DEMO_SEED=False`, biến môi trường tạm)*: **0 issues (0 silenced)** (exit `0`).
-- `.\venv\Scripts\python.exe -m coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test`: **Ran 657 tests in 197.655s — OK (skipped=2)** (`RedisRateLimitTests` skip do thiếu `KMG_TEST_REDIS_URL`).
-- `.\venv\Scripts\python.exe manage.py evaluate_ai --with-migrate --settings=config.settings_test`: **EVAL ĐẠT** (`dev` **38/38** 100%, `holdout` **22/22** 100%, `blind` **50/50** 100%; RAG `dev` **13/13** 100%, `holdout` **7/8** 88%; Che PII **6/6**; Fallback OK).
-- `.\venv\Scripts\python.exe -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v`: **Ran 17 tests in 0.247s — OK (skipped=1 symlink Windows)**.
-- **Coverage (`16,712` stmts, `3,630` miss + `93` file 100%):** Tổng hợp **78%** (`organization/api_views.py` **78%**, `aiassist/services.py` **91%**, `aiassist/egress.py` **85%**, `registrations/services.py` **94%**). Cổng `--fail-under=78` đã cấu hình trong `.github/workflows/ci.yml`.
+- `.\venv\Scripts\python.exe -m coverage run --omit="*/migrations/*,*/test*.py" manage.py test --settings=config.settings_test`: **OK (exit `0`, SQLite cách ly)**; tổng coverage **79%** (`18,597` stmts, `3,889` miss, `95` file 100%) — đạt cổng `--fail-under=78`.
+- `.\venv\Scripts\python.exe manage.py evaluate_ai --with-migrate --settings=config.settings_test`: **EVAL ĐẠT** (`dev` **38/38**, `holdout` **22/22**, `blind` **50/50**, RAG `dev` **13/13**, `holdout` **8/8**, Che PII **6/6**, Music/Companion **7/7**).
+- `.\venv\Scripts\python.exe -m unittest deployment/test_backup_restore.py deployment/test_scheduler.py -v`: **Ran 17 tests — OK (`skipped=1` symlink Windows)**.
+- Coverage mục tiêu Roadmap 5.0 (G1–G4): `aiassist/business_queries.py` **99%**, `organization/importers.py` **93%**, `deployment/sqlite_to_mysql.py` **85%** (các nhánh MySQL thật sẽ chạy tiếp ở CI `test-mysql-redis` qua `RealMySqlMigrationIntegrationTests`), `deployment/mysql_backup.py` **78%**.
+- **Codex CLI (`codex login status`):** `Not logged in` — cần người dùng tự chạy `codex login` trước khi chạy `codex exec review --uncommitted`.
 
 ---
 
@@ -55,7 +56,7 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 
 | File / Thư mục | Chủ sở hữu | Nhánh | Mục đích | Thời điểm khóa |
 |---|---|---|---|---|
-| *(Trống — đã giải phóng khóa sau khi hoàn tất KMG Phase 7 trên `feature/mysql-production-readiness`)* | — | — | — | — |
+| *(Trống — đã giải phóng khóa sau khi hoàn tất Việt hóa UI & `UI-08` trên `feature/mysql-production-readiness`)* | — | — | — | — |
 
 - **Hàng đợi bàn giao:**
   - `[T-010]` Push nhánh `feature/kmg-system-stabilization` lên `origin` và theo dõi kết quả GitHub Actions (`test-mysql-redis`, `docker-build-check`) — `READY`.
