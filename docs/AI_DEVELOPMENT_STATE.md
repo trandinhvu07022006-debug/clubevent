@@ -40,9 +40,9 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 
 ## 3. Blocker môi trường & Việc chờ xác nhận
 
-- **GitHub Actions CI (`test-mysql-redis` & `docker-build-check`):** Cần push nhánh `feature/kmg-system-stabilization` lên `origin` để kiểm chứng MySQL 8.4, Redis 7 và build Docker trên runner Linux (máy dev thiếu Docker Desktop và Redis Server).
+- **GitHub Actions CI (`46145635488` tại `7e7c512`):** Đã đạt xanh cả 3 job `test-sqlite` (706 tests OK, skipped=2), `test-mysql-redis` (706 tests OK, 17 deploy tests OK, coverage 79%, `EVAL ĐẠT`), và `docker-build-check` (success). Đã bổ sung job thứ 4 `playwright-ui-audit` theo phê duyệt `D-03` của Chủ dự án (2026-11-28).
 - **Ollama Local LLM benchmark:** Phần cứng `RTX 3050 (4 GB VRAM)` sẵn sàng cho mô hình `Q4_K_M` 1.5B–3B, nhưng chưa cài Ollama tại máy dev nên benchmark thực tế giữ trạng thái `BLOCKED`.
-- **Browser screenshot responsive (`360px–1920px`) & UAT 7 vai trò:** Giữ trạng thái `REVIEW_REQUIRED` để thực hiện kiểm tra trực quan và UAT trước khi phát hành chính thức.
+- **Browser screenshot responsive (`320px–1920px`) & UAT 7 vai trò:** Chạy tự động qua GitHub Actions `playwright-ui-audit` trên staging SQLite cô lập (`deployment/playwright_ui_audit.py`), sau đó Chủ dự án/đại diện CLB thực hiện `UAT-05` thực tế trước khi phát hành.
 
 ---
 
@@ -53,12 +53,12 @@ Tài liệu trạng thái dùng chung cho **Antigravity** và **ChatGPT / OpenAI
 | *(Trống — đã giải phóng toàn bộ khóa file sau kiểm thử)* | — | `feature/mysql-production-readiness` | — | 2026-11-28 |
 
 - **Hàng đợi bàn giao còn lại (Chủ dự án / BCN / Môi trường ngoài):**
-  - `[D-01]` Chủ dự án duyệt ADR `docs/UNIFIED_BUSINESS_SYSTEM_PLAN.md` (`BUS-02`).
-  - `[D-02]` Chủ dự án duyệt gallery KMG Soft Icons & điều hướng vai trò (`UI-01`, `UI-04`).
-  - `[D-03]` Chủ dự án duyệt cài đặt Playwright trên staging cách ly để chụp ảnh responsive `320px–1920px` 2 theme (`UAT-01`, `UAT-03`, `UAT-04`).
-  - `[AI-10]` BCN & Ban Chuyên môn duyệt **46 mục tri thức pending** (24 âm nhạc, 22 nghiệp vụ).
+  - `[D-01]` **ĐÃ DUYỆT (2026-11-28):** Chốt `organization.Department`, `operations.ClubTask`, `organization.MembershipApplication` là nguồn dữ liệu chính thức (`docs/UNIFIED_BUSINESS_SYSTEM_PLAN.md`), giữ nguyên bảng & route cũ.
+  - `[D-03]` **ĐÃ DUYỆT (2026-11-28):** Bổ sung job `playwright-ui-audit` vào `.github/workflows/ci.yml` + `deployment/playwright_ui_audit.py` để kiểm thử & chụp screenshot Light/Dark (`320–1920px`) trên staging cô lập trong CI.
+  - `[D-02]` Chủ dự án duyệt gallery KMG Soft Icons (`UI-01`, `UI-04`) sau khi xem screenshot từ CI artifact `playwright-ui-audit-report`.
+  - `[AI-10]` BCN & Ban Chuyên môn duyệt **46 mục tri thức pending** theo danh mục `docs/audit/17_AI_46_KNOWLEDGE_REVIEW_QUEUE.md`.
   - `[UAT-05]` Chủ dự án và đại diện vai trò CLB nghiệm thu người dùng thật trên staging.
-  - `[D-04 / REL-04]` Kiểm tra CI xanh cùng SHA mới nhất trên `feature/mysql-production-readiness`, diễn tập Docker/MySQL restore (`BK-04`) và Chủ dự án quyết định Go/No-Go trước khi tạo PR hoặc merge `main`.
+  - `[D-04 / REL-04]` Kiểm tra CI xanh cùng SHA mới nhất (gồm cả `playwright-ui-audit`), diễn tập Docker/MySQL restore (`BK-04`) và Chủ dự án quyết định Go/No-Go trước khi tạo PR hoặc merge `main`.
 
 ---
 

@@ -1,5 +1,7 @@
 # Kế hoạch Hợp nhất Hệ thống Nghiệp vụ (Unified Business System — Consolidation 4.0)
 
+> **Quyết định `D-01` (`BUS-02`):** **ĐÃ ĐƯỢC CHỦ DỰ ÁN PHÊ DUYỆT (2026-11-28)** — Chốt `organization.Department`, `operations.ClubTask` và `organization.MembershipApplication` làm nguồn dữ liệu chính thức (Canonical Source), đồng thời **giữ nguyên bảng/model cũ và tương thích route cũ** trong suốt giai đoạn chuyển tiếp.
+
 **Nguyên tắc an toàn:** Không xóa model hoặc bảng cũ; không tự ý migrate cơ sở dữ liệu thật trong giai đoạn lập kế hoạch & diễn tập. Mọi bước chuyển đổi phải idempotent, có đối soát và có phương án rollback.
 
 ---

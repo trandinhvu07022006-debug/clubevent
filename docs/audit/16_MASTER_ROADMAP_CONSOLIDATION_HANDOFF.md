@@ -72,7 +72,7 @@
 | `DB-05` | P0 | `AUTOMATED_VERIFIED` | `MigrationAbortError` trong `transaction.atomic`, khôi phục FK checks trong `finally`, không dùng `break` trước commit. |
 | `DB-06` | P0 | `AUTOMATED_VERIFIED` | Ánh xạ natural key cho `django_content_type`/`auth_permission`, giữ PK/FK/ciphertext, loại trừ `django_session`/`django_migrations`/`sqlite_sequence`. |
 | `DB-07` | P0 | `AUTOMATED_VERIFIED` | Đối soát theo PK, FK, nội dung và `compute_club_fund_summary()` trước khi commit. |
-| `DB-08` | P0 | `PENDING_CI_RUN` | Đã chạy phần unit/mock trên SQLite; `RealMySqlMigrationIntegrationTests` chạy thực tế trên MySQL 8.4 tại CI job `test-mysql-redis`. |
+| `DB-08` | P0 | `CI_VERIFIED` | Đạt thực tế trên MySQL 8.4 tại GitHub Actions CI run [`46145635488`](https://github.com/trandinhvu07022006-debug/clubevent/actions/runs/46145635488) (`7e7c512`, `RealMySqlMigrationIntegrationTests` pass trong 706 tests OK). |
 
 ### Sprint 2 — Backup / Restore & Nhập liệu (`G2`)
 | Mã | Ưu tiên | Trạng thái | Bằng chứng & Ghi chú |
@@ -98,7 +98,7 @@
 | `AI-07` | P0 | `AUTOMATED_VERIFIED` | Test JSON `chat_api` và SSE `chat_stream_api` đầy đủ nhánh happy/deny/empty (`aiassist/test_business_queries.py`, `test_ai_consolidation.py`). |
 | `AI-08` | P0 | `AUTOMATED_VERIFIED` | Hồi quy Egress Policy: chặn `CONFIDENTIAL`/`INTERNAL` đi Cloud LLM, giữ nguyên ranh giới fallback. |
 | `AI-09` | P0 | `AUTOMATED_VERIFIED` | Export canary `CONFIDENTIAL` và bảo vệ nhật ký/lịch sử hội thoại (`aiassist/test_ai_consolidation.py`). |
-| `AI-10` | P1 | `AWAITING_HUMAN_APPROVAL` | Đã kiểm toán kỹ thuật **46/46** mục pending (`public`, 0 PII) và giữ nguyên trạng thái chờ phê duyệt; việc duyệt nội dung thuộc BCN & Chuyên môn. |
+| `AI-10` | P1 | `AWAITING_HUMAN_APPROVAL` | Đã kiểm toán kỹ thuật **46/46** mục pending (`public`, 0 PII) và xuất danh mục kiểm duyệt từng mục tại `docs/audit/17_AI_46_KNOWLEDGE_REVIEW_QUEUE.md`; chờ BCN & Chuyên môn duyệt nội dung. |
 | `AI-11` | P1 | `AUTOMATED_VERIFIED` | Gia sư nhạc, người bạn đồng hành, tiếng Việt có dấu/không dấu/viết tắt/đa ý, consent opt-in/tắt/xóa hồ sơ (`aiassist/test_kmg_companion.py`, `test_ai_consolidation.py`). |
 | `AI-12` | P1 | `AUTOMATED_VERIFIED` | `evaluate_ai --with-migrate`: `EVAL ĐẠT` (100% dev/holdout/blind/RAG/PII/Music-Companion; chạy offline/mock, chưa benchmark Ollama cục bộ). |
 
@@ -106,7 +106,7 @@
 | Mã | Ưu tiên | Trạng thái | Bằng chứng & Ghi chú |
 |---|---|---|---|
 | `QA-01` | P0 | `AUTOMATED_VERIFIED` | Toàn bộ coverage **79%** (>= 78%); `business_queries.py` **99%**, `importers.py` **93%**, `sqlite_to_mysql.py` **85%**. |
-| `QA-02` | P0 | `PENDING_CI_RUN` | Cục bộ SQLite **706 tests OK (skipped=3)**; cần CI run mới trên GitHub Actions cho `test-sqlite`, `test-mysql-redis`, `docker-build-check`. |
+| `QA-02` | P0 | `CI_VERIFIED` | Run [`46145635488`](https://github.com/trandinhvu07022006-debug/clubevent/actions/runs/46145635488) (`7e7c512`): `test-sqlite` OK (706, skipped=2), `test-mysql-redis` OK (706 + 17 deploy + 79% coverage + EVAL ĐẠT), `docker-build-check` OK. Cần xác nhận thêm job `playwright-ui-audit` mới thêm ở commit tiếp theo. |
 | `QA-03` | P0 | `AUTOMATED_VERIFIED` | Hồi quy đặt vé đồng thời, giới hạn 4 vé, waitlist, QR check-in, `[LOAD-50-BOOK] ok=30/30` & `[PILOT-BOOK-100] ok=60, sold=60/60`. |
 | `QA-04` | P0 | `AUTOMATED_VERIFIED` | Maker-checker, Cố vấn chỉ đọc, scope Ban/tài nguyên, khóa/thu hồi quyền và bảo vệ tệp (`core.test_uat_e2e`, `finance`, `organization`). |
 | `QA-05` | P1 | `AUTOMATED_VERIFIED` | `manage.py check --deploy` (prod MySQL + HTTPS mô phỏng) đạt **0 issues**; kiểm tra static & error pages (`404` không traceback). |
@@ -115,12 +115,12 @@
 ### Sprint 5 — Hợp nhất Nghiệp vụ (`G5`)
 | Mã | Ưu tiên | Trạng thái | Bằng chứng & Ghi chú |
 |---|---|---|---|
-| `BUS-02` | P1 | `AWAITING_HUMAN_APPROVAL` | Đã đề xuất `organization`/`operations` là nguồn chính thức trong `docs/UNIFIED_BUSINESS_SYSTEM_PLAN.md`; chờ Chủ dự án duyệt quyết định `D-01`. |
+| `BUS-02` | P1 | `APPROVED_DESIGN` | **Chủ dự án đã phê duyệt `D-01` (2026-11-28):** chọn `organization.Department`, `operations.ClubTask` và `organization.MembershipApplication` là nguồn dữ liệu chính thức tại `docs/UNIFIED_BUSINESS_SYSTEM_PLAN.md` (giữ nguyên bảng/route cũ). |
 | `BUS-03` | P1 | `AUTOMATED_VERIFIED` | Tạo service & lệnh diễn tập `organization/business_consolidation.py` + `core/test_unified_business_rehearsal.py` (dry-run/execute/idempotent, giữ nguyên bảng cũ). |
 | `BUS-04` | P1 | `AUTOMATED_VERIFIED` | Cầu nối tương thích ngược route/view công việc, Ban và ứng tuyển (`fa91ea0`), đã test qua `pages/test_sprint_e_ui.py`. |
 | `BUS-05` | P1 | `AWAITING_HUMAN_APPROVAL` | Ma trận Vai trò → Nhu cầu → Chức năng → Quyền → Nguồn dữ liệu đã lập tại `docs/PRODUCT_ARCHITECTURE.md`; chờ Chủ dự án/đại diện CLB rà soát cuối. |
 | `BUS-06` | P1 | `AUTOMATED_VERIFIED` | Phân định `Tổng quan` và `Không gian CLB` theo vai trò với lối tắt và tương thích route (`fa91ea0`). |
-| `UAT-01` | P0 | `BLOCKED_ENV` | Đã có HTTP E2E tự động (`core/test_uat_e2e.py`) với dữ liệu giả cô lập; thiếu Playwright / Chrome headless cài sẵn để chụp visual staging (`D-03`). |
+| `UAT-01` | P0 | `PENDING_CI_RUN` | **Chủ dự án đã phê duyệt `D-03` (2026-11-28):** bổ sung job `playwright-ui-audit` vào `.github/workflows/ci.yml` + `deployment/playwright_ui_audit.py` chạy staging SQLite cô lập và upload ảnh chụp/report artifact. |
 
 ### Sprint 6 — Frontend & Thiết kế (`G6`)
 | Mã | Ưu tiên | Trạng thái | Bằng chứng & Ghi chú |
@@ -139,14 +139,14 @@
 | Mã | Ưu tiên | Trạng thái | Bằng chứng & Ghi chú |
 |---|---|---|---|
 | `UAT-02` | P0 | `AUTOMATED_VERIFIED` | `core/test_uat_e2e.py` phủ các kịch bản `UT-01`..`UT-14` ở tầng Django TestClient & query budget. |
-| `UAT-03` | P1 | `BLOCKED_ENV` | Chờ phê duyệt công cụ Playwright (`D-03`) để chụp ảnh trước/sau `320px–1920px` trên 2 theme. |
+| `UAT-03` | P1 | `PENDING_CI_RUN` | Thực thi qua job `playwright-ui-audit` trên 7 viewport (`320–1920px`) & 2 theme (`light`/`dark`), upload screenshot artifact để Chủ dự án rà soát. |
 | `UAT-04` | P1 | `BLOCKED_ENV` | Chờ môi trường trình duyệt để đo LCP/CLS/INP thực tế (trình duyệt lab/field). |
 | `UAT-05` | P0 | `AWAITING_HUMAN_APPROVAL` | Bắt buộc Chủ dự án và đại diện các vai trò CLB nghiệm thu thực tế trên staging; không coi test tự động là UAT thật. |
 
 ### Sprint 8 — Release & Bàn giao (`G8`)
 | Mã | Ưu tiên | Trạng thái | Bằng chứng & Ghi chú |
 |---|---|---|---|
-| `REL-01` | P0 | `PENDING_CI_RUN` | Cấu hình prod fail-closed đã qua `check --deploy` cục bộ; chờ `docker-build-check` + `test-mysql-redis` xanh ở cùng commit. |
+| `REL-01` | P0 | `CI_VERIFIED` | Đã qua `check --deploy` và `docker-build-check` + `test-mysql-redis` tại run `46145635488` (`7e7c512`). |
 | `REL-02` | P0 | `AWAITING_HUMAN_APPROVAL` | Tài liệu runbook/backup đã có (`docs/deployment/DEPLOYMENT_AND_BACKUP.md`); mục tiêu `RPO<=24h` / `RTO<=4h` và diễn tập live cần Chủ dự án xác nhận (`D-04`). |
 | `REL-03` | P0 | `PENDING_CI_RUN` | Chờ CI xanh trên commit push mới và quyết định tạo PR/rà soát từ Chủ dự án (đã bỏ qua bước Codex CLI theo yêu cầu người dùng). |
 | `REL-04` | P0 | `AWAITING_HUMAN_APPROVAL` | Cổng Go/No-Go chuyển dữ liệu & phát hành thuộc toàn quyền Chủ dự án. |
@@ -158,9 +158,9 @@
 
 | Cổng / Quyết định | Trạng thái hiện tại | Hành động tiếp theo cần thiết |
 |---|---|---|
-| `G0`–`G3` (cấp mã nguồn & SQLite/AI) | `AUTOMATED_VERIFIED` *(riêng `DB-08` chờ CI MySQL, `BK-04` chờ Docker staging, `AI-10` chờ BCN/CM duyệt 46 mục)* | Theo dõi CI `test-mysql-redis` sau push; BCN/CM duyệt 46 mục tri thức |
-| `G4` (CI & Chất lượng) | `PENDING_CI_RUN` | Xác nhận tất cả job `test-sqlite`, `test-mysql-redis`, `docker-build-check` xanh cùng 1 SHA |
-| `G5` / `D-01` (Canonical model) | `AWAITING_HUMAN_APPROVAL` | Chủ dự án phê duyệt ADR `docs/UNIFIED_BUSINESS_SYSTEM_PLAN.md` |
-| `G6` / `D-02` (Icon & Điều hướng) | `AWAITING_HUMAN_APPROVAL` | Chủ dự án duyệt gallery KMG Soft Icons và điều hướng theo vai trò |
-| `G7` / `D-03` (Browser & UAT thật) | `BLOCKED_ENV` / `AWAITING_HUMAN_APPROVAL` | Chủ dự án duyệt cài Playwright trên staging (`D-03`) và tổ chức `UAT-05` |
+| `G0`–`G3` (cấp mã nguồn & SQLite/MySQL/AI) | `CI_VERIFIED` *(riêng `BK-04` chờ Docker staging, `AI-10` chờ BCN/CM duyệt 46 mục)* | `DB-08` đã xanh tại CI `46145635488`; BCN/CM duyệt `docs/audit/17_AI_46_KNOWLEDGE_REVIEW_QUEUE.md` |
+| `G4` (CI & Chất lượng) | `CI_VERIFIED` *(cần xanh thêm job `playwright-ui-audit` mới)* | Xác nhận CI mới xanh đầy đủ cả 4 job (`test-sqlite`, `test-mysql-redis`, `docker-build-check`, `playwright-ui-audit`) |
+| `G5` / `D-01` (Canonical model) | `APPROVED_DESIGN` | Chủ dự án đã duyệt `D-01` (`2026-11-28`); rà soát cuối `BUS-05` cùng đại diện CLB nếu cần |
+| `G6` / `D-02` (Icon & Điều hướng) | `AWAITING_HUMAN_APPROVAL` | Chủ dự án duyệt gallery KMG Soft Icons (`UI-04`) từ screenshot artifact `playwright-ui-audit-report` |
+| `G7` / `D-03` (Browser & UAT thật) | `PENDING_CI_RUN` / `AWAITING_HUMAN_APPROVAL` | `D-03` đã duyệt cho GitHub Actions Playwright CI; sau khi có ảnh artifact, tổ chức `UAT-05` với người dùng thật |
 | `G8` / `D-04` (Go/No-Go Production) | `AWAITING_HUMAN_APPROVAL` | Chủ dự án chốt `RPO/RTO`, cửa sổ bảo trì, cutover và ký `REL-04` |
