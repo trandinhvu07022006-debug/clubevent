@@ -28,6 +28,9 @@
       {% if overdue_count %}
         <span class="badge bg-danger px-3 py-2 fs-6 shadow-sm"><i class="bi bi-exclamation-triangle-fill"></i> {{ overdue_count }} việc quá hạn</span>
       {% endif %}
+      {% if user.has_active_club_access %}
+        <a href="{% url 'operations:task_list' %}" class="btn btn-outline-secondary">Công việc CLB</a>
+      {% endif %}
       {% if can_assign %}
         <nav class="segmented" aria-label="Chế độ xem">
           <a href="?view=mine" class="segmented-item {% if view == 'mine' %}active{% endif %}">Việc của tôi</a>

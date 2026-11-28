@@ -54,7 +54,7 @@
       {% elif access_mode == 'MEMBER' %}
         <span class="badge text-bg-success py-2 px-3"><i class="bi bi-person-check me-1"></i>Thành viên Ban (MEMBER)</span>
       {% else %}
-        <span class="badge text-bg-secondary py-2 px-3"><i class="bi bi-eye me-1"></i>Xem chéo Ban / Giám sát (READ_ONLY)</span>
+        <span class="badge text-bg-secondary py-2 px-3"><i class="bi bi-eye me-1"></i>Xem liên Ban (chỉ đọc)</span>
       {% endif %}
     </div>
   </div>
@@ -63,7 +63,7 @@
 {% if access_mode == 'READ_ONLY' %}
 <div class="alert alert-secondary border-0 shadow-sm small mb-4">
   <i class="bi bi-info-circle-fill me-1"></i>
-  <strong>Chế độ Xem chéo Ban (Cross-Department Read-Only):</strong>
+  <strong>Chế độ Xem liên Ban (chỉ đọc):</strong>
   Bạn được xem cơ cấu cán bộ, danh sách thành viên (ẩn thông tin liên hệ riêng tư theo cài đặt bảo mật), hạng mục chuyên môn công khai và số liệu tổng hợp của <strong>{{ dept.name }}</strong>; mọi thao tác điều hành và tài liệu nội bộ/mật của Ban đều được khóa cứng ở tầng Backend.
 </div>
 {% endif %}
@@ -362,7 +362,7 @@
           {% if task_scope_mode == 'AGGREGATE_ONLY' %}
             <div class="alert alert-light border small mb-0">
               <i class="bi bi-shield-lock me-1"></i>
-              Ở chế độ xem chéo Ban / Giám sát (<code>READ_ONLY</code>), hệ thống chỉ hiển thị số liệu tiến độ tổng hợp và bảo mật chi tiết nhiệm vụ cá nhân của Ban.
+              Ở chế độ xem liên Ban (chỉ đọc), hệ thống chỉ hiển thị số liệu tiến độ tổng hợp và bảo mật chi tiết nhiệm vụ cá nhân của Ban.
             </div>
           {% else %}
             {% if dept_task_stats.reassignment and perms.can_assign_tasks %}
@@ -560,7 +560,7 @@
           {% if access_mode == 'READ_ONLY' %}
           <div class="alert alert-light border small mb-0">
             <i class="bi bi-shield-lock me-1"></i>
-            Ở chế độ xem chéo Ban (<code>READ_ONLY</code>), hệ thống chỉ hiển thị số lượng ({{ dept_practices_count }} buổi tập) và ẩn danh sách thành viên tham gia buổi tập riêng.
+            Ở chế độ xem liên Ban (chỉ đọc), hệ thống chỉ hiển thị số lượng ({{ dept_practices_count }} buổi tập) và ẩn danh sách thành viên tham gia buổi tập riêng.
           </div>
           {% else %}
             {% for ps in dept_practices %}

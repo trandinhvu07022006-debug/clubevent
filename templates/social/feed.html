@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Mạng xã hội Nội bộ KMG — KMG Platform{% endblock %}
+{% block title %}Bảng tin Nội bộ — CLB Âm nhạc KMG{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -7,7 +7,7 @@
     <span class="kmg-kicker mb-2"><i class="bi bi-stars"></i> KMG Internal Social</span>
     <h1 class="h3 fw-bold mb-1">Mạng xã hội Nội bộ KMG</h1>
     <p class="text-body-secondary small mb-0">
-      Không gian giao lưu, chia sẻ âm nhạc &amp; sinh hoạt nội bộ với phân quyền phạm vi đa lớp (`PA-05`).
+      Không gian giao lưu, chia sẻ âm nhạc &amp; sinh hoạt nội bộ với phân quyền phạm vi nhiều lớp.
     </p>
   </div>
   <div class="d-flex flex-wrap gap-2">
@@ -106,7 +106,7 @@
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2">
           <div>
             <input type="file" name="attachments" class="form-control form-control-sm" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.mp3,.wav">
-            <div class="form-text" style="font-size:0.72rem;">Ảnh/tệp lưu tại Kho Bảo mật riêng tư (`SEC-01`), tự động xoá EXIF.</div>
+            <div class="form-text" style="font-size:0.72rem;">Ảnh/tệp lưu tại kho bảo mật riêng tư, tự động xoá dữ liệu ẩn.</div>
           </div>
           <button type="submit" class="btn btn-primary btn-sm px-4">
             <i class="bi bi-send me-1"></i>Đăng bài
@@ -116,7 +116,7 @@
     </div>
     {% elif is_advisor %}
     <div class="alert alert-info small border-0 shadow-sm mb-4">
-      <i class="bi bi-eye me-1"></i>Bạn đang truy cập Mạng xã hội Nội bộ ở chế độ <strong>Cố vấn Chỉ đọc (`INV-04`)</strong>.
+      <i class="bi bi-eye me-1"></i>Bạn đang truy cập Bảng tin Nội bộ ở chế độ <strong>Cố vấn chỉ đọc</strong>.
     </div>
     {% endif %}
 
@@ -124,14 +124,14 @@
       <div class="kmg-card p-4">
         <h2 class="h5 fw-bold mb-3"><i class="bi bi-shield-check me-2 text-danger"></i>Hàng đợi Kiểm duyệt Theo Phạm vi</h2>
         <p class="small text-body-secondary mb-3">
-          Bạn chỉ nhìn thấy báo cáo của các phạm vi mình được phân quyền kiểm duyệt (`WF19`). Bài viết <code>PERSONAL</code> hoặc của Ban khác tuyệt đối không bao giờ xuất hiện.
+          Bạn chỉ nhìn thấy báo cáo của các phạm vi mình được phân quyền kiểm duyệt. Bài viết riêng tư hoặc của Ban khác tuyệt đối không xuất hiện.
         </p>
         {% for r in moderation_queue %}
           <div class="border rounded-3 p-3 mb-3">
             <div class="d-flex justify-content-between align-items-start mb-1">
               <strong>
                 Bài #{{ r.post_id }} · {{ r.post.author.public_name }}
-                <span class="badge text-bg-light border">{{ r.post.get_visibility_display }}{% if r.post.department %} · {{ r.post.department.name }}{% endif %}</span>
+                <span class="badge bg-body-secondary text-body border">{{ r.post.get_visibility_display }}{% if r.post.department %} · {{ r.post.department.name }}{% endif %}</span>
               </strong>
               <span class="small text-body-secondary">{{ r.created_at|date:"H:i d/m/Y" }}</span>
             </div>
@@ -177,9 +177,9 @@
     <div class="kmg-card p-3 p-md-4 mb-3">
       <h2 class="h6 fw-bold mb-2"><i class="bi bi-shield-lock text-primary me-1"></i>Nguyên tắc Phạm vi &amp; Bảo mật</h2>
       <ul class="small text-body-secondary ps-3 mb-0">
-        <li class="mb-1"><strong>Nhật ký riêng tư (`PERSONAL`):</strong> Chỉ mình bạn đọc được, không đưa vào hàng đợi kiểm duyệt.</li>
-        <li class="mb-1"><strong>Kiểm tra kép chia sẻ (`PA-05`):</strong> Chia sẻ bài Nội bộ Ban ra Toàn CLB vẫn tự động che nội dung gốc với người ngoài Ban.</li>
-        <li><strong>Lưu trữ Private Vault (`SEC-01`):</strong> Ảnh/tệp đính kèm không phục vụ công khai tại <code>/media/</code>.</li>
+        <li class="mb-1"><strong>Nhật ký riêng tư:</strong> Chỉ mình bạn đọc được, không đưa vào hàng đợi kiểm duyệt.</li>
+        <li class="mb-1"><strong>Kiểm tra quyền khi chia sẻ:</strong> Chia sẻ bài Nội bộ Ban ra Toàn CLB vẫn tự động che nội dung gốc với người ngoài Ban.</li>
+        <li><strong>Lưu trữ riêng tư:</strong> Ảnh/tệp đính kèm được bảo vệ theo quyền xem bài viết, không công khai đại trà.</li>
       </ul>
     </div>
     <div class="kmg-card p-3 p-md-4">

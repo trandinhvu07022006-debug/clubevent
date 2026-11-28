@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Xử lý Báo cáo Vi phạm Tin nhắn (`BE-07`) — KMG Platform{% endblock %}
+{% block title %}Xử lý Báo cáo Vi phạm Tin nhắn — CLB Âm nhạc KMG{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
   <div>
-    <span class="kmg-kicker mb-1"><i class="bi bi-shield-exclamation"></i> Zero-Admin-Read Evidence Vault · BE-07</span>
+    <span class="kmg-kicker mb-1"><i class="bi bi-shield-exclamation"></i> Lưu trữ bằng chứng bảo mật</span>
     <h1 class="h3 fw-bold mb-1">Bằng chứng Tố cáo Tin nhắn Vi phạm</h1>
     <p class="text-body-secondary small mb-0">
-      Chế độ `BE-07`: Chủ nhiệm / Phó CN Nhân sự chỉ thấy nguyên văn tin nhắn bị tố cáo đã đóng dấu `HMAC-SHA256`, hoàn toàn không có quyền đọc các tin nhắn khác trong hộp thư.
+      Ban Chủ nhiệm chỉ xem được nguyên văn tin nhắn bị tố cáo đã đóng dấu xác thực toàn vẹn, hoàn toàn không có quyền đọc các tin nhắn khác trong hộp thư.
     </p>
   </div>
   <a href="{% url 'social:messaging_inbox' %}" class="btn btn-sm btn-outline-secondary">

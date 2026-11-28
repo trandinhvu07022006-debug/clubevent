@@ -205,7 +205,9 @@ class SidebarNavigationTests(Base):
 
     def test_member_has_no_org_or_admin_menu(self):
         html = self.nav(self.member)
-        self.assertIn("Cá nhân", html)
+        self.assertIn("Tổng quan", html)
+        self.assertIn("Hoạt động &amp; Âm nhạc", html)
+        self.assertNotIn("Quản lý", html)
         self.assertNotIn(reverse("organizing:my_tasks"), html)
         self.assertNotIn(reverse("accounts:user_list"), html)
 

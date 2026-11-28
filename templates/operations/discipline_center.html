@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Chuyên cần &amp; Khiếu nại — KMG Platform{% endblock %}
+{% block title %}Chuyên cần &amp; Khiếu nại — CLB Âm nhạc KMG{% endblock %}
 
 {% block content %}
 <div class="mb-4">
-  <span class="kmg-kicker mb-2"><i class="bi bi-shield-check"></i> WF23–WF24 · R04</span>
+  <span class="kmg-kicker mb-2"><i class="bi bi-shield-check"></i> Theo dõi chuyên cần &amp; Khiếu nại</span>
   <h1 class="h3 fw-bold mb-1">Trung tâm Chuyên cần &amp; Khiếu nại</h1>
   <p class="text-body-secondary small mb-0">
     Vượt ngưỡng vi phạm (&gt; 3 lần/kỳ) chỉ tạo hồ sơ cảnh báo để Ban Chủ nhiệm xem xét — hệ thống <strong>không bao giờ tự khoá</strong> thành viên.
@@ -12,7 +12,7 @@
 </div>
 
 {% if can_supervise and not can_adjudicate %}
-<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-eye-fill me-1"></i>Chế độ Giám sát chỉ đọc (INV-04): bạn xem được toàn bộ hồ sơ nhưng không có thao tác xử lý.</div>
+<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-eye-fill me-1"></i>Chế độ giám sát chỉ đọc: bạn xem được toàn bộ hồ sơ nhưng không có thao tác xử lý.</div>
 {% endif %}
 
 <div class="row g-4">

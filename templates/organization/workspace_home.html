@@ -5,27 +5,37 @@
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
   <div>
-    <span class="kmg-kicker mb-2"><i class="bi bi-grid-1x2-fill"></i> Không gian Nội bộ CLB</span>
+    <span class="kmg-kicker mb-2">{% kmg_icon "grid" size="sm" %} Không gian Nội bộ CLB</span>
     <h1 class="h3 fw-bold mb-1">Xin chào, {{ user.public_name }}</h1>
     <p class="text-body-secondary mb-0">
       {% if actor_ctx.member_code %}
         Mã thành viên: <span class="badge kmg-badge-gold">{{ actor_ctx.member_code }}</span>
       {% endif %}
-      <span class="ms-1">Trạng thái CLB: <strong>{{ actor_ctx.club_status }}</strong></span>
+      <span class="ms-1">Trạng thái CLB:
+        <strong>
+          {% if actor_ctx.club_status == 'ACTIVE' %}Thành viên chính thức
+          {% elif actor_ctx.club_status == 'PENDING' %}Chờ xét duyệt
+          {% elif actor_ctx.club_status == 'SUSPENDED' %}Đang tạm khoá
+          {% elif actor_ctx.club_status == 'ALUMNI' %}Cựu thành viên
+          {% elif actor_ctx.club_status == 'LEFT' %}Đã rời CLB
+          {% else %}Khách
+          {% endif %}
+        </strong>
+      </span>
     </p>
   </div>
   <div class="d-flex flex-wrap gap-2">
     <a href="{% url 'organization:member_lifecycle' user.id %}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-clock-history me-1"></i>Lịch sử của tôi
+      {% kmg_icon "clock" size="sm" %} Lịch sử của tôi
     </a>
     {% if actor_ctx.is_advisor or actor_ctx.can_access_club_governance %}
     <a href="{% url 'organization:advisor_overview' %}" class="btn btn-outline-primary btn-sm">
-      <i class="bi bi-eye me-1"></i>Giám sát CLB
+      {% kmg_icon "compass" size="sm" %} Giám sát CLB
     </a>
     {% endif %}
     {% if actor_ctx.can_access_club_governance %}
     <a href="{% url 'organization:governance_center' %}" class="btn btn-primary btn-sm">
-      <i class="bi bi-shield-lock me-1"></i>Quản trị &amp; Phân quyền
+      {% kmg_icon "shield" size="sm" %} Quản trị &amp; Phân quyền
     </a>
     {% endif %}
   </div>
@@ -51,7 +61,7 @@
   <div class="col-lg-6">
     <div class="kmg-card p-4 h-100">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h6 fw-bold mb-0"><i class="bi bi-list-check me-2"></i>Việc sắp đến hạn</h2>
+        <h2 class="h6 fw-bold mb-0">{% kmg_icon "clipboard-list" size="sm" css_class="text-primary" %} Việc sắp đến hạn</h2>
         <a href="{% url 'operations:task_list' %}" class="small text-decoration-none">Tất cả công việc</a>
       </div>
       {% for t in open_my_tasks %}
@@ -72,7 +82,7 @@
   </div>
   <div class="col-lg-6">
     <div class="kmg-card p-4 h-100">
-      <h2 class="h6 fw-bold mb-3"><i class="bi bi-megaphone me-2"></i>Thông báo chính thức</h2>
+      <h2 class="h6 fw-bold mb-3">{% kmg_icon "bell" size="sm" css_class="text-primary" %} Thông báo chính thức</h2>
       {% for a in announcements %}
         <div class="border-bottom py-2">
           <div class="small fw-semibold">{% if a.is_pinned %}<i class="bi bi-pin-angle-fill text-warning"></i> {% endif %}{{ a.title }}</div>
@@ -90,7 +100,7 @@
 {% if my_enrollments or my_practices %}
 <div class="kmg-card p-3 p-md-4 mb-4">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="h6 fw-bold mb-0"><i class="bi bi-calendar-week me-2 text-primary"></i>Lịch Đào tạo &amp; Tập Band sắp diễn ra</h2>
+    <h2 class="h6 fw-bold mb-0">{% kmg_icon "calendar" size="sm" css_class="text-primary" %} Lịch Đào tạo &amp; Tập Band sắp diễn ra</h2>
     <a href="{% url 'programs:training_practice_hub' %}" class="small text-decoration-none">Mở Trung tâm Đào tạo</a>
   </div>
   <div class="row g-2">
@@ -123,7 +133,7 @@
 <!-- Lối tắt thường dùng (4 mục chính) + Danh mục mở rộng (Progressive Disclosure) -->
 <section class="mb-4">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="h6 fw-bold mb-0"><i class="bi bi-compass me-2"></i>Hoạt động, Âm nhạc &amp; Cộng đồng</h2>
+    <h2 class="h6 fw-bold mb-0">{% kmg_icon "compass" size="sm" css_class="text-primary" %} Hoạt động, Âm nhạc &amp; Cộng đồng</h2>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-md-6 col-xl-3">
@@ -261,7 +271,7 @@
 <!-- Danh sách Ban đang trực thuộc hoặc quản lý -->
 <section class="mb-5">
   <div class="d-flex align-items-center justify-content-between mb-3">
-    <h2 class="h5 fw-bold mb-0"><i class="bi bi-diagram-3 me-2"></i>Không gian Ban của bạn</h2>
+    <h2 class="h5 fw-bold mb-0">{% kmg_icon "layers" size="sm" css_class="text-primary" %} Không gian Ban của bạn</h2>
     {% if my_depts|length > 1 %}
       <span class="badge text-bg-info">Thành viên đa Ban ({{ my_depts|length }} Ban)</span>
     {% endif %}
@@ -274,7 +284,7 @@
           <span class="kmg-dept-icon"><i class="bi {{ item.dept.icon }}"></i></span>
           <div class="d-flex flex-wrap gap-1">
             {% if item.dept.is_demo %}
-              <span class="badge text-bg-warning">Demo</span>
+              <span class="badge text-bg-warning">Thử nghiệm</span>
             {% endif %}
             {% if item.access_mode == 'MANAGE' %}
               <span class="badge text-bg-primary">Quản lý Ban</span>
@@ -297,7 +307,7 @@
     </div>
     {% empty %}
     <div class="col-12">
-      <div class="alert alert-light border mb-0">
+      <div class="alert bg-body-tertiary text-body border mb-0">
         Bạn hiện chưa gắn cố định vào Ban chuyên môn lẻ nào. Bạn có thể tham quan các Ban ở chế độ Xem bên dưới.
       </div>
     </div>
@@ -344,9 +354,9 @@
   <div class="col-lg-7">
     <div class="kmg-card p-4 h-100">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <h2 class="h5 fw-bold mb-0"><i class="bi bi-music-note-beamed me-2"></i>Hồ sơ Kỹ năng Chuyên môn</h2>
-        <span class="badge text-bg-light border text-body-secondary">
-          <i class="bi bi-shield-check me-1"></i>Kỹ năng dùng để gợi ý phân công
+        <h2 class="h5 fw-bold mb-0">{% kmg_icon "music" size="sm" css_class="text-primary" %} Hồ sơ Kỹ năng Chuyên môn</h2>
+        <span class="badge bg-body-secondary text-body border">
+          {% kmg_icon "shield" size="sm" %} Kỹ năng dùng để gợi ý phân công
         </span>
       </div>
 
@@ -371,7 +381,7 @@
                 {% endif %}
               </td>
               <td class="small text-body-secondary">{{ us.skill.category.name }}</td>
-              <td><span class="badge text-bg-light border">{{ us.get_proficiency_display }}</span></td>
+              <td><span class="badge bg-body-secondary text-body border">{{ us.get_proficiency_display }}</span></td>
               <td>
                 {% if us.verification_status == 'VERIFIED' %}
                   <span class="badge text-bg-success"><i class="bi bi-patch-check-fill me-1"></i>{{ us.get_verification_status_display }}</span>
@@ -413,7 +423,7 @@
           </div>
           <div class="col-12 mt-2">
             <button type="submit" class="btn btn-sm btn-primary">
-              <i class="bi bi-plus-circle me-1"></i>Gửi khai báo kỹ năng
+              {% kmg_icon "plus" size="sm" %} Gửi khai báo kỹ năng
             </button>
           </div>
         </form>
@@ -424,7 +434,7 @@
   <div class="col-lg-5">
     <div class="kmg-card p-4 h-100">
       <div class="d-flex align-items-center justify-content-between mb-3">
-        <h2 class="h5 fw-bold mb-0"><i class="bi bi-journal-bookmark me-2"></i>Nhật ký Vòng đời gần đây</h2>
+        <h2 class="h5 fw-bold mb-0">{% kmg_icon "file-text" size="sm" css_class="text-primary" %} Nhật ký Vòng đời gần đây</h2>
         <a href="{% url 'organization:member_lifecycle' user.id %}" class="small text-decoration-none">Xem toàn bộ</a>
       </div>
       {% if my_lifecycle %}
@@ -436,7 +446,7 @@
             <span class="text-body-secondary" style="font-size:0.75rem;">{{ ev.created_at|date:"d/m/Y H:i" }}</span>
           </div>
           <div class="small text-body-secondary">
-            <span class="badge text-bg-light border me-1">{{ ev.get_event_type_display }}</span>
+            <span class="badge bg-body-secondary text-body border me-1">{{ ev.get_event_type_display }}</span>
             {% if ev.department %}<span>· {{ ev.department.name }}</span>{% endif %}
           </div>
           {% if ev.note %}

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load ui %}
-{% block title %}Cổng Giám sát Tổng quan CLB (Read-Only) — KMG Platform{% endblock %}
+{% block title %}Cổng Giám sát Tổng quan CLB (Chỉ đọc) — CLB Âm nhạc KMG{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
   <div>
-    <span class="kmg-kicker mb-2"><i class="bi bi-eye-fill"></i> Cổng Giám sát Độc lập (INV-04)</span>
+    <span class="kmg-kicker mb-2"><i class="bi bi-eye-fill"></i> Cổng Giám sát Độc lập</span>
     <h1 class="h3 fw-bold mb-1">Giám sát Hoạt động &amp; Tổ chức CLB KMG</h1>
     <p class="text-body-secondary mb-0">
       Không gian tổng hợp minh bạch dành cho Cố vấn và Ban Chủ nhiệm.
@@ -18,7 +18,7 @@
 
 <div class="alert alert-info border-0 shadow-sm small mb-4">
   <i class="bi bi-shield-lock-fill me-1"></i>
-  <strong>Bất biến Phân quyền Cố vấn (`INV-04` — Hard Read-Only):</strong>
+  <strong>Chế độ Cố vấn chỉ đọc:</strong>
   Chế độ Giám sát chỉ phục vụ theo dõi cơ cấu các Ban, biến động nhân sự và chính sách vận hành của KMG. Mọi thao tác giao việc, phê duyệt, bổ nhiệm hoặc chỉnh sửa dữ liệu đều bị khóa cứng ở Backend.
 </div>
 
@@ -104,7 +104,7 @@
   </div>
 </div>
 
-<!-- Phase 2 & 3: KPI vận hành công việc, Đề xuất cấp CLB & Kho Tài liệu Mật (chỉ đọc — INV-04) -->
+{# Phase 2 & 3: KPI vận hành công việc, Đề xuất cấp CLB & Kho Tài liệu Mật #}
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <a href="{% url 'programs:proposal_hub' %}" class="kmg-card kmg-card-hover p-3 d-block text-decoration-none text-reset">
@@ -126,7 +126,7 @@
   </div>
 </div>
 
-<!-- Phase 5: Quỹ CLB & Vinh danh Thành viên (Hard Read-Only — INV-04) -->
+{# Phase 5: Quỹ CLB & Vinh danh Thành viên #}
 {% if fund_summary %}
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3"><div class="kmg-card p-3"><div class="small text-body-secondary">Quỹ CLB (đã ghi sổ)</div><div class="h4 fw-bold mb-0">{{ fund_summary.net_club_balance|vnd }}đ</div></div></div>
@@ -238,9 +238,9 @@
   </div>
 </div>
 
-<!-- Nhật ký điều hành đã tự động che PII (PA-07) -->
+{# Nhật ký điều hành đã tự động che PII #}
 <div class="kmg-card p-4 mb-4">
-  <h2 class="h5 fw-bold mb-1"><i class="bi bi-incognito me-2"></i>Nhật ký Điều hành (đã che thông tin cá nhân — PA-07)</h2>
+  <h2 class="h5 fw-bold mb-1"><i class="bi bi-incognito me-2"></i>Nhật ký Điều hành (đã ẩn thông tin liên hệ cá nhân)</h2>
   <p class="small text-body-secondary mb-3">Email và số điện thoại trong nhật ký được tự động che trước khi hiển thị cho cấp giám sát.</p>
   <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">

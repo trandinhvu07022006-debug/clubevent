@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static ui %}
 {% block title %}Trợ lý KMG{% endblock %}
 
 {% block content %}
@@ -57,18 +57,18 @@
 <div class="row justify-content-center">
   <div class="col-lg-8">
     <header class="page-header text-center">
-      <span class="kicker">KMG AI · Intelligent Music Companion</span>
+      <span class="kicker">{% kmg_icon "sparkles" size="sm" %} Trợ lý KMG · Gia sư Âm nhạc &amp; Đồng hành CLB</span>
       <h1 class="h3 fw-bold">Trợ lý Âm nhạc &amp; CLB KMG</h1>
       <p class="text-muted small">Hỏi đáp sự kiện, lịch tập, kỹ năng âm nhạc, lộ trình luyện tập &amp; đồng hành sinh viên</p>
     </header>
 
     <div class="chat-container shadow-sm">
       <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-body-tertiary rounded-top">
-        <span class="small text-muted"><i class="bi bi-chat-left-text"></i> Hội thoại</span>
+        <span class="small text-muted d-inline-flex align-items-center gap-1">{% kmg_icon "message" size="sm" %} Hội thoại</span>
         <div class="d-flex align-items-center gap-3">
           {% if user.is_lead %}
-            <a href="{% url 'aiassist:studio' %}" class="small text-decoration-none text-primary fw-medium">
-              <i class="bi bi-cpu"></i> Huấn luyện AI
+            <a href="{% url 'aiassist:studio' %}" class="small text-decoration-none text-primary fw-medium d-inline-flex align-items-center gap-1">
+              {% kmg_icon "sliders" size="sm" %} Huấn luyện AI
             </a>
           {% endif %}
           <button type="button" class="btn btn-sm btn-link text-decoration-none text-muted p-0" id="chat-clear-btn" title="Bắt đầu cuộc trò chuyện mới">
@@ -77,7 +77,7 @@
         </div>
       </div>
       <div class="chat-log" id="chat-log" aria-live="polite">
-        <div class="chat-msg chat-bot"><i class="bi bi-music-note-beamed"></i> Chào bạn! Mình là KMG AI — người bạn đồng hành âm nhạc &amp; CLB.
+        <div class="chat-msg chat-bot">{% kmg_icon "music" size="sm" css_class="text-primary" %} Chào bạn! Mình là Trợ lý KMG — người bạn đồng hành âm nhạc &amp; CLB.
 Bạn có thể hỏi mình về sự kiện, vé, lịch tập, công việc, hợp âm/thanh nhạc/nhạc lý hoặc nhờ mình lập lộ trình luyện tập 7–30 ngày phù hợp với thời gian rảnh của bạn.</div>
       </div>
 
@@ -92,7 +92,7 @@ Bạn có thể hỏi mình về sự kiện, vé, lịch tập, công việc, h
           {% csrf_token %}
           <input id="chat-input" class="form-control form-control-lg rounded-pill pe-5 shadow-sm bg-body" autocomplete="off" placeholder="Nhập câu hỏi của bạn..." maxlength="500" required>
           <button type="submit" class="btn btn-primary rounded-circle position-absolute top-50 end-0 translate-middle-y me-1 shadow-sm chat-send-btn" aria-label="Gửi câu hỏi">
-            <i class="bi bi-send-fill"></i>
+            {% kmg_icon "send" size="sm" %}
           </button>
         </form>
       </div>

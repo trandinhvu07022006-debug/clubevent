@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Kho Tài liệu Mật &amp; Phân quyền ACL — KMG Platform{% endblock %}
+{% block title %}Kho Tài liệu Mật &amp; Phân quyền — CLB Âm nhạc KMG{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
   <div>
-    <span class="kmg-kicker mb-2"><i class="bi bi-shield-lock-fill"></i> Confidential Vault · SEC-01 &amp; INV-01</span>
+    <span class="kmg-kicker mb-2"><i class="bi bi-shield-lock-fill"></i> Kho Tài liệu Nội bộ &amp; Bảo mật</span>
     <h1 class="h3 fw-bold mb-1">Kho Tài liệu Bảo mật KMG</h1>
     <p class="text-body-secondary mb-0 small">
       Tệp được lưu tách biệt tại Kho Mật (ngoài <code>/media/</code>), kiểm tra mã độc &amp; băm SHA-256.
-      <strong>Skill chỉ để lọc/đề xuất UX — quyền truy cập thực tế phụ thuộc hoàn toàn vào ACL (INV-01).</strong>
+      <strong>Kỹ năng chỉ để lọc/đề xuất thuận tiện — quyền truy cập thực tế phụ thuộc hoàn toàn vào phân quyền tài liệu.</strong>
     </p>
   </div>
   <a href="{% url 'organization:workspace_home' %}" class="btn btn-sm btn-outline-secondary">
@@ -60,7 +60,7 @@
     <div class="kmg-card p-4">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h2 class="h5 fw-bold mb-0"><i class="bi bi-folder2-open me-2"></i>Tài liệu bạn được phép xem ({{ doc_items|length }})</h2>
-        <span class="badge text-bg-light border small">Truy vấn Hai Pha (PA-01): Bảo mật trước · Skill sau</span>
+        <span class="badge bg-body-secondary text-body border small">Hiển thị theo phân quyền tài liệu &amp; kỹ năng</span>
       </div>
 
       {% if doc_items %}

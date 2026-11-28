@@ -7,7 +7,7 @@
   <div>
     <span class="kmg-kicker mb-2"><i class="bi bi-cash-coin"></i> Sổ quỹ Tài chính CLB</span>
     <h1 class="h3 fw-bold mb-1">Quỹ &amp; Tài chính CLB</h1>
-    <p class="text-body-secondary mb-0 small">Maker-Checker độc lập (INV-03) · Giao dịch đã duyệt không thể sửa/xoá — chỉ điều chỉnh bằng bút toán ADJUSTMENT.</p>
+    <p class="text-body-secondary mb-0 small">Phê duyệt hai cấp độc lập · Giao dịch đã duyệt không thể sửa/xoá — chỉ điều chỉnh bằng bút toán bù trừ.</p>
   </div>
   {% if can_export %}
   <a href="{% url 'finance:ledger_csv' %}" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>Xuất sổ cái CSV</a>
@@ -15,7 +15,7 @@
 </div>
 
 {% if is_advisor %}
-<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>Chế độ Cố vấn — chỉ xem báo cáo tổng hợp (INV-04).</div>
+<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>Chế độ Cố vấn — chỉ xem báo cáo tổng hợp.</div>
 {% endif %}
 
 {% if summary %}
@@ -64,7 +64,7 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-{% if can_make %}7{% else %}12{% endif %}">
     <div class="kmg-card p-4 h-100">
-      <h2 class="h6 fw-bold mb-3"><i class="bi bi-plus-circle me-1"></i>{% if can_make %}Lập phiếu thu / chi (Maker){% else %}Đề xuất phiếu chi cho Ban (PA-06){% endif %}</h2>
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-plus-circle me-1"></i>{% if can_make %}Lập phiếu thu / chi{% else %}Đề xuất phiếu chi cho Ban{% endif %}</h2>
       <form method="post" enctype="multipart/form-data" class="row g-2">
         {% csrf_token %}
         <input type="hidden" name="action" value="create_transaction">

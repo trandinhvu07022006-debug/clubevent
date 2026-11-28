@@ -39,7 +39,7 @@
     <form method="post" class="d-flex gap-2 mt-2">{% csrf_token %}<input type="hidden" name="action" value="reject"><input name="rejection_reason" class="form-control form-control-sm" placeholder="Lý do từ chối" required><button class="btn btn-outline-danger btn-sm text-nowrap">Từ chối</button></form>
   </div>
   {% elif is_self_maker %}
-  <div class="alert alert-warning small"><i class="bi bi-person-x me-1"></i>Bạn là người lập phiếu nên không thể tự duyệt (INV-03). Phiếu đang chờ một Checker khác.</div>
+  <div class="alert alert-warning small"><i class="bi bi-person-x me-1"></i>Bạn là người lập phiếu nên không thể tự duyệt. Phiếu đang chờ một thành viên có quyền khác phê duyệt.</div>
   {% endif %}
 {% endif %}
 

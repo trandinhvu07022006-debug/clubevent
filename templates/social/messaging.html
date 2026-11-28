@@ -10,7 +10,7 @@
   <div class="d-flex flex-wrap gap-2">
     {% if can_review_abuse %}
       <a href="{% url 'social:abuse_reports' %}" class="btn btn-sm btn-outline-danger">
-        <i class="bi bi-shield-exclamation me-1"></i>Báo cáo vi phạm (`BE-07`)
+        <i class="bi bi-shield-exclamation me-1"></i>Báo cáo vi phạm
       </a>
     {% endif %}
     <a href="{% url 'social:feed' %}" class="btn btn-sm btn-outline-secondary">
@@ -21,7 +21,7 @@
 
 {% if is_advisor %}
   <div class="alert alert-info small border-0 shadow-sm mb-3">
-    <i class="bi bi-eye me-1"></i>Tài khoản Cố vấn ở chế độ Hard Read-Only (`INV-04`), không tham gia gửi tin nhắn nội bộ.
+    <i class="bi bi-eye me-1"></i>Tài khoản Cố vấn ở chế độ chỉ đọc, không tham gia gửi tin nhắn nội bộ.
   </div>
 {% endif %}
 
@@ -204,7 +204,7 @@
               {% endif %}
               {% if m.can_report %}
               <details class="d-inline ms-2">
-                <summary class="text-warning-emphasis" style="cursor:pointer;font-size:0.74rem;">Tố cáo vi phạm (`BE-07`)</summary>
+                <summary class="text-warning-emphasis" style="cursor:pointer;font-size:0.74rem;">Tố cáo vi phạm</summary>
                 <form method="post" class="input-group input-group-sm mt-1">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="report_abuse">

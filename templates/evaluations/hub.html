@@ -13,7 +13,7 @@
 </div>
 
 {% if is_advisor %}
-<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>Chế độ Cố vấn (INV-04) — chỉ xem tổng hợp tại Cổng Giám sát &amp; Phân tích, không can thiệp phiếu đánh giá cá nhân.</div>
+<div class="alert alert-info small border-0 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>Chế độ Cố vấn (chỉ đọc) — chỉ xem tổng hợp tại Cổng Giám sát &amp; Phân tích, không can thiệp phiếu đánh giá cá nhân.</div>
 {% endif %}
 
 <!-- Phiếu đánh giá của cá nhân -->
@@ -98,7 +98,7 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="nominate_recognition">
         <div class="col-md-4">
-          <label class="form-label small fw-semibold">Người được đề cử (INV-03 không tự đề cử)</label>
+          <label class="form-label small fw-semibold">Người được đề cử (không tự đề cử bản thân)</label>
           <select name="recipient_id" class="form-select form-select-sm" required>
             {% for dm in managed_members %}
               <option value="{{ dm.user.id }}">{{ dm.user.public_name }} ({{ dm.department.name }})</option>

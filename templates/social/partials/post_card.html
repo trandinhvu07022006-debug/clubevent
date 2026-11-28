@@ -150,7 +150,7 @@
       {% endif %}
     </div>
     {% else %}
-      <span class="badge text-bg-light border small"><i class="bi bi-eye me-1"></i>Cố vấn: Chỉ đọc (INV-04)</span>
+      <span class="badge bg-body-secondary text-body border small"><i class="bi bi-eye me-1"></i>Cố vấn: Chế độ chỉ đọc</span>
     {% endif %}
   </div>
 
@@ -160,7 +160,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="share_post">
       <input type="hidden" name="shared_post_id" value="{{ item.id }}">
-      <div class="small fw-bold mb-2">Chia sẻ bài viết #{{ item.id }} (áp dụng kiểm tra quyền gốc `PA-05`)</div>
+      <div class="small fw-bold mb-2">Chia sẻ bài viết #{{ item.id }} (giữ nguyên phạm vi quyền bài gốc)</div>
       <div class="row g-2 mb-2">
         <div class="col-md-5">
           <select name="visibility" class="form-select form-select-sm">

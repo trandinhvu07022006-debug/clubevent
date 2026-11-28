@@ -1,27 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Trung tâm Huấn luyện AI · LLMOps Studio{% endblock %}
+{% block title %}Trung tâm Huấn luyện Trợ lý AI — CLB Âm nhạc KMG{% endblock %}
 
 {% block content %}
 <header class="page-header">
-  <span class="kicker">LLMOps &amp; AI Training Studio</span>
+  <span class="kicker">Trung tâm Huấn luyện Trợ lý AI</span>
   <div class="page-header-row d-flex flex-wrap justify-content-between align-items-end gap-3">
     <div>
       <h1 class="h3 fw-bold d-flex align-items-center gap-2">
         <i class="bi bi-cpu text-primary"></i> Trung tâm Đánh giá &amp; Cải tiến AI KMG
       </h1>
-      <p class="text-muted mb-0">Quản trị Kho tri thức RAG, Giọng văn &amp; Few-Shot cho 8 modun AI, Theo dõi đánh giá 👍/👎 và Kiểm định chất lượng.</p>
+      <p class="text-muted mb-0">Quản trị Kho tri thức CLB, Giọng văn &amp; Ví dụ mẫu cho 8 mô-đun trợ lý, Theo dõi đánh giá 👍/👎 và Kiểm định chất lượng.</p>
     </div>
     <div class="page-header-actions d-flex flex-wrap gap-2">
       <form method="post" action="{% url 'aiassist:studio_run_pipeline' %}" class="d-inline">
         {% csrf_token %}
         <button type="submit" class="btn btn-success fw-bold shadow-sm">
-          <i class="bi bi-play-circle-fill"></i> Chạy Pipeline Kiểm định &amp; Xuất
+          <i class="bi bi-play-circle-fill"></i> Chạy quy trình kiểm định &amp; xuất dữ liệu
         </button>
       </form>
       <form method="post" action="{% url 'aiassist:studio_eval' %}" class="d-inline">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary fw-bold shadow-sm">
-          <i class="bi bi-shield-check"></i> Chạy Kiểm định (Eval Suite)
+          <i class="bi bi-shield-check"></i> Chạy Bộ kiểm định chất lượng
         </button>
       </form>
       <div class="dropdown">
@@ -29,11 +29,11 @@
           <i class="bi bi-filetype-json"></i> Xuất JSONL
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_eval_export' %}?only_down=1">Eval JSONL — Câu bị 👎 (cần rà lỗi)</a></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_eval_export' %}">Eval JSONL — Tất cả đã đánh giá (👍/👎)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_eval_export' %}?only_down=1">Tệp đánh giá JSONL — Câu bị 👎 (cần rà lỗi)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_eval_export' %}">Tệp đánh giá JSONL — Tất cả đã đánh giá (👍/👎)</a></li>
           <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=all">Dataset Gemini JSONL (Tất cả modun)</a></li>
-          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=openai&module=all">Dataset OpenAI JSONL (Tất cả modun)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=gemini&module=all">Tập dữ liệu Gemini JSONL (Tất cả mô-đun)</a></li>
+          <li><a class="dropdown-item" href="{% url 'aiassist:studio_export' %}?format=openai&module=all">Tập dữ liệu OpenAI JSONL (Tất cả mô-đun)</a></li>
         </ul>
       </div>
     </div>
@@ -68,7 +68,7 @@
   </div>
 </div>
 
-<!-- Tabs điều hướng 3 tầng LLMOps -->
+{# Tabs điều hướng 3 tầng Trung tâm AI #}
 <ul class="nav nav-tabs mb-4" id="studioTabs" role="tablist">
   <li class="nav-item" role="presentation">
     <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-rag" type="button" role="tab">
@@ -77,7 +77,7 @@
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-prompts" type="button" role="tab">
-      <i class="bi bi-sliders"></i> 2. Prompt &amp; Few-Shot (8 Modun)
+      <i class="bi bi-sliders"></i> 2. Cấu hình giọng văn &amp; ví dụ (8 mô-đun trợ lý)
     </button>
   </li>
   <li class="nav-item" role="presentation">
@@ -190,7 +190,7 @@
     </div>
   </div>
 
-  <!-- TAB 2: PROMPT REGISTRY & FEW-SHOT CHO 5 MODUN -->
+  {# TAB 2: CẤU HÌNH GIỌNG VĂN & VÍ DỤ MẪU CHO 8 MÔ-ĐUN TRỢ LÝ #}
   <div class="tab-pane fade" id="tab-prompts" role="tabpanel">
     <div class="row g-3">
       {% for prof in profiles_list %}

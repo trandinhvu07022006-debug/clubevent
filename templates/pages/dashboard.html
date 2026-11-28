@@ -16,21 +16,21 @@
     <div class="sub mb-1">{{ today|date:"l, d/m/Y" }}</div>
     <h1>{{ greeting }}, {{ user.full_name|default:user.username }}!</h1>
     <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-      <span class="role-pill"><i class="bi bi-shield-check"></i> {{ user.get_role_display }}</span>
-      {% for d in user.led_departments.all %}<span class="role-pill"><i class="bi bi-star"></i> Trưởng {{ d.name }}</span>{% endfor %}
+      <span class="role-pill">{% kmg_icon "shield" size="sm" %} {{ user.get_role_display }}</span>
+      {% for d in user.led_departments.all %}<span class="role-pill">{% kmg_icon "award" size="sm" %} Trưởng {{ d.name }}</span>{% endfor %}
     </div>
   </div>
   <div class="d-flex flex-wrap align-items-center gap-2">
     {% if user.is_staff_btc %}
       <nav class="segmented" aria-label="Chọn không gian">
-        <a href="?space=org" class="segmented-item {% if space == 'org' %}active{% endif %}" {% if space == 'org' %}aria-current="page"{% endif %}><i class="bi bi-diagram-3"></i> Tổ chức</a>
-        <a href="?space=me" class="segmented-item {% if space == 'me' %}active{% endif %}" {% if space == 'me' %}aria-current="page"{% endif %}><i class="bi bi-person"></i> Cá nhân</a>
+        <a href="?space=org" class="segmented-item {% if space == 'org' %}active{% endif %}" {% if space == 'org' %}aria-current="page"{% endif %}>{% kmg_icon "layers" size="sm" %} Tổ chức</a>
+        <a href="?space=me" class="segmented-item {% if space == 'me' %}active{% endif %}" {% if space == 'me' %}aria-current="page"{% endif %}>{% kmg_icon "users" size="sm" %} Cá nhân</a>
       </nav>
     {% endif %}
     {% if space == 'org' and can_assign %}
-      <a href="{% url 'organizing:assign' %}" class="btn btn-primary"><i class="bi bi-send"></i> Giao việc</a>
+      <a href="{% url 'organizing:assign' %}" class="btn btn-primary">{% kmg_icon "send" size="sm" %} Giao việc</a>
     {% elif space == 'me' %}
-      <a href="{% url 'events:list' %}?when=upcoming" class="btn btn-primary"><i class="bi bi-search"></i> Tìm sự kiện</a>
+      <a href="{% url 'events:list' %}?when=upcoming" class="btn btn-primary">{% kmg_icon "search" size="sm" %} Tìm sự kiện</a>
     {% endif %}
   </div>
 </div>
@@ -38,17 +38,17 @@
 {% if space == 'me' %}
 {# ======================= KHÔNG GIAN CÁ NHÂN ======================= #}
 <div class="kpi-grid">
-  <a class="kpi" href="{% url 'registrations:my_tickets' %}"><span class="ico"><i class="bi bi-ticket-perforated"></i></span><span><span class="num d-block">{{ stats.booked }}</span><span class="lbl">vé đang giữ</span></span></a>
-  <a class="kpi {% if pending_groups %}warn{% endif %}" href="{% url 'registrations:my_tickets' %}"><span class="ico"><i class="bi bi-hourglass-split"></i></span><span><span class="num d-block">{{ pending_groups|length }}</span><span class="lbl">đơn chờ thanh toán</span></span></a>
-  <a class="kpi ok" href="{% url 'accounts:profile' %}"><span class="ico"><i class="bi bi-patch-check"></i></span><span><span class="num d-block">{{ stats.attended }}</span><span class="lbl">sự kiện đã tham gia</span></span></a>
-  <a class="kpi" href="{% url 'notifications:list' %}"><span class="ico"><i class="bi bi-bell"></i></span><span><span class="num d-block">{{ unread_count|default:0 }}</span><span class="lbl">thông báo chưa đọc</span></span></a>
+  <a class="kpi" href="{% url 'registrations:my_tickets' %}"><span class="ico">{% kmg_icon "ticket" size="md" %}</span><span><span class="num d-block">{{ stats.booked }}</span><span class="lbl">vé đang giữ</span></span></a>
+  <a class="kpi {% if pending_groups %}warn{% endif %}" href="{% url 'registrations:my_tickets' %}"><span class="ico">{% kmg_icon "clock" size="md" %}</span><span><span class="num d-block">{{ pending_groups|length }}</span><span class="lbl">đơn chờ thanh toán</span></span></a>
+  <a class="kpi ok" href="{% url 'accounts:profile' %}"><span class="ico">{% kmg_icon "check-circle" size="md" %}</span><span><span class="num d-block">{{ stats.attended }}</span><span class="lbl">sự kiện đã tham gia</span></span></a>
+  <a class="kpi" href="{% url 'notifications:list' %}"><span class="ico">{% kmg_icon "bell" size="md" %}</span><span><span class="num d-block">{{ unread_count|default:0 }}</span><span class="lbl">thông báo chưa đọc</span></span></a>
 </div>
 
 <div class="row g-4">
   <div class="col-lg-8 d-flex flex-column gap-4">
     {% if pending_groups or feedback_due %}
     <section class="panel" aria-labelledby="todo-title">
-      <div class="panel-head"><h2 id="todo-title"><i class="bi bi-lightning-charge text-warning"></i> Cần bạn xử lý</h2></div>
+      <div class="panel-head"><h2 id="todo-title">{% kmg_icon "sparkles" size="sm" css_class="text-warning" %} Cần bạn xử lý</h2></div>
       {% for g in pending_groups %}
         <a class="panel-row" href="{% url 'registrations:my_tickets' %}">
           <i class="bi bi-qr-code fs-4 text-warning"></i>
@@ -73,7 +73,7 @@
     {% endif %}
 
     <section class="panel" aria-labelledby="up-title">
-      <div class="panel-head"><h2 id="up-title"><i class="bi bi-calendar-check text-primary"></i> Sự kiện sắp tới của bạn</h2><a href="{% url 'registrations:my_tickets' %}">Vé của tôi</a></div>
+      <div class="panel-head"><h2 id="up-title">{% kmg_icon "calendar" size="sm" css_class="text-primary" %} Sự kiện sắp tới của bạn</h2><a href="{% url 'registrations:my_tickets' %}">Vé của tôi</a></div>
       {% for ev in upcoming %}
         <a class="panel-row" href="{% url 'events:detail' ev.pk %}">
           <div class="date-tile"><div class="d">{{ ev.starts_at|date:"d" }}</div><div class="m">Th{{ ev.starts_at|date:"n" }}</div></div>
@@ -153,11 +153,13 @@
     {% endif %}
 
     <section class="panel" aria-labelledby="quick-title">
-      <div class="panel-head"><h2 id="quick-title"><i class="bi bi-grid"></i> Lối tắt</h2></div>
-      <a class="panel-row" href="{% url 'events:calendar' %}"><i class="bi bi-calendar3 text-primary"></i><div class="main"><div class="title">Lịch sự kiện</div></div><i class="bi bi-chevron-right small"></i></a>
-      <a class="panel-row" href="{% url 'accounts:profile' %}"><i class="bi bi-award text-primary"></i><div class="main"><div class="title">Chứng nhận tham gia</div></div><i class="bi bi-chevron-right small"></i></a>
-      <a class="panel-row" href="{% url 'aiassist:chat' %}"><i class="bi bi-chat-dots text-primary"></i><div class="main"><div class="title">Hỏi trợ lý</div></div><i class="bi bi-chevron-right small"></i></a>
-
+      <div class="panel-head"><h2 id="quick-title">{% kmg_icon "grid" size="sm" %} Lối tắt</h2></div>
+      {% if user.has_active_club_access or user.is_staff_btc or user.is_lead %}
+      <a class="panel-row" href="{% url 'organization:workspace_home' %}">{% kmg_icon "grid" size="sm" css_class="text-primary" %}<div class="main"><div class="title">Không gian nội bộ CLB</div></div><i class="bi bi-chevron-right small"></i></a>
+      {% endif %}
+      <a class="panel-row" href="{% url 'events:calendar' %}">{% kmg_icon "calendar" size="sm" css_class="text-primary" %}<div class="main"><div class="title">Lịch sự kiện</div></div><i class="bi bi-chevron-right small"></i></a>
+      <a class="panel-row" href="{% url 'accounts:profile' %}">{% kmg_icon "award" size="sm" css_class="text-primary" %}<div class="main"><div class="title">Chứng nhận tham gia</div></div><i class="bi bi-chevron-right small"></i></a>
+      <a class="panel-row" href="{% url 'aiassist:chat' %}">{% kmg_icon "message" size="sm" css_class="text-primary" %}<div class="main"><div class="title">Hỏi trợ lý KMG</div></div><i class="bi bi-chevron-right small"></i></a>
     </section>
   </div>
 </div>
@@ -165,11 +167,11 @@
 {% else %}
 {# ======================= KHÔNG GIAN TỔ CHỨC ======================= #}
 <div class="kpi-grid">
-  <a class="kpi" href="{% url 'organizing:my_tasks' %}"><span class="ico"><i class="bi bi-list-check"></i></span><span><span class="num d-block">{{ task_counts.open }}</span><span class="lbl">việc đang mở của tôi</span></span></a>
-  <a class="kpi {% if task_counts.overdue %}danger{% endif %}" href="{% url 'organizing:my_tasks' %}"><span class="ico"><i class="bi bi-exclamation-octagon"></i></span><span><span class="num d-block">{{ task_counts.overdue }}</span><span class="lbl">việc quá hạn</span></span></a>
-  <a class="kpi {% if task_counts.due_soon %}warn{% endif %}" href="{% url 'organizing:my_tasks' %}"><span class="ico"><i class="bi bi-alarm"></i></span><span><span class="num d-block">{{ task_counts.due_soon }}</span><span class="lbl">đến hạn trong 3 ngày</span></span></a>
-  <a class="kpi {% if claimable_count %}warn{% endif %}" href="{% url 'organizing:my_tasks' %}#cho-nhan"><span class="ico"><i class="bi bi-inbox"></i></span><span><span class="num d-block">{{ claimable_count }}</span><span class="lbl">việc Ban chờ nhận</span></span></a>
-  <a class="kpi" href="{% url 'registrations:payment_list' %}"><span class="ico"><i class="bi bi-cash-coin"></i></span><span><span class="num d-block">{{ pending_payments }}</span><span class="lbl">đơn chờ xác nhận TT</span></span></a>
+  <a class="kpi" href="{% url 'organizing:my_tasks' %}"><span class="ico">{% kmg_icon "clipboard-list" size="md" %}</span><span><span class="num d-block">{{ task_counts.open }}</span><span class="lbl">việc đang mở của tôi</span></span></a>
+  <a class="kpi {% if task_counts.overdue %}danger{% endif %}" href="{% url 'organizing:my_tasks' %}"><span class="ico">{% kmg_icon "clock" size="md" %}</span><span><span class="num d-block">{{ task_counts.overdue }}</span><span class="lbl">việc quá hạn</span></span></a>
+  <a class="kpi {% if task_counts.due_soon %}warn{% endif %}" href="{% url 'organizing:my_tasks' %}"><span class="ico">{% kmg_icon "bell" size="md" %}</span><span><span class="num d-block">{{ task_counts.due_soon }}</span><span class="lbl">đến hạn trong 3 ngày</span></span></a>
+  <a class="kpi {% if claimable_count %}warn{% endif %}" href="{% url 'organizing:my_tasks' %}#cho-nhan"><span class="ico">{% kmg_icon "layers" size="md" %}</span><span><span class="num d-block">{{ claimable_count }}</span><span class="lbl">việc Ban chờ nhận</span></span></a>
+  <a class="kpi" href="{% url 'registrations:payment_list' %}"><span class="ico">{% kmg_icon "wallet" size="md" %}</span><span><span class="num d-block">{{ pending_payments }}</span><span class="lbl">đơn chờ xác nhận thanh toán</span></span></a>
 </div>
 
 {% if checkin_today %}
@@ -184,7 +186,7 @@
 <div class="row g-4">
   <div class="col-lg-7 d-flex flex-column gap-4">
     <section class="panel" aria-labelledby="mytask-title">
-      <div class="panel-head"><h2 id="mytask-title"><i class="bi bi-list-check text-primary"></i> Việc của tôi</h2><a href="{% url 'organizing:my_tasks' %}">Xem tất cả</a></div>
+      <div class="panel-head"><h2 id="mytask-title">{% kmg_icon "clipboard-list" size="sm" css_class="text-primary" %} Việc của tôi</h2><div class="d-flex gap-3"><a href="{% url 'operations:task_list' %}">Công việc CLB</a><a href="{% url 'organizing:my_tasks' %}">Xem tất cả</a></div></div>
       {% for t in my_tasks %}
         <a class="panel-row" href="{% url 'organizing:my_tasks' %}">
           <i class="bi {% if t.status == 'DOING' %}bi-play-circle-fill text-primary{% else %}bi-circle text-body-secondary{% endif %} fs-5"></i>
@@ -207,10 +209,10 @@
 
     {% if active_events %}
     <section class="panel" aria-labelledby="ev-title">
-      <div class="panel-head"><h2 id="ev-title"><i class="bi bi-kanban text-primary"></i> Sự kiện đang chuẩn bị & mở bán</h2><a href="{% url 'events:create' %}"><i class="bi bi-plus-lg"></i> Tạo sự kiện</a></div>
+      <div class="panel-head"><h2 id="ev-title">{% kmg_icon "calendar" size="sm" css_class="text-primary" %} Sự kiện đang chuẩn bị &amp; mở bán</h2><a href="{% url 'events:create' %}">{% kmg_icon "plus" size="sm" %} Tạo sự kiện</a></div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 small">
-          <thead class="table-light"><tr><th scope="col">Sự kiện</th><th scope="col">Trạng thái</th><th scope="col" style="min-width:120px">Tiến độ việc</th><th scope="col">Vé</th><th scope="col"></th></tr></thead>
+          <thead><tr><th scope="col">Sự kiện</th><th scope="col">Trạng thái</th><th scope="col" style="min-width:120px">Tiến độ việc</th><th scope="col">Vé</th><th scope="col"></th></tr></thead>
           <tbody>
             {% for ev in active_events %}
               <tr>
@@ -233,7 +235,7 @@
 
     {% if recent_logs %}
     <section class="panel" aria-labelledby="log-title">
-      <div class="panel-head"><h2 id="log-title"><i class="bi bi-journal-text text-primary"></i> Hoạt động gần đây</h2><a href="{% url 'accounts:audit_log' %}">Nhật ký</a></div>
+      <div class="panel-head"><h2 id="log-title">{% kmg_icon "file-text" size="sm" css_class="text-primary" %} Hoạt động gần đây</h2><a href="{% url 'accounts:audit_log' %}">Nhật ký</a></div>
       {% for log in recent_logs %}
         <div class="panel-row">
           {% if log.user %}{% include "partials/avatar.html" with person=log.user size="avatar-sm" %}{% else %}<i class="bi bi-gear"></i>{% endif %}
@@ -250,7 +252,7 @@
 
   <div class="col-lg-5 d-flex flex-column gap-4">
     <section class="panel" aria-labelledby="dept-title">
-      <div class="panel-head"><h2 id="dept-title"><i class="bi bi-diagram-3 text-primary"></i> Ban của tôi</h2><a href="{% url 'organizing:department_list' %}">Tất cả các Ban</a></div>
+      <div class="panel-head"><h2 id="dept-title">{% kmg_icon "layers" size="sm" css_class="text-primary" %} Ban của tôi</h2><a href="{% url 'organizing:department_list' %}">Tất cả các Ban</a></div>
       {% for d in my_departments %}
         <a class="panel-row" href="{{ d.get_absolute_url }}">
           <span class="dept-icon"><i class="bi {{ d.icon }}"></i></span>
@@ -269,7 +271,7 @@
 
     {% if all_departments %}
     <section class="panel" aria-labelledby="alldept-title">
-      <div class="panel-head"><h2 id="alldept-title"><i class="bi bi-bar-chart-steps text-primary"></i> Tiến độ các Ban</h2>{% if assigned_open %}<a href="{% url 'organizing:my_tasks' %}?view=assigned">{{ assigned_open }} việc tôi giao đang mở</a>{% endif %}</div>
+      <div class="panel-head"><h2 id="alldept-title">{% kmg_icon "sliders" size="sm" css_class="text-primary" %} Tiến độ các Ban</h2>{% if assigned_open %}<a href="{% url 'organizing:my_tasks' %}?view=assigned">{{ assigned_open }} việc tôi giao đang mở</a>{% endif %}</div>
       <div class="panel-body d-grid gap-3">
         {% for d in all_departments %}
           <div>
@@ -286,7 +288,7 @@
 
     {% if role_rows %}
     <section class="panel" aria-labelledby="users-title">
-      <div class="panel-head"><h2 id="users-title"><i class="bi bi-people text-primary"></i> Tài khoản</h2><a href="{% url 'accounts:user_list' %}">Quản lý</a></div>
+      <div class="panel-head"><h2 id="users-title">{% kmg_icon "users" size="sm" css_class="text-primary" %} Tài khoản</h2><a href="{% url 'accounts:user_list' %}">Quản lý</a></div>
       <div class="panel-body">
         <div class="row g-2 mb-2">
           {% for label, n in role_rows %}

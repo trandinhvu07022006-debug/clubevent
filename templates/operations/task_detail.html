@@ -29,7 +29,7 @@
     </div>
   </div>
   {% if task.reassignment_needed %}
-  <div class="alert alert-warning small mt-3 mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Cần phân công lại (BE-02):</strong> {{ task.reassignment_reason }}</div>
+  <div class="alert alert-warning small mt-3 mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Cần phân công lại:</strong> {{ task.reassignment_reason }}</div>
   {% endif %}
 </div>
 
@@ -68,7 +68,7 @@
 
     <div class="kmg-card p-4">
       <h2 class="h6 fw-bold mb-1"><i class="bi bi-journal-check me-2"></i>Sổ cái nghiệm thu (bất biến — không sửa/xoá)</h2>
-      <p class="small text-body-secondary mb-3">Người được giao việc không được tự nghiệm thu (PA-04). Thành viên có thể phản hồi nếu không đồng ý.</p>
+      <p class="small text-body-secondary mb-3">Người được giao việc không thể tự nghiệm thu. Thành viên có thể phản hồi nếu không đồng ý.</p>
       {% for r in reviews %}
       <div class="border rounded-3 p-3 mb-2">
         <div class="d-flex justify-content-between small mb-1">
@@ -121,7 +121,7 @@
         <textarea name="submission_note" rows="3" class="form-control form-control-sm" placeholder="Báo cáo kết quả thực hiện..." required></textarea>
         <input type="url" name="evidence_url" class="form-control form-control-sm" placeholder="Link sản phẩm / Drive (tuỳ chọn)">
         <input type="file" name="attachment" class="form-control form-control-sm">
-        <div class="small text-body-secondary"><i class="bi bi-shield-lock"></i> Tệp lưu tại Private Vault, chỉ người có quyền mới tải được (SEC-01). Vẫn nộp được khi đã quá hạn (CM-01).</div>
+        <div class="small text-body-secondary"><i class="bi bi-shield-lock"></i> Tệp lưu tại kho riêng tư, chỉ người có quyền mới tải được. Vẫn nộp được khi đã quá hạn.</div>
         <button class="btn btn-sm btn-primary">Nộp kết quả</button>
       </form>
     </div>
@@ -177,7 +177,7 @@
       </form>
     </div>
     {% elif has_approve_perm and is_assignee %}
-    <div class="alert alert-secondary small"><i class="bi bi-shield-lock-fill me-1"></i>Bạn đang là người thực hiện nhiệm vụ này nên không thể tự nghiệm thu (PA-04 / INV-03).</div>
+    <div class="alert alert-secondary small"><i class="bi bi-shield-lock-fill me-1"></i>Bạn đang là người thực hiện nhiệm vụ này nên không thể tự nghiệm thu.</div>
     {% endif %}
 
     {% if can_reassign and not task.is_finalized %}

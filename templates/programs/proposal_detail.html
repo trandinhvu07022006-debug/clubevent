@@ -92,7 +92,7 @@
 {% if is_advisor %}
 <div class="alert alert-info border-0 shadow-sm small mb-4">
   <i class="bi bi-shield-lock-fill me-1"></i>
-  <strong>Chế độ Cố vấn Read-Only (INV-04):</strong> Bạn chỉ được xem tiến trình thẩm định, các biểu mẫu phê duyệt và bình luận bị ẩn hoàn toàn.
+  <strong>Chế độ Cố vấn chỉ đọc:</strong> Bạn chỉ được xem tiến trình thẩm định, các biểu mẫu phê duyệt và bình luận bị ẩn hoàn toàn.
 </div>
 {% endif %}
 
@@ -159,7 +159,7 @@
     <div class="kmg-card p-4 mb-4">
       <h2 class="h5 fw-bold mb-2"><i class="bi bi-stamp me-2 text-primary"></i>Thẩm định Đề xuất</h2>
       <p class="small text-body-secondary mb-3">
-        Tác giả không được tự phê duyệt (INV-03). Đề xuất Toàn CLB hoặc đã trình BCN chỉ Chủ nhiệm / Phó CN mới được duyệt cuối. Bắt buộc ghi nhận xét khi yêu cầu sửa hoặc từ chối.
+        Tác giả không thể tự phê duyệt. Đề xuất Toàn CLB hoặc đã trình BCN chỉ Chủ nhiệm / Phó CN mới được duyệt cuối. Bắt buộc ghi nhận xét khi yêu cầu sửa hoặc từ chối.
       </p>
       <form method="post" class="row g-2">
         {% csrf_token %}
