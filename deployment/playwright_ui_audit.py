@@ -176,7 +176,7 @@ def _run_functional_flows(browser: Browser, base_url: str, password: str) -> lis
     page_mob = ctx_mob.new_page()
     _login_user(page_mob, base_url, "thanhvien_daban", password)
     page_mob.goto(f"{base_url}/tong-quan/", wait_until="networkidle")
-    toggler = page_mob.locator('button[data-bs-target="#appSidebar"]')
+    toggler = page_mob.locator('button[data-bs-toggle="offcanvas"][data-bs-target="#appSidebar"]')
     assert toggler.is_visible(), "Mobile sidebar toggler should be visible at 360px"
     toggler.click()
     page_mob.wait_for_timeout(300)
